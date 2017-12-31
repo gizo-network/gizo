@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"math/big"
 	"reflect"
@@ -32,6 +33,14 @@ func NewBlock(jobs, pHash, mHash []byte) *Block {
 		MerkleHash:    mHash,
 	}
 	return Block
+}
+
+func (b *Block) MarshalBlock() (string, error) {
+	temp, err := json.Marshal(*b)
+	if err != nil {
+		return "", err
+	}
+	return string(temp), nil
 }
 
 func (b *Block) SetHash() error {
