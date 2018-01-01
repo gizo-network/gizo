@@ -51,9 +51,19 @@ func TestMarshalBlock(t *testing.T) {
 	mHash := []byte("0000000000000000000000000000000000000(000")
 	testBlock := NewBlock(jobs, prevHash, mHash)
 	testBlock.SetHash()
-	stringified, err := testBlock.MarshalBlock()
-	var i interface{} = ""
+	stringified, err := MarshalBlock(testBlock)
 	assert.Nil(t, err, "returned error")
-	assert.IsType(t, i, stringified)
+	assert.NotEmpty(t, stringified)
+}
 
+func TestUnMarshalBlock(t *testing.T) {
+	jobs := []byte("test jobs")
+	prevHash := []byte("00000000000000000000000000000000000000")
+	mHash := []byte("0000000000000000000000000000000000000(000")
+	testBlock := NewBlock(jobs, prevHash, mHash)
+	testBlock.SetHash()
+	stringified, _ := MarshalBlock(testBlock)
+	unmarshaled, err := UnMashalBlock(stringified)
+	assert.Nil(t, err)
+	assert.Equal(t, testBlock, unmarshaled)
 }
