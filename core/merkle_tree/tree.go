@@ -2,6 +2,7 @@ package merkle_tree
 
 import (
 	"errors"
+	"log"
 
 	"github.com/gizo-network/gizo/core"
 )
@@ -13,6 +14,7 @@ type MerkleTree struct {
 
 var ErrTooMuchLeafNodes = errors.New("merkle tree: length of leaf nodes is greater than 24")
 var ErrOddLeafNodes = errors.New("merkle tree: odd number of leaf nodes")
+var ErrTreeRebuildAttempt = errors.New("merkle tree: attempt to rebuild tree")
 
 // NewMerkleTree returns empty merkletree
 func NewMerkleTree(nodes []*Node) *MerkleTree {
@@ -28,6 +30,10 @@ func Merge(left, right *Node) *Node {
 }
 
 func (m *MerkleTree) BuildTree() error {
+	//FIXME: add parent to nodes
+	if m.Root != nil {
+		return ErrTreeRebuildAttempt
+	}
 	if int64(len(m.LeafNodes)) > core.MaxTreeJobs.Int64() {
 		return ErrTooMuchLeafNodes
 	} else if len(m.LeafNodes)%2 != 0 {
@@ -55,6 +61,26 @@ func (m *MerkleTree) BuildTree() error {
 	return nil
 }
 
-func (m *MerkleTree) VerifyTree() {
+//VerifyTree returns true if tree is verified
+func (m *MerkleTree) VerifyTree() bool {
+	t := NewMerkleTree(m.LeafNodes)
+	err := t.BuildTree()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	mBytes, err := MarshalNode(*m.Root)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tBytes, err := MarshalNode(*t.Root)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(tBytes) == string(mBytes)
+}
+
+//SearchHash returns true if node with has exists
+func SearchHash(hash []byte) bool {
 
 }
