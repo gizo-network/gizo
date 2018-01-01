@@ -1,0 +1,20 @@
+hash: ab6e48605286c033777dc1306df2ed3ec12bef1c001f4a4f61056c2daf1614fe
+updated: 2017-12-30T14:17:38.856189051-05:00
+imports:
+- name: github.com/boltdb/bolt
+  version: 2f1ce7a837dcb8da3ec595b1dac9d0632f0f99e8
+- name: github.com/kpango/glg
+  version: fcb2a2966be7d6e3e94e72b1ab155a21c20b64c5
+- name: github.com/stretchr/testify
+  version: b91bfb9ebec76498946beb6af7c0230c7cc7ba6c
+  subpackages:
+  - assert
+testImports:
+- name: github.com/davecgh/go-spew
+  version: ecdeabc65495df2dec95d7c4a4c3e021903035e5
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: 792786c7400a136282c1664665ae0a8db921c6c2
+  subpackages:
+  - difflib
