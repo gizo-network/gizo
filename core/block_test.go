@@ -3,42 +3,36 @@ package core
 import (
 	"testing"
 
+	"github.com/gizo-network/gizo/core/merkle_tree"
 	"github.com/stretchr/testify/assert"
 )
 
 type String string
 
 func TestNewBlock(t *testing.T) {
-	jobs := []byte("test jobs")
+	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
+	tree := merkle_tree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
-	mHash := []byte("0000000000000000000000000000000000000000")
-	testBlock := NewBlock(jobs, prevHash, mHash)
+	testBlock := NewBlock(*tree.Root, prevHash)
 
 	assert.NotNil(t, testBlock, "returned empty tblock")
 	assert.Equal(t, testBlock.PrevBlockHash, prevHash, "prevhashes don't match")
-	assert.Equal(t, testBlock.Jobs, jobs, "jobs don't match")
-	assert.Equal(t, testBlock.MerkleHash, mHash, "merklehash doesn't match")
-	assert.Nil(t, testBlock.Hash, "block hash is set")
-}
-
-func TestSetHash(t *testing.T) {
-	jobs := []byte("test jobs")
-	prevHash := []byte("00000000000000000000000000000000000000")
-	mHash := []byte("0000000000000000000000000000000000000000")
-	testBlock := NewBlock(jobs, prevHash, mHash)
-	err := testBlock.SetHash()
-	assert.NotNil(t, testBlock.Hash, "nil hash value")
-	assert.Nil(t, err, "returned error")
-	err = testBlock.SetHash()
-	assert.NotNil(t, err, "didn't return error")
 }
 
 func TestVeriyBlock(t *testing.T) {
-	jobs := []byte("test jobs")
+	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
+	tree := merkle_tree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
-	mHash := []byte("0000000000000000000000000000000000000000")
-	testBlock := NewBlock(jobs, prevHash, mHash)
-	testBlock.SetHash()
+	testBlock := NewBlock(*tree.Root, prevHash)
+
 	assert.True(t, testBlock.VerifyBlock(), "block failed verification")
 
 	testBlock.Nonce = 50
@@ -46,22 +40,28 @@ func TestVeriyBlock(t *testing.T) {
 }
 
 func TestMarshalBlock(t *testing.T) {
-	jobs := []byte("test jobs")
+	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
+	tree := merkle_tree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
-	mHash := []byte("0000000000000000000000000000000000000(000")
-	testBlock := NewBlock(jobs, prevHash, mHash)
-	testBlock.SetHash()
+	testBlock := NewBlock(*tree.Root, prevHash)
 	stringified, err := MarshalBlock(testBlock)
 	assert.Nil(t, err, "returned error")
 	assert.NotEmpty(t, stringified)
 }
 
 func TestUnMarshalBlock(t *testing.T) {
-	jobs := []byte("test jobs")
+	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
+	tree := merkle_tree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
-	mHash := []byte("0000000000000000000000000000000000000(000")
-	testBlock := NewBlock(jobs, prevHash, mHash)
-	testBlock.SetHash()
+	testBlock := NewBlock(*tree.Root, prevHash)
 	stringified, _ := MarshalBlock(testBlock)
 	unmarshaled, err := UnMashalBlock(stringified)
 	assert.Nil(t, err)

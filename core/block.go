@@ -9,28 +9,34 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/kpango/glg"
+
+	"github.com/gizo-network/gizo/core/merkle_tree"
 )
 
-//! Errors
 var ErrHashModification = errors.New("Attempt to modify hash value of block")
 
 type Block struct {
-	Timestamp     int64    `json:"timestamp"`
-	Jobs          []byte   `json:"jobs"` //! would be modified based on job engine
-	PrevBlockHash []byte   `json:"prevBlockHash"`
-	MerkleRoot    []byte   `json:"merkleRoot"` //hash of merkle tree of jobs
-	Hash          []byte   `json:"hash"`
-	Difficulty    *big.Int `json:"difficulty"`
-	Nonce         uint64   `json:"nonce"`
+	Timestamp     int64                  `json:"timestamp"`
+	PrevBlockHash []byte                 `json:"prevBlockHash"`
+	MerkleRoot    merkle_tree.MerkleNode `json:"merkleRoot"`
+	Hash          []byte                 `json:"hash"`
+	Difficulty    *big.Int               `json:"difficulty"`
+	Nonce         uint64                 `json:"nonce"`
 }
 
-func NewBlock(jobs, pHash, mHash []byte) *Block {
+func NewBlock(mRoot merkle_tree.MerkleNode, pHash []byte) *Block {
 	//! pow has to set nonce
+	//! dificullty engine would set difficulty
 	Block := &Block{
 		Timestamp:     time.Now().Unix(),
-		Jobs:          jobs,
 		PrevBlockHash: pHash,
-		MerkleRoot:    mHash,
+		MerkleRoot:    mRoot,
+	}
+	err := Block.SetHash()
+	if err != nil {
+		glg.Fatal(err)
 	}
 	return Block
 }
@@ -54,7 +60,11 @@ func UnMashalBlock(b []byte) (*Block, error) {
 
 func (b *Block) SetHash() error {
 	timestamp := []byte(strconv.FormatInt(b.Timestamp, 10))
-	headers := bytes.Join([][]byte{b.PrevBlockHash, b.Jobs, timestamp, b.MerkleRoot, []byte(strconv.FormatInt(int64(b.Nonce), 10))}, []byte{})
+	mBytes, err := merkle_tree.MarshalNode(b.MerkleRoot)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	headers := bytes.Join([][]byte{b.PrevBlockHash, timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Nonce), 10))}, []byte{})
 	hash := sha256.Sum256(headers)
 	if reflect.ValueOf(b.Hash).IsNil() {
 		b.Hash = hash[:]
@@ -65,7 +75,11 @@ func (b *Block) SetHash() error {
 
 func (b *Block) VerifyBlock() bool {
 	timestamp := []byte(strconv.FormatInt(b.Timestamp, 10))
-	headers := bytes.Join([][]byte{b.PrevBlockHash, b.Jobs, timestamp, b.MerkleRoot, []byte(strconv.FormatInt(int64(b.Nonce), 10))}, []byte{})
+	mBytes, err := merkle_tree.MarshalNode(b.MerkleRoot)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	headers := bytes.Join([][]byte{b.PrevBlockHash, timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Nonce), 10))}, []byte{})
 	hash := sha256.Sum256(headers)
 	return string(hash[:]) == string(b.Hash)
 }
