@@ -17,6 +17,8 @@ import (
 
 var ErrHashModification = errors.New("Attempt to modify hash value of block")
 
+// var Log = helpers.NewLogger()
+
 type Block struct {
 	Timestamp     int64                  `json:"timestamp"`
 	PrevBlockHash []byte                 `json:"prevBlockHash"`
@@ -29,6 +31,7 @@ type Block struct {
 func NewBlock(mRoot merkle_tree.MerkleNode, pHash []byte) *Block {
 	//! pow has to set nonce
 	//! dificullty engine would set difficulty
+	// Log.Logger.Info("Creating new block")
 	Block := &Block{
 		Timestamp:     time.Now().Unix(),
 		PrevBlockHash: pHash,
@@ -60,7 +63,7 @@ func UnMashalBlock(b []byte) (*Block, error) {
 
 func (b *Block) SetHash() error {
 	timestamp := []byte(strconv.FormatInt(b.Timestamp, 10))
-	mBytes, err := merkle_tree.MarshalNode(b.MerkleRoot)
+	mBytes, err := merkle_tree.MarshalMerkleNode(b.MerkleRoot)
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -75,7 +78,7 @@ func (b *Block) SetHash() error {
 
 func (b *Block) VerifyBlock() bool {
 	timestamp := []byte(strconv.FormatInt(b.Timestamp, 10))
-	mBytes, err := merkle_tree.MarshalNode(b.MerkleRoot)
+	mBytes, err := merkle_tree.MarshalMerkleNode(b.MerkleRoot)
 	if err != nil {
 		glg.Fatal(err)
 	}

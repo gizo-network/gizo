@@ -19,9 +19,9 @@ func TestHashJobs(t *testing.T) {
 	assert.NotNil(t, b)
 }
 
-func TestMarshalNode(t *testing.T) {
+func TestMarshalMerkleNode(t *testing.T) {
 	n := NewNode([]byte("test job"), &MerkleNode{}, &MerkleNode{})
-	b, err := MarshalNode(*n)
+	b, err := MarshalMerkleNode(*n)
 	assert.NoError(t, err)
 	assert.NotNil(t, b)
 }

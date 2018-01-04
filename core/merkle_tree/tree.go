@@ -19,7 +19,9 @@ type MerkleTree struct {
 	LeafNodes []*MerkleNode `json:"leafNodes"`
 }
 
-func (m *MerkleTree) build() error {
+//builds merkle tree from leafs to root and sets the root of the merkletree
+func (m *MerkleTree) Build() error {
+	glg.Info("Building MerkleTree")
 	if m.Root != nil {
 		return ErrTreeRebuildAttempt
 	}
@@ -51,7 +53,10 @@ func (m *MerkleTree) build() error {
 	return nil
 }
 
+//Dismantle breaks down a root into it's leaves
 func (m *MerkleTree) Dismantle() {
+	//FIXME: return leafs in original sequence
+	glg.Info("Dismantling MerkleNode")
 	var mutex sync.Mutex
 	var wg sync.WaitGroup
 	leafs := []*MerkleNode{}
@@ -88,11 +93,11 @@ func (m *MerkleTree) Dismantle() {
 //VerifyTree returns true if tree is verified
 func (m MerkleTree) VerifyTree() bool {
 	t := NewMerkleTree(m.LeafNodes)
-	mBytes, err := MarshalNode(*m.Root)
+	mBytes, err := MarshalMerkleNode(*m.Root)
 	if err != nil {
 		glg.Fatal(err)
 	}
-	tBytes, err := MarshalNode(*t.Root)
+	tBytes, err := MarshalMerkleNode(*t.Root)
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -120,21 +125,24 @@ func (m MerkleTree) SearchLeaf(hash []byte) bool {
 
 // NewMerkleTree returns empty merkletree
 func NewMerkleTree(nodes []*MerkleNode) *MerkleTree {
+	glg.Info("Creating MerkleTree")
 	t := &MerkleTree{
 		LeafNodes: nodes,
 	}
-	err := t.build()
+	err := t.Build()
 	if err != nil {
 		glg.Fatal(err)
 	}
 	return t
 }
 
+//merges two nodes
 func merge(left, right MerkleNode) *MerkleNode {
 	parent := NewNode(HashJobs(left, right), &left, &right)
 	return parent
 }
 
+//removes the duplicates from an array of merklenodes
 func stripDuplicates(input []*MerkleNode) []*MerkleNode {
 	for i := 0; i < len(input); i++ {
 		for j := 0; j < len(input); j++ {
