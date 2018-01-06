@@ -1,11 +1,13 @@
 package core
 
 import (
+	"github.com/boltdb/bolt"
 	"github.com/gizo-network/gizo/core/merkle_tree"
 )
 
 type BlockChain struct {
 	Blocks []*Block `json:"blocks"`
+	db     *bolt.DB
 }
 
 func (bc *BlockChain) AddBlock(tree merkle_tree.MerkleTree) {
