@@ -22,20 +22,22 @@ var ErrHashModification = errors.New("Attempt to modify hash value of block")
 type Block struct {
 	Timestamp     int64                  `json:"timestamp"`
 	PrevBlockHash []byte                 `json:"prevBlockHash"`
-	MerkleRoot    merkle_tree.MerkleNode `json:"merkleRoot"`
+	MerkleTree    merkle_tree.MerkleTree `json:"merkletree"`
 	Hash          []byte                 `json:"hash"`
 	Difficulty    *big.Int               `json:"difficulty"`
+	Height        uint64                 `json:"height"`
 	Nonce         uint64                 `json:"nonce"`
 }
 
-func NewBlock(mRoot merkle_tree.MerkleNode, pHash []byte) *Block {
+func NewBlock(tree merkle_tree.MerkleTree, pHash []byte, height uint64) *Block {
 	//! pow has to set nonce
 	//! dificullty engine would set difficulty
 	// Log.Logger.Info("Creating new block")
 	Block := &Block{
 		Timestamp:     time.Now().Unix(),
 		PrevBlockHash: pHash,
-		MerkleRoot:    mRoot,
+		MerkleTree:    tree,
+		Height:        height,
 	}
 	err := Block.SetHash()
 	if err != nil {
@@ -44,7 +46,7 @@ func NewBlock(mRoot merkle_tree.MerkleNode, pHash []byte) *Block {
 	return Block
 }
 
-func MarshalBlock(b *Block) ([]byte, error) {
+func (b *Block) Serialize() ([]byte, error) {
 	temp, err := json.Marshal(*b)
 	if err != nil {
 		return nil, err
@@ -52,7 +54,7 @@ func MarshalBlock(b *Block) ([]byte, error) {
 	return temp, nil
 }
 
-func UnMashalBlock(b []byte) (*Block, error) {
+func DeserilizeBlock(b []byte) (*Block, error) {
 	var temp Block
 	err := json.Unmarshal(b, &temp)
 	if err != nil {
@@ -63,11 +65,11 @@ func UnMashalBlock(b []byte) (*Block, error) {
 
 func (b *Block) SetHash() error {
 	timestamp := []byte(strconv.FormatInt(b.Timestamp, 10))
-	mBytes, err := merkle_tree.MarshalMerkleNode(b.MerkleRoot)
+	mBytes, err := b.MerkleTree.Serialize()
 	if err != nil {
 		glg.Fatal(err)
 	}
-	headers := bytes.Join([][]byte{b.PrevBlockHash, timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Nonce), 10))}, []byte{})
+	headers := bytes.Join([][]byte{b.PrevBlockHash, timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Nonce), 10)), []byte(strconv.FormatInt(int64(b.Height), 10))}, []byte{})
 	hash := sha256.Sum256(headers)
 	if reflect.ValueOf(b.Hash).IsNil() {
 		b.Hash = hash[:]
@@ -78,11 +80,11 @@ func (b *Block) SetHash() error {
 
 func (b *Block) VerifyBlock() bool {
 	timestamp := []byte(strconv.FormatInt(b.Timestamp, 10))
-	mBytes, err := merkle_tree.MarshalMerkleNode(b.MerkleRoot)
+	mBytes, err := b.MerkleTree.Serialize()
 	if err != nil {
 		glg.Fatal(err)
 	}
-	headers := bytes.Join([][]byte{b.PrevBlockHash, timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Nonce), 10))}, []byte{})
+	headers := bytes.Join([][]byte{b.PrevBlockHash, timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Nonce), 10)), []byte(strconv.FormatInt(int64(b.Height), 10))}, []byte{})
 	hash := sha256.Sum256(headers)
-	return string(hash[:]) == string(b.Hash)
+	return bytes.Equal(hash[:], b.Hash)
 }

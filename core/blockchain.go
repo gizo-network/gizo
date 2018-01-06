@@ -11,8 +11,9 @@ type BlockChain struct {
 }
 
 func (bc *BlockChain) AddBlock(tree merkle_tree.MerkleTree) {
+	//FIXME: get current height from db and add 1
 	prevBlock := bc.Blocks[len(bc.Blocks)-1]
-	newBlock := NewBlock(*tree.Root, prevBlock.Hash)
+	newBlock := NewBlock(tree, prevBlock.Hash, 0)
 	bc.Blocks = append(bc.Blocks, newBlock)
 }
 

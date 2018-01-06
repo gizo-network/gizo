@@ -21,7 +21,7 @@ func TestHashJobs(t *testing.T) {
 
 func TestMarshalMerkleNode(t *testing.T) {
 	n := NewNode([]byte("test job"), &MerkleNode{}, &MerkleNode{})
-	b, err := MarshalMerkleNode(*n)
+	b, err := n.Serialize()
 	assert.NoError(t, err)
 	assert.NotNil(t, b)
 }

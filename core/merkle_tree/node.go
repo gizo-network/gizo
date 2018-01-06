@@ -21,11 +21,11 @@ type MerkleNode struct {
 
 // generates hash value of merklenode
 func (n *MerkleNode) setHash() {
-	l, err := MarshalMerkleNode(*n.Left)
+	l, err := n.Left.Serialize()
 	if err != nil {
 		glg.Fatal(err)
 	}
-	r, err := MarshalMerkleNode(*n.Right)
+	r, err := n.Right.Serialize()
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -50,15 +50,21 @@ func (n *MerkleNode) IsEmpty() bool {
 
 //IsEqual check if the input merklenode equals the merklenode calling the function
 func (n MerkleNode) IsEqual(x MerkleNode) bool {
-	nBytes, err := MarshalMerkleNode(n)
+	nBytes, err := n.Serialize()
 	if err != nil {
 		glg.Fatal(err)
 	}
-	xBytes, err := MarshalMerkleNode(x)
+	xBytes, err := x.Serialize()
 	if err != nil {
 		glg.Fatal(err)
 	}
 	return bytes.Equal(nBytes, xBytes)
+}
+
+//Serialize returns the bytes of a merklenode
+func (x MerkleNode) Serialize() ([]byte, error) {
+	bytes, err := json.Marshal(x)
+	return bytes, err
 }
 
 //NewNode returns a new merklenode
@@ -78,10 +84,4 @@ func HashJobs(x, y MerkleNode) []byte {
 	headers := bytes.Join([][]byte{x.Job, y.Job}, []byte{})
 	hash := sha256.Sum256(headers)
 	return hash[:]
-}
-
-//MarshalMerkleNode returns the bytes of a merklenode
-func MarshalMerkleNode(x MerkleNode) ([]byte, error) {
-	bytes, err := json.Marshal(x)
-	return bytes, err
 }
