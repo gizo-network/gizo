@@ -30,6 +30,7 @@ func (bc *BlockChain) VerifyBlockChain() bool {
 }
 
 func NewBlockChain() *BlockChain {
+	// dbFile := path.Join(BlockPath, fmt.Sprintf(BlockFile, "6546546351as3dfasdfas6d"))
 	bc := &BlockChain{}
 	bc.Blocks = append(bc.Blocks, GenesisBlock())
 	return bc
