@@ -2,8 +2,9 @@ package merkle_tree
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
-	"sync"
+	"reflect"
 
 	"github.com/kpango/glg"
 )
@@ -12,15 +13,17 @@ var ErrTooMuchLeafNodes = errors.New("core/merkle tree: length of leaf nodes is 
 var ErrOddLeafNodes = errors.New("core/merkle tree: odd number of leaf nodes")
 var ErrTreeRebuildAttempt = errors.New("core/merkle tree: attempt to rebuild tree")
 var ErrTreeNotBuilt = errors.New("core/merkle_tree: tree hasn't been built")
-var ErrLeafNodesNotEmpty = errors.New("core/merkle_tree: leafnodes is not empty")
+var ErrLeafNodesEmpty = errors.New("core/merkle_tree: leafnodes is empty")
 
 type MerkleTree struct {
-	Root      *MerkleNode   `json:"root"`
+	Root      []byte        `json:"root"`
 	LeafNodes []*MerkleNode `json:"leafNodes"`
 }
 
-func (m *MerkleTree) build() error {
-	if m.Root != nil {
+//builds merkle tree from leafs to root and sets the root of the merkletree
+func (m *MerkleTree) Build() error {
+	glg.Info("Building MerkleTree")
+	if reflect.ValueOf(m.Root).IsNil() == false {
 		return ErrTreeRebuildAttempt
 	}
 	if int64(len(m.LeafNodes)) > MaxTreeJobs.Int64() {
@@ -46,105 +49,52 @@ func (m *MerkleTree) build() error {
 			}
 			shrink = levelUp
 		}
-		m.Root = shrink[0]
+		m.Root = shrink[0].Hash
 	}
 	return nil
 }
 
-func (m *MerkleTree) Dismantle() {
-	var mutex sync.Mutex
-	var wg sync.WaitGroup
-	leafs := []*MerkleNode{}
-	queue := make(chan MerkleNode, 100)
-
-	if m.Root.IsEmpty() {
-		glg.Fatal(ErrTreeNotBuilt)
-	} else if len(m.LeafNodes) != 0 {
-		glg.Fatal(ErrLeafNodesNotEmpty)
-	} else {
-		queue <- *m.Root
-		for len(queue) != 0 {
-			select {
-			case node := <-queue:
-				if node.IsLeaf() && node.IsEmpty() == false {
-					wg.Add(1)
-					go func() {
-						mutex.Lock()
-						leafs = append(leafs, &node)
-						mutex.Unlock()
-						wg.Done()
-					}()
-				} else {
-					queue <- *node.Left
-					queue <- *node.Right
-				}
-			}
-		}
-		wg.Wait()
-	}
-	m.LeafNodes = stripDuplicates(leafs)
+//Serialize returns the bytes of a merkletree
+func (x MerkleTree) Serialize() ([]byte, error) {
+	bytes, err := json.Marshal(x)
+	return bytes, err
 }
 
 //VerifyTree returns true if tree is verified
 func (m MerkleTree) VerifyTree() bool {
 	t := NewMerkleTree(m.LeafNodes)
-	mBytes, err := MarshalNode(*m.Root)
-	if err != nil {
-		glg.Fatal(err)
-	}
-	tBytes, err := MarshalNode(*t.Root)
-	if err != nil {
-		glg.Fatal(err)
-	}
-	return bytes.Equal(tBytes, mBytes)
+	return bytes.Equal(t.Root, m.Root)
 }
 
-//SearchTree returns true if node with has exists
-func (m MerkleTree) SearchLeaf(hash []byte) bool {
+// Search returns true if node with hash exists
+func (m MerkleTree) Search(hash []byte) (bool, error) {
 	if len(m.LeafNodes) == 0 {
-		m.Dismantle()
-		for _, n := range m.LeafNodes {
-			if bytes.Equal(n.Hash, hash) {
-				return true
-			}
-		}
+		return false, ErrLeafNodesEmpty
 	} else {
 		for _, n := range m.LeafNodes {
 			if bytes.Equal(n.Hash, hash) {
-				return true
+				return true, nil
 			}
 		}
 	}
-	return false
+	return false, nil
 }
 
 // NewMerkleTree returns empty merkletree
 func NewMerkleTree(nodes []*MerkleNode) *MerkleTree {
+	glg.Info("Creating MerkleTree")
 	t := &MerkleTree{
 		LeafNodes: nodes,
 	}
-	err := t.build()
+	err := t.Build()
 	if err != nil {
 		glg.Fatal(err)
 	}
 	return t
 }
 
+//merges two nodes
 func merge(left, right MerkleNode) *MerkleNode {
 	parent := NewNode(HashJobs(left, right), &left, &right)
 	return parent
-}
-
-func stripDuplicates(input []*MerkleNode) []*MerkleNode {
-	for i := 0; i < len(input); i++ {
-		for j := 0; j < len(input); j++ {
-			if i == j {
-				continue
-			}
-			if input[i].IsEqual(*input[j]) {
-				input = append(input[:j], input[j+1:]...)
-			}
-		}
-	}
-	return input
 }
