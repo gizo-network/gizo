@@ -39,13 +39,14 @@ func NewBlock(tree merkle_tree.MerkleTree, pHash []byte, height uint64) *Block {
 		MerkleTree:    tree,
 		Height:        height,
 	}
-	err := Block.SetHash()
+	err := Block.setHash()
 	if err != nil {
 		glg.Fatal(err)
 	}
 	return Block
 }
 
+//Serialize returns bytes of block
 func (b *Block) Serialize() ([]byte, error) {
 	temp, err := json.Marshal(*b)
 	if err != nil {
@@ -54,7 +55,8 @@ func (b *Block) Serialize() ([]byte, error) {
 	return temp, nil
 }
 
-func DeserilizeBlock(b []byte) (*Block, error) {
+//DeserializeBlock returns block of bytes
+func DeserializeBlock(b []byte) (*Block, error) {
 	var temp Block
 	err := json.Unmarshal(b, &temp)
 	if err != nil {
@@ -63,7 +65,7 @@ func DeserilizeBlock(b []byte) (*Block, error) {
 	return &temp, nil
 }
 
-func (b *Block) SetHash() error {
+func (b *Block) setHash() error {
 	timestamp := []byte(strconv.FormatInt(b.Timestamp, 10))
 	mBytes, err := b.MerkleTree.Serialize()
 	if err != nil {

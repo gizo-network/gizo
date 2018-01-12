@@ -63,7 +63,7 @@ func TestUnMarshalBlock(t *testing.T) {
 	prevHash := []byte("00000000000000000000000000000000000000")
 	testBlock := NewBlock(*tree, prevHash, 0)
 	stringified, _ := testBlock.Serialize()
-	unmarshaled, err := DeserilizeBlock(stringified)
+	unmarshaled, err := DeserializeBlock(stringified)
 	assert.Nil(t, err)
 	assert.Equal(t, testBlock, unmarshaled)
 }

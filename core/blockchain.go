@@ -18,16 +18,16 @@ func (bc *BlockChain) AddBlock(tree merkle_tree.MerkleTree) {
 }
 
 // VerifyBlockChain returns true if blockchain is valid
-func (bc *BlockChain) VerifyBlockChain() bool {
-	for i, val := range bc.Blocks {
-		if i != 0 {
-			if val.VerifyBlock() == false || (string(val.PrevBlockHash) == string(bc.Blocks[i-1].Hash)) == false {
-				return false
-			}
-		}
-	}
-	return true
-}
+// func (bc *BlockChain) VerifyBlockChain() bool {
+// 	for i, val := range bc.Blocks {
+// 		if i != 0 {
+// 			if val.VerifyBlock() == false || (string(val.PrevBlockHash) == string(bc.Blocks[i-1].Hash)) == false {
+// 				return false
+// 			}
+// 		}
+// 	}
+// 	return true
+// }
 
 func NewBlockChain() *BlockChain {
 	// dbFile := path.Join(BlockPath, fmt.Sprintf(BlockFile, "6546546351as3dfasdfas6d"))
