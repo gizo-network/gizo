@@ -1,5 +1,6 @@
 package core
 
+//FIXME: unexport all to avoid data modification
 import (
 	"bytes"
 	"crypto/sha256"
@@ -10,15 +11,15 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"path"
 	"reflect"
 	"strconv"
 	"time"
 
+	"github.com/gizo-network/gizo/core/merkle_tree"
 	"github.com/gizo-network/gizo/helpers"
 
 	"github.com/kpango/glg"
-
-	"github.com/gizo-network/gizo/core/merkle_tree"
 )
 
 var (
@@ -66,6 +67,7 @@ func NewBlock(tree merkle_tree.MerkleTree, pHash []byte, height uint64) *Block {
 
 //writes block on disk
 func (b *Block) Export() error {
+	InitializeDataPath()
 	if b.IsEmpty() {
 		return ErrUnableToExport
 	}
@@ -73,7 +75,7 @@ func (b *Block) Export() error {
 	if err != nil {
 		glg.Fatal(err)
 	}
-	err = ioutil.WriteFile(fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.Hash[:])), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
+	err = ioutil.WriteFile(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.Hash[:]))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -83,11 +85,11 @@ func (b *Block) Export() error {
 // reads block into memory
 func (b *Block) Import(hash []byte) {
 	if b.IsEmpty() == false {
-		glg.Warn("overwriting umempty block")
+		glg.Warn("Ovverwriting umempty block")
 	}
-	read, err := ioutil.ReadFile(fmt.Sprintf(BlockFile, hex.EncodeToString(hash[:])))
+	read, err := ioutil.ReadFile(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(hash))))
 	if err != nil {
-		glg.Fatal(err)
+		glg.Fatal(err) //FIXME: handle block doesn't exist
 	}
 	bBytes := helpers.Decode64(string(read))
 	temp, err := DeserializeBlock(bBytes)
@@ -97,6 +99,14 @@ func (b *Block) Import(hash []byte) {
 	b.Header = temp.Header
 	b.Height = temp.Height
 	b.Jobs = temp.Jobs
+}
+
+func (b *Block) FileStats() os.FileInfo {
+	info, err := os.Stat(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.Hash))))
+	if os.IsNotExist(err) {
+		glg.Fatal("Block file doesn't exist")
+	}
+	return info
 }
 
 func (b *Block) IsEmpty() bool {
