@@ -113,6 +113,10 @@ func (b *Block) IsEmpty() bool {
 	return b.Header.Hash == nil
 }
 
+func (b *Block) SetHeight(h uint64) {
+	b.Height = h
+}
+
 //Serialize returns bytes of block
 func (b *Block) Serialize() ([]byte, error) {
 	temp, err := json.Marshal(*b)
