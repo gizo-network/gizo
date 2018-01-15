@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -63,6 +64,7 @@ func NewBlock(tree merkle_tree.MerkleTree, pHash []byte, height uint64) *Block {
 	return Block
 }
 
+//writes block on disk
 func (b *Block) Export() error {
 	if b.IsEmpty() {
 		return ErrUnableToExport
@@ -71,15 +73,34 @@ func (b *Block) Export() error {
 	if err != nil {
 		glg.Fatal(err)
 	}
-	err = ioutil.WriteFile(fmt.Sprintf(BlockFile, b.Header.Hash), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
+	err = ioutil.WriteFile(fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.Hash[:])), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
 	if err != nil {
 		glg.Fatal(err)
 	}
 	return nil
 }
 
+// reads block into memory
+func (b *Block) Import(hash []byte) {
+	if b.IsEmpty() == false {
+		glg.Warn("overwriting umempty block")
+	}
+	read, err := ioutil.ReadFile(fmt.Sprintf(BlockFile, hex.EncodeToString(hash[:])))
+	if err != nil {
+		glg.Fatal(err)
+	}
+	bBytes := helpers.Decode64(string(read))
+	temp, err := DeserializeBlock(bBytes)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	b.Header = temp.Header
+	b.Height = temp.Height
+	b.Jobs = temp.Jobs
+}
+
 func (b *Block) IsEmpty() bool {
-	return reflect.ValueOf(b.Jobs).IsNil() == true && reflect.ValueOf(b.Height).IsNil() == true && reflect.ValueOf(b.Header).IsNil() == true
+	return b.Header.Hash == nil
 }
 
 //Serialize returns bytes of block
