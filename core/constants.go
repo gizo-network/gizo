@@ -6,9 +6,9 @@ import (
 )
 
 //TODO: allow dynamic data path
-var BlockPath = path.Join(os.Getenv("HOME"), "gizo", "blocks")
-var IndexPath = path.Join(os.Getenv("HOME"), "gizo", "index")
+var BlockPath = path.Join(os.Getenv("HOME"), ".gizo", "blocks")
+var IndexPath = path.Join(os.Getenv("HOME"), ".gizo")
 
-const BlockFile = "blk_%s.db" //holds blocks
+const BlockFile = "%s.blk" //holds blocks
 const BlockBucket = "blocks"
-const BlockIndex = "blk_index.db"
+const IndexDB = "index.db"

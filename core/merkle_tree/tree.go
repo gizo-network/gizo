@@ -62,6 +62,7 @@ func (x MerkleTree) Serialize() ([]byte, error) {
 
 //VerifyTree returns true if tree is verified
 func (m MerkleTree) VerifyTree() bool {
+	// glg.Info("Verifying MerkleTree")
 	t := NewMerkleTree(m.LeafNodes)
 	return bytes.Equal(t.Root, m.Root)
 }
