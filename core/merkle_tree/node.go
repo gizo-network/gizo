@@ -13,39 +13,67 @@ import (
 var Logger helpers.Log
 
 type MerkleNode struct {
-	Hash  []byte      `json:"hash"` //hash of a job struct
-	Job   []byte      `json:"job"`
-	Left  *MerkleNode `json:"left"`
-	Right *MerkleNode `json:"right"`
+	hash  []byte      `json:"hash"` //hash of a job struct
+	job   []byte      `json:"job"`
+	left  *MerkleNode `json:"left"`
+	right *MerkleNode `json:"right"`
+}
+
+func (n MerkleNode) GetHash() []byte {
+	return n.hash
 }
 
 // generates hash value of merklenode
 func (n *MerkleNode) setHash() {
-	l, err := n.Left.Serialize()
+	l, err := n.left.Serialize()
 	if err != nil {
 		glg.Fatal(err)
 	}
-	r, err := n.Right.Serialize()
+	r, err := n.right.Serialize()
 	if err != nil {
 		glg.Fatal(err)
 	}
 
-	headers := bytes.Join([][]byte{l, r, n.Job}, []byte{})
+	headers := bytes.Join([][]byte{l, r, n.job}, []byte{})
 	if err != nil {
 		glg.Fatal(err)
 	}
 	hash := sha256.Sum256(headers)
-	n.Hash = hash[:]
+	n.hash = hash[:]
+}
+
+func (n MerkleNode) GetJob() []byte {
+	return n.job
+}
+
+func (n *MerkleNode) SetJob(j []byte) {
+	n.job = j
+}
+
+func (n MerkleNode) GetLeftNode() MerkleNode {
+	return *n.left
+}
+
+func (n *MerkleNode) SetLeftNode(l MerkleNode) {
+	n.left = &l
+}
+
+func (n MerkleNode) GetRightNOde() MerkleNode {
+	return *n.right
+}
+
+func (n *MerkleNode) SetRightNode(r MerkleNode) {
+	n.right = &r
 }
 
 //IsLeaf checks if the merklenode is a leaf node
 func (n *MerkleNode) IsLeaf() bool {
-	return n.Left.IsEmpty() && n.Right.IsEmpty()
+	return n.left.IsEmpty() && n.right.IsEmpty()
 }
 
 //IsEmpty check if the merklenode is empty
 func (n *MerkleNode) IsEmpty() bool {
-	return reflect.ValueOf(n.Right).IsNil() && reflect.ValueOf(n.Left).IsNil() && reflect.ValueOf(n.Job).IsNil() && reflect.ValueOf(n.Hash).IsNil()
+	return reflect.ValueOf(n.right).IsNil() && reflect.ValueOf(n.left).IsNil() && reflect.ValueOf(n.job).IsNil() && reflect.ValueOf(n.hash).IsNil()
 }
 
 //IsEqual check if the input merklenode equals the merklenode calling the function
@@ -71,9 +99,9 @@ func (x MerkleNode) Serialize() ([]byte, error) {
 func NewNode(j []byte, lNode, rNode *MerkleNode) *MerkleNode {
 	glg.Info("Creating MerkleNode")
 	n := &MerkleNode{
-		Left:  lNode,
-		Right: rNode,
-		Job:   j,
+		left:  lNode,
+		right: rNode,
+		job:   j,
 	}
 	n.setHash()
 	return n
@@ -81,7 +109,7 @@ func NewNode(j []byte, lNode, rNode *MerkleNode) *MerkleNode {
 
 //HashJobs hashes the jobs of two merklenodes
 func HashJobs(x, y MerkleNode) []byte {
-	headers := bytes.Join([][]byte{x.Job, y.Job}, []byte{})
+	headers := bytes.Join([][]byte{x.job, y.job}, []byte{})
 	hash := sha256.Sum256(headers)
 	return hash[:]
 }
