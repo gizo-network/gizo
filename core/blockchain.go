@@ -104,6 +104,21 @@ func CreateBlockChain() *BlockChain {
 	return bc
 }
 
+func (bc *BlockChain) AddBlock(block *Block) {
+	err := bc.db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(BlockBucket))
+		inDb := bucket.Get(block.Header.Hash)
+		if inDb == nil {
+			glg.Warn("Block is already in blockchain")
+		}
+
+		return nil
+	})
+	if err != nil {
+		glg.Fatal(err)
+	}
+}
+
 func dbExists(file string) bool {
 	_, err := os.Stat(file)
 	if os.IsNotExist(err) {
