@@ -20,3 +20,10 @@ func InitializeDataPath() {
 		glg.Info("Initializing block data path")
 	}
 }
+
+func RemoveDataPath() {
+	err := os.RemoveAll(IndexPath)
+	if err != nil {
+		glg.Fatal(err)
+	}
+}
