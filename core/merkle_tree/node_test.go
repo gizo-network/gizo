@@ -8,7 +8,7 @@ import (
 
 func TestNewNode(t *testing.T) {
 	n := NewNode([]byte("test job"), &MerkleNode{}, &MerkleNode{})
-	assert.NotNil(t, n.Hash, "empty hash value")
+	assert.NotNil(t, n.GetHash(), "empty hash value")
 	assert.NotNil(t, n, "returned empty node")
 }
 

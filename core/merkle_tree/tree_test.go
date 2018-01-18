@@ -28,9 +28,9 @@ func TestBuild(t *testing.T) {
 	tree := MerkleTree{
 		LeafNodes: nodes,
 	}
-	assert.Nil(t, tree.Root)
+	assert.Nil(t, tree.GetRoot())
 	tree.Build()
-	assert.NotNil(t, tree.Root)
+	assert.NotNil(t, tree.GetRoot())
 }
 
 func TestNewMerkleTree(t *testing.T) {
@@ -45,8 +45,8 @@ func TestNewMerkleTree(t *testing.T) {
 	nodes := []*MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 
 	tree := NewMerkleTree(nodes)
-	assert.NotNil(t, tree.Root)
-	assert.NotNil(t, tree.LeafNodes)
+	assert.NotNil(t, tree.GetRoot())
+	assert.NotNil(t, tree.GetLeafNodes())
 }
 
 func TestVerifyTree(t *testing.T) {
@@ -63,6 +63,6 @@ func TestVerifyTree(t *testing.T) {
 	tree := NewMerkleTree(nodes)
 	assert.True(t, tree.VerifyTree())
 
-	tree.LeafNodes[0] = &MerkleNode{}
+	tree.SetLeafNodes(tree.GetLeafNodes()[2:])
 	assert.False(t, tree.VerifyTree())
 }

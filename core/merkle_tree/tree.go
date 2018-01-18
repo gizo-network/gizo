@@ -20,15 +20,31 @@ type MerkleTree struct {
 	LeafNodes []*MerkleNode `json:"leafNodes"`
 }
 
+func (m MerkleTree) GetRoot() []byte {
+	return m.Root
+}
+
+func (m *MerkleTree) setRoot(r []byte) {
+	m.Root = r
+}
+
+func (m MerkleTree) GetLeafNodes() []*MerkleNode {
+	return m.LeafNodes
+}
+
+func (m *MerkleTree) SetLeafNodes(l []*MerkleNode) {
+	m.LeafNodes = l
+}
+
 //builds merkle tree from leafs to root and sets the root of the merkletree
 func (m *MerkleTree) Build() error {
 	glg.Info("Building MerkleTree")
-	if reflect.ValueOf(m.Root).IsNil() == false {
+	if reflect.ValueOf(m.GetRoot()).IsNil() == false {
 		return ErrTreeRebuildAttempt
 	}
-	if int64(len(m.LeafNodes)) > MaxTreeJobs.Int64() {
+	if int64(len(m.GetLeafNodes())) > MaxTreeJobs.Int64() {
 		return ErrTooMuchLeafNodes
-	} else if len(m.LeafNodes)%2 != 0 {
+	} else if len(m.GetLeafNodes())%2 != 0 {
 		return ErrOddLeafNodes
 	} else {
 		var shrink []*MerkleNode = m.LeafNodes
@@ -49,30 +65,31 @@ func (m *MerkleTree) Build() error {
 			}
 			shrink = levelUp
 		}
-		m.Root = shrink[0].Hash
+		m.Root = shrink[0].GetHash()
 	}
 	return nil
 }
 
 //Serialize returns the bytes of a merkletree
-func (x MerkleTree) Serialize() ([]byte, error) {
-	bytes, err := json.Marshal(x)
+func (m MerkleTree) Serialize() ([]byte, error) {
+	bytes, err := json.Marshal(m)
 	return bytes, err
 }
 
 //VerifyTree returns true if tree is verified
 func (m MerkleTree) VerifyTree() bool {
-	t := NewMerkleTree(m.LeafNodes)
-	return bytes.Equal(t.Root, m.Root)
+	// glg.Info("Verifying MerkleTree")
+	t := NewMerkleTree(m.GetLeafNodes())
+	return bytes.Equal(t.GetRoot(), m.GetRoot())
 }
 
 // Search returns true if node with hash exists
 func (m MerkleTree) Search(hash []byte) (bool, error) {
-	if len(m.LeafNodes) == 0 {
+	if len(m.GetLeafNodes()) == 0 {
 		return false, ErrLeafNodesEmpty
 	} else {
-		for _, n := range m.LeafNodes {
-			if bytes.Equal(n.Hash, hash) {
+		for _, n := range m.GetLeafNodes() {
+			if bytes.Equal(n.GetHash(), hash) {
 				return true, nil
 			}
 		}

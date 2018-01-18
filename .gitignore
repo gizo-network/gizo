@@ -1,5 +1,7 @@
+.vscode
 .git
 /vendor
 /tmp
 workspace.go
 .env
+*.blk

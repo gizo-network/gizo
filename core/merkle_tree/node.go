@@ -6,17 +6,18 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"github.com/gizo-network/gizo/helpers"
 	"github.com/kpango/glg"
 )
-
-var Logger helpers.Log
 
 type MerkleNode struct {
 	Hash  []byte      `json:"hash"` //hash of a job struct
 	Job   []byte      `json:"job"`
 	Left  *MerkleNode `json:"left"`
 	Right *MerkleNode `json:"right"`
+}
+
+func (n MerkleNode) GetHash() []byte {
+	return n.Hash
 }
 
 // generates hash value of merklenode
@@ -36,6 +37,30 @@ func (n *MerkleNode) setHash() {
 	}
 	hash := sha256.Sum256(headers)
 	n.Hash = hash[:]
+}
+
+func (n MerkleNode) GetJob() []byte {
+	return n.Job
+}
+
+func (n *MerkleNode) SetJob(j []byte) {
+	n.Job = j
+}
+
+func (n MerkleNode) GetLeftNode() MerkleNode {
+	return *n.Left
+}
+
+func (n *MerkleNode) SetLeftNode(l MerkleNode) {
+	n.Left = &l
+}
+
+func (n MerkleNode) GetRightNOde() MerkleNode {
+	return *n.Right
+}
+
+func (n *MerkleNode) SetRightNode(r MerkleNode) {
+	n.Right = &r
 }
 
 //IsLeaf checks if the merklenode is a leaf node
@@ -69,7 +94,6 @@ func (x MerkleNode) Serialize() ([]byte, error) {
 
 //NewNode returns a new merklenode
 func NewNode(j []byte, lNode, rNode *MerkleNode) *MerkleNode {
-	glg.Info("Creating MerkleNode")
 	n := &MerkleNode{
 		Left:  lNode,
 		Right: rNode,
@@ -81,7 +105,7 @@ func NewNode(j []byte, lNode, rNode *MerkleNode) *MerkleNode {
 
 //HashJobs hashes the jobs of two merklenodes
 func HashJobs(x, y MerkleNode) []byte {
-	headers := bytes.Join([][]byte{x.Job, y.Job}, []byte{})
+	headers := bytes.Join([][]byte{x.GetJob(), y.GetJob()}, []byte{})
 	hash := sha256.Sum256(headers)
 	return hash[:]
 }
