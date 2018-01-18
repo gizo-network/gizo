@@ -3,7 +3,7 @@ package core
 // import (
 // 	"testing"
 
-// 	"github.com/gizo-network/gizo/core/merkle_tree"
+// 	"github.com/gizo-network/gizo/core/merkletree"
 // 	"github.com/stretchr/testify/assert"
 // )
 
@@ -14,12 +14,12 @@ package core
 // }
 
 // func TestAddBlock(t *testing.T) {
-// 	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-// 	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-// 	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-// 	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-// 	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
-// 	tree := merkle_tree.NewMerkleTree(nodes)
+// 	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+// 	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+// 	node3 := merkletree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+// 	node4 := merkletree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+// 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
+// 	tree := merkletree.NewMerkleTree(nodes)
 // 	bc := NewBlockChain()
 // 	bc.AddBlock(*tree)
 // 	assert.NotEmpty(t, bc.Blocks, "empty block")
@@ -27,17 +27,17 @@ package core
 // }
 
 // func TestVerifyBlockChain(t *testing.T) {
-// 	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-// 	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-// 	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-// 	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-// 	node5 := merkle_tree.NewNode([]byte("tesasdfa;sdlkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-// 	node6 := merkle_tree.NewNode([]byte("tesasdfa;sadasdfasdlkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-// 	node7 := merkle_tree.NewNode([]byte("tesasdfa;sdlkfj;asasdfasfdat4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-// 	node8 := merkle_tree.NewNode([]byte("tesasdfasdfsadfasdfa;sdlkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
+// 	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+// 	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+// 	node3 := merkletree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+// 	node4 := merkletree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+// 	node5 := merkletree.NewNode([]byte("tesasdfa;sdlkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+// 	node6 := merkletree.NewNode([]byte("tesasdfa;sadasdfasdlkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+// 	node7 := merkletree.NewNode([]byte("tesasdfa;sdlkfj;asasdfasfdat4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+// 	node8 := merkletree.NewNode([]byte("tesasdfasdfsadfasdfa;sdlkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 
-// 	tree1 := merkle_tree.NewMerkleTree([]*merkle_tree.MerkleNode{node1, node2, node3, node4})
-// 	tree2 := merkle_tree.NewMerkleTree([]*merkle_tree.MerkleNode{node5, node6, node7, node8})
+// 	tree1 := merkletree.NewMerkleTree([]*merkletree.MerkleNode{node1, node2, node3, node4})
+// 	tree2 := merkletree.NewMerkleTree([]*merkletree.MerkleNode{node5, node6, node7, node8})
 
 // 	blockchain := NewBlockChain()
 // 	blockchain.AddBlock(*tree1)
