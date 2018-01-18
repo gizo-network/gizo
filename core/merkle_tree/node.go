@@ -6,11 +6,8 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"github.com/gizo-network/gizo/helpers"
 	"github.com/kpango/glg"
 )
-
-var Logger helpers.Log
 
 type MerkleNode struct {
 	Hash  []byte      `json:"hash"` //hash of a job struct
@@ -97,7 +94,6 @@ func (x MerkleNode) Serialize() ([]byte, error) {
 
 //NewNode returns a new merklenode
 func NewNode(j []byte, lNode, rNode *MerkleNode) *MerkleNode {
-	glg.Info("Creating MerkleNode")
 	n := &MerkleNode{
 		Left:  lNode,
 		Right: rNode,
