@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gizo-network/gizo/core/merkle_tree"
+	"github.com/gizo-network/gizo/core/merkletree"
 
 	"github.com/kpango/glg"
 
@@ -20,7 +20,7 @@ type BlockChain struct {
 	mu  sync.RWMutex
 }
 
-func (bc BlockChain) GetTip() []byte {
+func (bc *BlockChain) GetTip() []byte {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()
 	return bc.tip
@@ -32,17 +32,17 @@ func (bc *BlockChain) SetTip(t []byte) {
 	bc.tip = t
 }
 
-// VerifyBlockChain returns true if blockchain is valid
-// func (bc *BlockChain) VerifyBlockChain() bool {
-// 	for i, val := range bc.Blocks {
-// 		if i != 0 {
-// 			if val.VerifyBlock() == false || (string(val.PrevBlockHash) == string(bc.Blocks[i-1].Hash)) == false {
-// 				return false
-// 			}
-// 		}
-// 	}
-// 	return true
-// }
+func (bc *BlockChain) DB() *bolt.DB {
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
+	return bc.db
+}
+
+func (bc *BlockChain) SetDB(db *bolt.DB) {
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
+	bc.db = db
+}
 
 func CreateBlockChain() *BlockChain {
 	dbFile := path.Join(IndexPath, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
@@ -90,7 +90,7 @@ func CreateBlockChain() *BlockChain {
 
 func (bc *BlockChain) GetBlockInfo(hash []byte) *BlockInfo {
 	var blockinfo *BlockInfo
-	err := bc.db.View(func(tx *bolt.Tx) error {
+	err := bc.DB().View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BlockBucket))
 		blockinfoBytes := b.Get(hash)
 		blockinfo = DeserializeBlockInfo(blockinfoBytes)
@@ -104,7 +104,7 @@ func (bc *BlockChain) GetBlockInfo(hash []byte) *BlockInfo {
 
 func (bc *BlockChain) GetLatestHeight() uint64 {
 	var lastBlock *BlockInfo
-	err := bc.db.View(func(tx *bolt.Tx) error {
+	err := bc.DB().View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BlockBucket))
 		lastBlockBytes := b.Get(bc.GetTip())
 		lastBlock = DeserializeBlockInfo(lastBlockBytes)
@@ -121,7 +121,7 @@ func (bc *BlockChain) AddBlock(block *Block) {
 		glg.Warn("Unverified block cannot be added to the blockchain")
 		return
 	}
-	err := bc.db.Update(func(tx *bolt.Tx) error {
+	err := bc.DB().Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BlockBucket))
 		inDb := b.Get(block.Header.GetHash())
 		if inDb != nil {
@@ -141,6 +141,7 @@ func (bc *BlockChain) AddBlock(block *Block) {
 			glg.Fatal(err)
 		}
 
+		//FIXME: handle a fork
 		if block.GetHeight() > bc.GetBlockInfo(bc.GetTip()).GetHeight() {
 			if err := b.Put([]byte("l"), block.GetHeader().GetHash()); err != nil {
 				glg.Fatal(err)
@@ -154,29 +155,29 @@ func (bc *BlockChain) AddBlock(block *Block) {
 	}
 }
 
-func (bc BlockChain) iterator() *BlockChainIterator {
+func (bc *BlockChain) iterator() *BlockChainIterator {
 	return &BlockChainIterator{
-		current: bc.tip,
-		db:      bc.db,
+		current: bc.GetTip(),
+		db:      bc.DB(),
 	}
 }
 
-func (bc *BlockChain) FindJob(h []byte) bool {
-	var tree merkle_tree.MerkleTree
+func (bc *BlockChain) FindJob(h []byte) *merkletree.MerkleNode {
+	var tree merkletree.MerkleTree
 	bci := bc.iterator()
 	for {
 		block := bci.Next()
 		if block.GetHeight() == 0 {
-			return false
+			glg.Warn(merkletree.ErrNodeDoesntExist)
+			return nil
 		}
 		tree.SetLeafNodes(block.GetJobs())
 		found, err := tree.Search(h)
 		if err != nil {
-			glg.Fatal(err)
+			glg.Warn(err)
+			return nil
 		}
-		if found {
-			return true
-		}
+		return found
 	}
 }
 

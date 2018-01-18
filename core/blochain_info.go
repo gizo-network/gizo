@@ -54,17 +54,17 @@ func (bi BlockInfo) GetFileSize() int64 {
 	return bi.FileSize
 }
 
-func (b *BlockInfo) Serialize() []byte {
-	temp, err := json.Marshal(*b)
+func (bi *BlockInfo) Serialize() []byte {
+	temp, err := json.Marshal(*bi)
 	if err != nil {
 		glg.Fatal(err)
 	}
 	return temp
 }
 
-func (b BlockInfo) GetBlock() *Block {
+func (bi BlockInfo) GetBlock() *Block {
 	var temp Block
-	temp.Import(b.Header.GetHash())
+	temp.Import(bi.Header.GetHash())
 	return &temp
 }
 

@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gizo-network/gizo/core/merkle_tree"
+	"github.com/gizo-network/gizo/core/merkletree"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewBlock(t *testing.T) {
-	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
-	tree := merkle_tree.NewMerkleTree(nodes)
+	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node3 := merkletree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node4 := merkletree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
+	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
 	testBlock := NewBlock(*tree, prevHash, 0)
 
@@ -25,12 +25,12 @@ func TestNewBlock(t *testing.T) {
 }
 
 func TestVeriyBlock(t *testing.T) {
-	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
-	tree := merkle_tree.NewMerkleTree(nodes)
+	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node3 := merkletree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node4 := merkletree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
+	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
 	testBlock := NewBlock(*tree, prevHash, 0)
 
@@ -42,12 +42,12 @@ func TestVeriyBlock(t *testing.T) {
 }
 
 func TestSerialize(t *testing.T) {
-	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
-	tree := merkle_tree.NewMerkleTree(nodes)
+	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node3 := merkletree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node4 := merkletree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
+	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
 	testBlock := NewBlock(*tree, prevHash, 0)
 	stringified, err := testBlock.Serialize()
@@ -57,12 +57,12 @@ func TestSerialize(t *testing.T) {
 }
 
 func TestUnMarshalBlock(t *testing.T) {
-	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
-	tree := merkle_tree.NewMerkleTree(nodes)
+	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node3 := merkletree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node4 := merkletree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
+	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
 	testBlock := NewBlock(*tree, prevHash, 0)
 	stringified, _ := testBlock.Serialize()
@@ -73,12 +73,12 @@ func TestUnMarshalBlock(t *testing.T) {
 }
 
 func TestIsEmpty(t *testing.T) {
-	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
-	tree := merkle_tree.NewMerkleTree(nodes)
+	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node3 := merkletree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node4 := merkletree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
+	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
 	testBlock := NewBlock(*tree, prevHash, 0)
 	assert.False(t, testBlock.IsEmpty())
@@ -86,12 +86,12 @@ func TestIsEmpty(t *testing.T) {
 }
 
 func TestExport(t *testing.T) {
-	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
-	tree := merkle_tree.NewMerkleTree(nodes)
+	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node3 := merkletree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node4 := merkletree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
+	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
 	testBlock := NewBlock(*tree, prevHash, 0)
 	assert.NotNil(t, testBlock.FileStats().Name())
@@ -99,12 +99,12 @@ func TestExport(t *testing.T) {
 }
 
 func TestImport(t *testing.T) {
-	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
-	tree := merkle_tree.NewMerkleTree(nodes)
+	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node3 := merkletree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node4 := merkletree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
+	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
 	testBlock := NewBlock(*tree, prevHash, 0)
 
@@ -119,12 +119,12 @@ func TestImport(t *testing.T) {
 }
 
 func TestFileStats(t *testing.T) {
-	node1 := merkle_tree.NewNode([]byte("test1asdfasdf job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node2 := merkle_tree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node3 := merkle_tree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	node4 := merkle_tree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkle_tree.MerkleNode{}, &merkle_tree.MerkleNode{})
-	nodes := []*merkle_tree.MerkleNode{node1, node2, node3, node4}
-	tree := merkle_tree.NewMerkleTree(nodes)
+	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node3 := merkletree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	node4 := merkletree.NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
+	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
 	testBlock := NewBlock(*tree, prevHash, 0)
 	assert.Equal(t, testBlock.FileStats().Name(), fmt.Sprintf(BlockFile, hex.EncodeToString(testBlock.Header.GetHash())))

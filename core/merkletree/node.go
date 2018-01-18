@@ -1,4 +1,4 @@
-package merkle_tree
+package merkletree
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"github.com/kpango/glg"
 )
 
+// MerkleNode nodes that make a merkletree
 type MerkleNode struct {
 	Hash  []byte      `json:"hash"` //hash of a job struct
 	Job   []byte      `json:"job"`
@@ -16,6 +17,7 @@ type MerkleNode struct {
 	Right *MerkleNode `json:"right"`
 }
 
+// GetHash returns hash
 func (n MerkleNode) GetHash() []byte {
 	return n.Hash
 }
@@ -39,26 +41,32 @@ func (n *MerkleNode) setHash() {
 	n.Hash = hash[:]
 }
 
+// GetJob returns job
 func (n MerkleNode) GetJob() []byte {
 	return n.Job
 }
 
+// SetJob setter for job
 func (n *MerkleNode) SetJob(j []byte) {
 	n.Job = j
 }
 
+// GetLeftNode return leftnode
 func (n MerkleNode) GetLeftNode() MerkleNode {
 	return *n.Left
 }
 
+// SetLeftNode setter for leftnode
 func (n *MerkleNode) SetLeftNode(l MerkleNode) {
 	n.Left = &l
 }
 
-func (n MerkleNode) GetRightNOde() MerkleNode {
+// GetRightNode return rightnode
+func (n MerkleNode) GetRightNode() MerkleNode {
 	return *n.Right
 }
 
+//SetRightNode setter for rightnode
 func (n *MerkleNode) SetRightNode(r MerkleNode) {
 	n.Right = &r
 }
@@ -87,8 +95,8 @@ func (n MerkleNode) IsEqual(x MerkleNode) bool {
 }
 
 //Serialize returns the bytes of a merklenode
-func (x MerkleNode) Serialize() ([]byte, error) {
-	bytes, err := json.Marshal(x)
+func (n MerkleNode) Serialize() ([]byte, error) {
+	bytes, err := json.Marshal(n)
 	return bytes, err
 }
 

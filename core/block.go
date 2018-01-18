@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gizo-network/gizo/core/merkle_tree"
+	"github.com/gizo-network/gizo/core/merkletree"
 	"github.com/gizo-network/gizo/helpers"
 
 	"github.com/kpango/glg"
@@ -27,9 +27,9 @@ var (
 )
 
 type Block struct {
-	Header BlockHeader               `json:"header"`
-	Jobs   []*merkle_tree.MerkleNode `json:"jobs"`
-	Height uint64                    `json:"height"`
+	Header BlockHeader              `json:"header"`
+	Jobs   []*merkletree.MerkleNode `json:"jobs"`
+	Height uint64                   `json:"height"`
 }
 
 func (b Block) GetHeader() BlockHeader {
@@ -40,11 +40,11 @@ func (b *Block) SetHeader(h BlockHeader) {
 	b.Header = h
 }
 
-func (b Block) GetJobs() []*merkle_tree.MerkleNode {
+func (b Block) GetJobs() []*merkletree.MerkleNode {
 	return b.Jobs
 }
 
-func (b *Block) SetJobs(j []*merkle_tree.MerkleNode) {
+func (b *Block) SetJobs(j []*merkletree.MerkleNode) {
 	b.Jobs = j
 }
 
@@ -57,7 +57,7 @@ func (b *Block) SetHeight(h uint64) {
 }
 
 //FIXME: implement block status
-func NewBlock(tree merkle_tree.MerkleTree, pHash []byte, height uint64) *Block {
+func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64) *Block {
 	//! pow has to set nonce
 	//! dificullty engine would set difficulty
 
@@ -147,7 +147,7 @@ func DeserializeBlock(b []byte) (*Block, error) {
 
 func (b *Block) setHash() error {
 	timestamp := []byte(strconv.FormatInt(b.Header.GetTimestamp(), 10))
-	tree := merkle_tree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
+	tree := merkletree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
 	mBytes, err := tree.Serialize()
 	if err != nil {
 		glg.Fatal(err)
@@ -163,7 +163,7 @@ func (b *Block) setHash() error {
 
 func (b *Block) VerifyBlock() bool {
 	timestamp := []byte(strconv.FormatInt(b.Header.GetTimestamp(), 10))
-	tree := merkle_tree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
+	tree := merkletree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
 	mBytes, err := tree.Serialize()
 	if err != nil {
 		glg.Fatal(err)
