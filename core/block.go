@@ -35,6 +35,30 @@ type Block struct {
 	Height uint64                    `json:"height"`
 }
 
+func (b Block) GetHeader() BlockHeader {
+	return b.Header
+}
+
+func (b *Block) SetHeader(h BlockHeader) {
+	b.Header = h
+}
+
+func (b Block) GetJobs() []*merkle_tree.MerkleNode {
+	return b.Jobs
+}
+
+func (b *Block) SetJobs(j []*merkle_tree.MerkleNode) {
+	b.Jobs = j
+}
+
+func (b Block) GetHeight() uint64 {
+	return b.Height
+}
+
+func (b *Block) SetHeight(h uint64) {
+	b.Height = h
+}
+
 type BlockHeader struct {
 	Timestamp     int64    `json:"timestamp"`
 	PrevBlockHash []byte   `json:"prevBlockHash"`
@@ -44,38 +68,87 @@ type BlockHeader struct {
 	Hash          []byte   `json:"hash"`
 }
 
+func (bh BlockHeader) GetTimestamp() int64 {
+	return bh.Timestamp
+}
+
+func (bh *BlockHeader) SetTimestamp(t int64) {
+	bh.Timestamp = t
+}
+
+func (bh BlockHeader) GetPrevBlockHash() []byte {
+	return bh.PrevBlockHash
+}
+
+func (bh *BlockHeader) SetPrevBlockHash(h []byte) {
+	bh.PrevBlockHash = h
+}
+
+func (bh BlockHeader) GetMerkleRoot() []byte {
+	return bh.MerkleRoot
+}
+
+func (bh *BlockHeader) SetMerkleRoot(mr []byte) {
+	bh.MerkleRoot = mr
+}
+
+func (bh BlockHeader) GetNonce() uint64 {
+	return bh.Nonce
+}
+
+func (bh *BlockHeader) SetNonce(n uint64) {
+	bh.Nonce = n
+}
+
+func (bh BlockHeader) GetDifficulty() big.Int {
+	return *bh.Difficulty
+}
+
+func (bh *BlockHeader) SetDifficulty(d big.Int) {
+	bh.Difficulty = &d
+}
+
+func (bh BlockHeader) GetHash() []byte {
+	return bh.Hash
+}
+
+func (bh *BlockHeader) SetHash(h []byte) {
+	bh.Hash = h
+}
+
 //FIXME: implement block status
 func NewBlock(tree merkle_tree.MerkleTree, pHash []byte, height uint64) *Block {
 	//! pow has to set nonce
 	//! dificullty engine would set difficulty
 	// Log.Logger.Info("Creating new block")
-	Block := &Block{
+	block := &Block{
 		Header: BlockHeader{
 			Timestamp:     time.Now().Unix(),
 			PrevBlockHash: pHash,
-			MerkleRoot:    tree.Root,
+			MerkleRoot:    tree.GetRoot(),
 		},
-		Jobs:   tree.LeafNodes,
+		Jobs:   tree.GetLeafNodes(),
 		Height: height,
 	}
-	err := Block.setHash()
+	err := block.setHash()
 	if err != nil {
 		glg.Fatal(err)
 	}
-	return Block
+	block.Export()
+	if err != nil {
+		glg.Fatal(err)
+	}
+	return block
 }
 
 //writes block on disk
-func (b *Block) Export() error {
+func (b Block) Export() error {
 	InitializeDataPath()
 	if b.IsEmpty() {
 		return ErrUnableToExport
 	}
-	bBytes, err := b.Serialize()
-	if err != nil {
-		glg.Fatal(err)
-	}
-	err = ioutil.WriteFile(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.Hash[:]))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
+	bBytes := b.Serialize()
+	err := ioutil.WriteFile(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()[:]))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -85,7 +158,7 @@ func (b *Block) Export() error {
 // reads block into memory
 func (b *Block) Import(hash []byte) {
 	if b.IsEmpty() == false {
-		glg.Warn("Ovverwriting umempty block")
+		glg.Warn("Overwriting umempty block")
 	}
 	read, err := ioutil.ReadFile(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(hash))))
 	if err != nil {
@@ -96,13 +169,13 @@ func (b *Block) Import(hash []byte) {
 	if err != nil {
 		glg.Fatal(err)
 	}
-	b.Header = temp.Header
-	b.Height = temp.Height
-	b.Jobs = temp.Jobs
+	b.SetHeader(temp.GetHeader())
+	b.SetHeight(temp.GetHeight())
+	b.SetJobs(temp.GetJobs())
 }
 
-func (b *Block) FileStats() os.FileInfo {
-	info, err := os.Stat(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.Hash))))
+func (b Block) FileStats() os.FileInfo {
+	info, err := os.Stat(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))))
 	if os.IsNotExist(err) {
 		glg.Fatal("Block file doesn't exist")
 	}
@@ -110,20 +183,16 @@ func (b *Block) FileStats() os.FileInfo {
 }
 
 func (b *Block) IsEmpty() bool {
-	return b.Header.Hash == nil
-}
-
-func (b *Block) SetHeight(h uint64) {
-	b.Height = h
+	return b.Header.GetHash() == nil
 }
 
 //Serialize returns bytes of block
-func (b *Block) Serialize() ([]byte, error) {
+func (b *Block) Serialize() []byte {
 	temp, err := json.Marshal(*b)
 	if err != nil {
-		return nil, err
+		glg.Fatal(err)
 	}
-	return temp, nil
+	return temp
 }
 
 //DeserializeBlock returns block of bytes
@@ -137,29 +206,36 @@ func DeserializeBlock(b []byte) (*Block, error) {
 }
 
 func (b *Block) setHash() error {
-	timestamp := []byte(strconv.FormatInt(b.Header.Timestamp, 10))
-	tree := merkle_tree.MerkleTree{Root: b.Header.MerkleRoot, LeafNodes: b.Jobs}
+	timestamp := []byte(strconv.FormatInt(b.Header.GetTimestamp(), 10))
+	tree := merkle_tree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
 	mBytes, err := tree.Serialize()
 	if err != nil {
 		glg.Fatal(err)
 	}
-	headers := bytes.Join([][]byte{b.Header.PrevBlockHash, timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Header.Nonce), 10)), []byte(strconv.FormatInt(int64(b.Height), 10))}, []byte{})
+	headers := bytes.Join([][]byte{b.Header.GetPrevBlockHash(), timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Header.GetNonce()), 10)), []byte(strconv.FormatInt(int64(b.GetHeight()), 10))}, []byte{})
 	hash := sha256.Sum256(headers)
-	if reflect.ValueOf(b.Header.Hash).IsNil() {
-		b.Header.Hash = hash[:]
+	if reflect.ValueOf(b.Header.GetHash()).IsNil() {
+		b.Header.SetHash(hash[:])
 		return nil
 	}
 	return ErrHashModification
 }
 
 func (b *Block) VerifyBlock() bool {
-	timestamp := []byte(strconv.FormatInt(b.Header.Timestamp, 10))
-	tree := merkle_tree.MerkleTree{Root: b.Header.MerkleRoot, LeafNodes: b.Jobs}
+	timestamp := []byte(strconv.FormatInt(b.Header.GetTimestamp(), 10))
+	tree := merkle_tree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
 	mBytes, err := tree.Serialize()
 	if err != nil {
 		glg.Fatal(err)
 	}
-	headers := bytes.Join([][]byte{b.Header.PrevBlockHash, timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Header.Nonce), 10)), []byte(strconv.FormatInt(int64(b.Height), 10))}, []byte{})
+	headers := bytes.Join([][]byte{b.Header.GetPrevBlockHash(), timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Header.GetNonce()), 10)), []byte(strconv.FormatInt(int64(b.GetHeight()), 10))}, []byte{})
 	hash := sha256.Sum256(headers)
-	return bytes.Equal(hash[:], b.Header.Hash)
+	return bytes.Equal(hash[:], b.Header.GetHash())
+}
+
+func (b Block) DeleteFile() {
+	err := os.Remove(path.Join(BlockPath, b.FileStats().Name()))
+	if err != nil {
+		glg.Fatal(err)
+	}
 }
