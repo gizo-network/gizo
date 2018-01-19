@@ -45,7 +45,6 @@ func (m *MerkleTree) SetLeafNodes(l []*MerkleNode) {
 
 //Build builds merkle tree from leafs to root, hashed the root and sets it as the root of the merkletree
 func (m *MerkleTree) Build() error {
-	glg.Info("Building MerkleTree")
 	if reflect.ValueOf(m.GetRoot()).IsNil() == false {
 		return ErrTreeRebuildAttempt
 	}
@@ -85,7 +84,6 @@ func (m MerkleTree) Serialize() ([]byte, error) {
 
 //VerifyTree returns true if tree is verified
 func (m MerkleTree) VerifyTree() bool {
-	// glg.Info("Verifying MerkleTree")
 	t := NewMerkleTree(m.GetLeafNodes())
 	return bytes.Equal(t.GetRoot(), m.GetRoot())
 }
@@ -105,7 +103,6 @@ func (m MerkleTree) Search(hash []byte) (*MerkleNode, error) {
 
 // NewMerkleTree returns empty merkletree
 func NewMerkleTree(nodes []*MerkleNode) *MerkleTree {
-	glg.Info("Creating MerkleTree")
 	t := &MerkleTree{
 		LeafNodes: nodes,
 	}
