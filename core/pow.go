@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"crypto/sha256"
-	"fmt"
 	"math"
 	"math/big"
 	"strconv"
@@ -47,7 +46,7 @@ func (p POW) prepareData(nonce int) []byte {
 			p.block.GetHeader().GetPrevBlockHash(),
 			[]byte(strconv.FormatInt(p.block.Header.GetTimestamp(), 10)),
 			mBytes,
-			[]byte(strconv.FormatInt(int64(p.block.Header.GetNonce()), 10)),
+			[]byte(strconv.FormatInt(int64(nonce), 10)),
 			[]byte(strconv.FormatInt(int64(p.block.GetHeight()), 10)),
 			[]byte(strconv.FormatInt(int64(consensus.Difficulty), 10)),
 		},
@@ -63,9 +62,8 @@ func (p *POW) Run() {
 	glg.Info("Mining block")
 	for nonce < maxNonce {
 		glg.Info(nonce)
-		data := p.prepareData(nonce)
-		hash = sha256.Sum256(data)
-		fmt.Printf("\r%x", hash)
+		hash = sha256.Sum256(p.prepareData(nonce))
+		glg.Infof("%x", hash)
 		hashInt.SetBytes(hash[:])
 		if hashInt.Cmp(p.target) == -1 {
 			break
