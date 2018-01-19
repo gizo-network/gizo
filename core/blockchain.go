@@ -17,7 +17,7 @@ import (
 type BlockChain struct {
 	tip []byte
 	db  *bolt.DB
-	mu  sync.RWMutex
+	mu  *sync.RWMutex
 }
 
 func (bc *BlockChain) GetTip() []byte {
@@ -47,7 +47,25 @@ func (bc *BlockChain) SetDB(db *bolt.DB) {
 func CreateBlockChain() *BlockChain {
 	dbFile := path.Join(IndexPath, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
 	if dbExists(dbFile) {
-		glg.Fatal("Blockchain exists")
+		var tip []byte
+		glg.Warn("Using existing blockchain")
+		db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
+		if err != nil {
+			glg.Fatal(err)
+		}
+		err = db.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(BlockBucket))
+			tip = b.Get([]byte("l"))
+			return nil
+		})
+		if err != nil {
+			glg.Fatal(err)
+		}
+		return &BlockChain{
+			tip: tip,
+			db:  db,
+			mu:  &sync.RWMutex{},
+		}
 	}
 	genesis := GenesisBlock()
 	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
@@ -84,6 +102,7 @@ func CreateBlockChain() *BlockChain {
 	bc := &BlockChain{
 		tip: genesis.Header.GetHash(),
 		db:  db,
+		mu:  &sync.RWMutex{},
 	}
 	return bc
 }
@@ -168,14 +187,12 @@ func (bc *BlockChain) FindJob(h []byte) *merkletree.MerkleNode {
 	for {
 		block := bci.Next()
 		if block.GetHeight() == 0 {
-			glg.Warn(merkletree.ErrNodeDoesntExist)
 			return nil
 		}
 		tree.SetLeafNodes(block.GetJobs())
 		found, err := tree.Search(h)
 		if err != nil {
-			glg.Warn(err)
-			return nil
+			glg.Fatal(err)
 		}
 		return found
 	}
