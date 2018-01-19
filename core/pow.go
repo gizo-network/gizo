@@ -36,7 +36,7 @@ func (p POW) GetTarget() *big.Int {
 }
 
 func (p POW) prepareData(nonce int) []byte {
-	tree := merkletree.MerkleTree{Root: p.block.GetHeader().GetMerkleRoot(), LeafNodes: p.block.GetJobs()}
+	tree := merkletree.MerkleTree{Root: p.GetBlock().GetHeader().GetMerkleRoot(), LeafNodes: p.GetBlock().GetJobs()}
 	mBytes, err := tree.Serialize()
 	if err != nil {
 		glg.Fatal(err)
@@ -44,10 +44,10 @@ func (p POW) prepareData(nonce int) []byte {
 	data := bytes.Join(
 		[][]byte{
 			p.block.GetHeader().GetPrevBlockHash(),
-			[]byte(strconv.FormatInt(p.block.Header.GetTimestamp(), 10)),
+			[]byte(strconv.FormatInt(p.GetBlock().GetHeader().GetTimestamp(), 10)),
 			mBytes,
 			[]byte(strconv.FormatInt(int64(nonce), 10)),
-			[]byte(strconv.FormatInt(int64(p.block.GetHeight()), 10)),
+			[]byte(strconv.FormatInt(int64(p.GetBlock().GetHeight()), 10)),
 			[]byte(strconv.FormatInt(int64(consensus.Difficulty), 10)),
 		},
 		[]byte{},
@@ -61,19 +61,17 @@ func (p *POW) Run() {
 	nonce := 0
 	glg.Info("Mining block")
 	for nonce < maxNonce {
-		glg.Info(nonce)
 		hash = sha256.Sum256(p.prepareData(nonce))
-		glg.Infof("%x", hash)
 		hashInt.SetBytes(hash[:])
-		if hashInt.Cmp(p.target) == -1 {
+		if hashInt.Cmp(p.GetTarget()) == -1 {
 			break
 		} else {
 			nonce++
 		}
 	}
-	p.block.Header.SetDifficulty(*big.NewInt(int64(consensus.Difficulty)))
-	p.block.Header.SetHash(hash[:])
-	p.block.Header.SetNonce(uint64(nonce))
+	p.GetBlock().Header.SetDifficulty(*big.NewInt(int64(consensus.Difficulty)))
+	p.GetBlock().Header.SetHash(hash[:])
+	p.GetBlock().Header.SetNonce(uint64(nonce))
 }
 
 func NewPOW(b *Block) *POW {

@@ -12,6 +12,7 @@ import (
 	"github.com/kpango/glg"
 
 	"github.com/boltdb/bolt"
+	"github.com/jinzhu/now"
 )
 
 type BlockChain struct {
@@ -44,69 +45,6 @@ func (bc *BlockChain) SetDB(db *bolt.DB) {
 	bc.db = db
 }
 
-func CreateBlockChain() *BlockChain {
-	dbFile := path.Join(IndexPath, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
-	if dbExists(dbFile) {
-		var tip []byte
-		glg.Warn("Using existing blockchain")
-		db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
-		if err != nil {
-			glg.Fatal(err)
-		}
-		err = db.View(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(BlockBucket))
-			tip = b.Get([]byte("l"))
-			return nil
-		})
-		if err != nil {
-			glg.Fatal(err)
-		}
-		return &BlockChain{
-			tip: tip,
-			db:  db,
-			mu:  &sync.RWMutex{},
-		}
-	}
-	genesis := GenesisBlock()
-	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
-	if err != nil {
-		glg.Fatal(err)
-	}
-	err = db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucket([]byte(BlockBucket))
-		if err != nil {
-			glg.Fatal(err)
-		}
-		blockinfo := BlockInfo{
-			Header:    genesis.GetHeader(),
-			Height:    genesis.GetHeight(),
-			TotalJobs: uint(len(genesis.GetJobs())),
-			FileName:  genesis.FileStats().Name(),
-			FileSize:  genesis.FileStats().Size(),
-		}
-		blockinfoBytes := blockinfo.Serialize()
-
-		if err = b.Put(genesis.Header.GetHash(), blockinfoBytes); err != nil {
-			glg.Fatal(err)
-		}
-
-		//latest block on the chain
-		if err = b.Put([]byte("l"), genesis.Header.GetHash()); err != nil {
-			glg.Fatal(err)
-		}
-		return nil
-	})
-	if err != nil {
-		glg.Fatal(err)
-	}
-	bc := &BlockChain{
-		tip: genesis.Header.GetHash(),
-		db:  db,
-		mu:  &sync.RWMutex{},
-	}
-	return bc
-}
-
 func (bc *BlockChain) GetBlockInfo(hash []byte) *BlockInfo {
 	var blockinfo *BlockInfo
 	err := bc.DB().View(func(tx *bolt.Tx) error {
@@ -119,6 +57,26 @@ func (bc *BlockChain) GetBlockInfo(hash []byte) *BlockInfo {
 		glg.Fatal(err)
 	}
 	return blockinfo
+}
+
+func (bc *BlockChain) GetBlocksWithinMinute() []Block {
+	var blocks []Block
+	now := now.New(time.Now())
+
+	bci := bc.iterator()
+	for {
+		block := bci.Next()
+		fmt.Println(block)
+		if block.GetHeight() == 0 && block.GetHeader().GetTimestamp() > now.BeginningOfMinute().Unix() {
+			blocks = append(blocks, *block)
+			break
+		} else if block.GetHeader().GetTimestamp() > now.BeginningOfMinute().Unix() {
+			blocks = append(blocks, *block)
+		} else {
+			break
+		}
+	}
+	return blocks
 }
 
 func (bc *BlockChain) GetLatestHeight() uint64 {
@@ -209,6 +167,70 @@ func (bc *BlockChain) GetBlockHashes() [][]byte {
 		}
 	}
 	return hashes
+}
+
+func CreateBlockChain() *BlockChain {
+	InitializeDataPath()
+	dbFile := path.Join(IndexPath, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
+	if dbExists(dbFile) {
+		var tip []byte
+		glg.Warn("Using existing blockchain")
+		db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
+		if err != nil {
+			glg.Fatal(err)
+		}
+		err = db.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(BlockBucket))
+			tip = b.Get([]byte("l"))
+			return nil
+		})
+		if err != nil {
+			glg.Fatal(err)
+		}
+		return &BlockChain{
+			tip: tip,
+			db:  db,
+			mu:  &sync.RWMutex{},
+		}
+	}
+	genesis := GenesisBlock()
+	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
+	if err != nil {
+		glg.Fatal(err)
+	}
+	err = db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucket([]byte(BlockBucket))
+		if err != nil {
+			glg.Fatal(err)
+		}
+		blockinfo := BlockInfo{
+			Header:    genesis.GetHeader(),
+			Height:    genesis.GetHeight(),
+			TotalJobs: uint(len(genesis.GetJobs())),
+			FileName:  genesis.FileStats().Name(),
+			FileSize:  genesis.FileStats().Size(),
+		}
+		blockinfoBytes := blockinfo.Serialize()
+
+		if err = b.Put(genesis.Header.GetHash(), blockinfoBytes); err != nil {
+			glg.Fatal(err)
+		}
+
+		//latest block on the chain
+		if err = b.Put([]byte("l"), genesis.Header.GetHash()); err != nil {
+			glg.Fatal(err)
+		}
+		return nil
+	})
+	if err != nil {
+		glg.Fatal(err)
+	}
+	bc := &BlockChain{
+		tip: genesis.Header.GetHash(),
+		db:  db,
+		mu:  &sync.RWMutex{},
+	}
+	return bc
 }
 
 func dbExists(file string) bool {

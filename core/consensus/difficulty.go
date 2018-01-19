@@ -1,3 +1,3 @@
 package consensus
 
-var Difficulty = 6
+var Difficulty = 10

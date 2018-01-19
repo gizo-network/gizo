@@ -60,9 +60,6 @@ func (b *Block) SetHeight(h uint64) {
 
 //FIXME: implement block status
 func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64) *Block {
-	//! pow has to set nonce
-	//! dificullty engine would set difficulty
-
 	block := &Block{
 		Header: BlockHeader{
 			Timestamp:     time.Now().Unix(),
@@ -146,15 +143,25 @@ func DeserializeBlock(b []byte) (*Block, error) {
 }
 
 func (b *Block) VerifyBlock() bool {
-	timestamp := []byte(strconv.FormatInt(b.Header.GetTimestamp(), 10))
+	// timestamp := []byte(strconv.FormatInt(b.Header.GetTimestamp(), 10))
 	tree := merkletree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
 	mBytes, err := tree.Serialize()
 	if err != nil {
 		glg.Fatal(err)
 	}
-	headers := bytes.Join([][]byte{b.Header.GetPrevBlockHash(), timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Header.GetNonce()), 10)), []byte(strconv.FormatInt(int64(b.GetHeight()), 10))}, []byte{})
-	hash := sha256.Sum256(headers)
-	return bytes.Equal(hash[:], b.Header.GetHash())
+	data := bytes.Join(
+		[][]byte{
+			b.GetHeader().GetPrevBlockHash(),
+			[]byte(strconv.FormatInt(b.GetHeader().GetTimestamp(), 10)),
+			mBytes,
+			[]byte(strconv.FormatInt(int64(b.GetHeader().GetNonce()), 10)),
+			[]byte(strconv.FormatInt(int64(b.GetHeight()), 10)),
+			[]byte(strconv.FormatInt(b.GetHeader().GetDifficulty().Int64(), 10)),
+		},
+		[]byte{},
+	)
+	hash := sha256.Sum256(data)
+	return bytes.Equal(hash[:], b.GetHeader().GetHash())
 }
 
 func (b Block) DeleteFile() {
