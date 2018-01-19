@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -73,11 +72,9 @@ func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64) *Block {
 		Jobs:   tree.GetLeafNodes(),
 		Height: height,
 	}
-	err := block.setHash()
-	if err != nil {
-		glg.Fatal(err)
-	}
-	block.export()
+	pow := NewPOW(block)
+	pow.Run() //mines block
+	err := block.export()
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -146,22 +143,6 @@ func DeserializeBlock(b []byte) (*Block, error) {
 		return nil, err
 	}
 	return &temp, nil
-}
-
-func (b *Block) setHash() error {
-	timestamp := []byte(strconv.FormatInt(b.Header.GetTimestamp(), 10))
-	tree := merkletree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
-	mBytes, err := tree.Serialize()
-	if err != nil {
-		glg.Fatal(err)
-	}
-	headers := bytes.Join([][]byte{b.Header.GetPrevBlockHash(), timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Header.GetNonce()), 10)), []byte(strconv.FormatInt(int64(b.GetHeight()), 10))}, []byte{})
-	hash := sha256.Sum256(headers)
-	if reflect.ValueOf(b.Header.GetHash()).IsNil() {
-		b.Header.SetHash(hash[:])
-		return nil
-	}
-	return ErrHashModification
 }
 
 func (b *Block) VerifyBlock() bool {
