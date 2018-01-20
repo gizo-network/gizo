@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/gizo-network/gizo/core/consensus"
 	"github.com/gizo-network/gizo/core/merkletree"
 	"github.com/kpango/glg"
 )
@@ -15,8 +14,9 @@ import (
 var maxNonce = math.MaxInt64
 
 type POW struct {
-	block  *Block
-	target *big.Int
+	difficulty uint8
+	block      *Block
+	target     *big.Int
 }
 
 func (p *POW) SetBlock(b *Block) {
@@ -35,6 +35,14 @@ func (p POW) GetTarget() *big.Int {
 	return p.target
 }
 
+func (p POW) GetDifficulty() uint8 {
+	return p.difficulty
+}
+
+func (p *POW) SetDifficulty(d uint8) {
+	p.difficulty = d
+}
+
 func (p POW) prepareData(nonce int) []byte {
 	tree := merkletree.MerkleTree{Root: p.GetBlock().GetHeader().GetMerkleRoot(), LeafNodes: p.GetBlock().GetJobs()}
 	mBytes, err := tree.Serialize()
@@ -48,7 +56,7 @@ func (p POW) prepareData(nonce int) []byte {
 			mBytes,
 			[]byte(strconv.FormatInt(int64(nonce), 10)),
 			[]byte(strconv.FormatInt(int64(p.GetBlock().GetHeight()), 10)),
-			[]byte(strconv.FormatInt(int64(consensus.Difficulty), 10)),
+			[]byte(strconv.FormatInt(int64(p.GetDifficulty()), 10)),
 		},
 		[]byte{},
 	)
@@ -59,7 +67,6 @@ func (p *POW) Run() {
 	var hashInt big.Int
 	var hash [32]byte
 	nonce := 0
-	glg.Info("Mining block")
 	for nonce < maxNonce {
 		hash = sha256.Sum256(p.prepareData(nonce))
 		hashInt.SetBytes(hash[:])
@@ -69,14 +76,13 @@ func (p *POW) Run() {
 			nonce++
 		}
 	}
-	p.GetBlock().Header.SetDifficulty(*big.NewInt(int64(consensus.Difficulty)))
 	p.GetBlock().Header.SetHash(hash[:])
 	p.GetBlock().Header.SetNonce(uint64(nonce))
 }
 
 func NewPOW(b *Block) *POW {
 	target := big.NewInt(1)
-	target.Lsh(target, uint(256-consensus.Difficulty))
+	target.Lsh(target, uint(256-b.GetHeader().GetDifficulty().Int64()))
 
 	pow := &POW{
 		target: target,

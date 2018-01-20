@@ -11,6 +11,6 @@ func GenesisBlock() *Block {
 		LeafNodes: []*merkletree.MerkleNode{node},
 	}
 	prevHash := []byte("00000000000000000000000000000000000000")
-	block := NewBlock(tree, prevHash, 0)
+	block := NewBlock(tree, prevHash, 0, 5)
 	return block
 }

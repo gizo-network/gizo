@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"path"
 	"strconv"
@@ -59,12 +60,13 @@ func (b *Block) SetHeight(h uint64) {
 }
 
 //FIXME: implement block status
-func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64) *Block {
+func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficulty uint8) *Block {
 	block := &Block{
 		Header: BlockHeader{
 			Timestamp:     time.Now().Unix(),
 			PrevBlockHash: pHash,
 			MerkleRoot:    tree.GetRoot(),
+			Difficulty:    big.NewInt(int64(difficulty)),
 		},
 		Jobs:   tree.GetLeafNodes(),
 		Height: height,

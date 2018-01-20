@@ -17,7 +17,7 @@ func TestNewBlock(t *testing.T) {
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
 	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
-	testBlock := NewBlock(*tree, prevHash, 0)
+	testBlock := NewBlock(*tree, prevHash, 0, 5)
 
 	assert.NotNil(t, testBlock, "returned empty tblock")
 	assert.Equal(t, testBlock.Header.PrevBlockHash, prevHash, "prevhashes don't match")
@@ -32,7 +32,7 @@ func TestVeriyBlock(t *testing.T) {
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
 	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
-	testBlock := NewBlock(*tree, prevHash, 0)
+	testBlock := NewBlock(*tree, prevHash, 0, 5)
 
 	assert.True(t, testBlock.VerifyBlock(), "block failed verification")
 
@@ -49,9 +49,8 @@ func TestSerialize(t *testing.T) {
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
 	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
-	testBlock := NewBlock(*tree, prevHash, 0)
-	stringified, err := testBlock.Serialize()
-	assert.Nil(t, err, "returned error")
+	testBlock := NewBlock(*tree, prevHash, 0, 5)
+	stringified := testBlock.Serialize()
 	assert.NotEmpty(t, stringified)
 	testBlock.DeleteFile()
 }
@@ -64,8 +63,8 @@ func TestUnMarshalBlock(t *testing.T) {
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
 	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
-	testBlock := NewBlock(*tree, prevHash, 0)
-	stringified, _ := testBlock.Serialize()
+	testBlock := NewBlock(*tree, prevHash, 0, 5)
+	stringified := testBlock.Serialize()
 	unmarshaled, err := DeserializeBlock(stringified)
 	assert.Nil(t, err)
 	assert.Equal(t, testBlock, unmarshaled)
@@ -80,7 +79,7 @@ func TestIsEmpty(t *testing.T) {
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
 	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
-	testBlock := NewBlock(*tree, prevHash, 0)
+	testBlock := NewBlock(*tree, prevHash, 0, 5)
 	assert.False(t, testBlock.IsEmpty())
 	testBlock.DeleteFile()
 }
@@ -93,7 +92,7 @@ func TestExport(t *testing.T) {
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
 	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
-	testBlock := NewBlock(*tree, prevHash, 0)
+	testBlock := NewBlock(*tree, prevHash, 0, 5)
 	assert.NotNil(t, testBlock.FileStats().Name())
 	testBlock.DeleteFile()
 }
@@ -106,14 +105,12 @@ func TestImport(t *testing.T) {
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
 	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
-	testBlock := NewBlock(*tree, prevHash, 0)
+	testBlock := NewBlock(*tree, prevHash, 0, 5)
 
 	empty := Block{}
 	empty.Import(testBlock.Header.GetHash())
-	testBlockBytes, err := testBlock.Serialize()
-	assert.NoError(t, err)
-	emptyBytes, err := empty.Serialize()
-	assert.NoError(t, err)
+	testBlockBytes := testBlock.Serialize()
+	emptyBytes := empty.Serialize()
 	assert.JSONEq(t, string(testBlockBytes), string(emptyBytes))
 	testBlock.DeleteFile()
 }
@@ -126,7 +123,7 @@ func TestFileStats(t *testing.T) {
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4}
 	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
-	testBlock := NewBlock(*tree, prevHash, 0)
+	testBlock := NewBlock(*tree, prevHash, 0, 5)
 	assert.Equal(t, testBlock.FileStats().Name(), fmt.Sprintf(BlockFile, hex.EncodeToString(testBlock.Header.GetHash())))
 	testBlock.DeleteFile()
 }
