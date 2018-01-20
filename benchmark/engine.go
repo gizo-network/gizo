@@ -1,6 +1,7 @@
 package benchmark
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -57,24 +58,31 @@ func (b *BenchmarkEngine) Run() {
 	glg.Info("Benchmarking")
 	difficulty := 1
 	for {
+		fmt.Println("Difficulty ", difficulty)
 		var avg []float64
-		for i := 0; i < 10; i++ {
+		// var mu sync.Mutex
+		// var wg sync.WaitGroup
+		for i := 0; i < 5; i++ {
 			start := time.Now()
 			block := b.Block(uint8(difficulty))
 			end := time.Now()
 			block.DeleteFile()
 			diff := end.Sub(start)
+			// mu.Lock()
+			// defer mu.Unlock()
 			avg = append(avg, diff.Seconds())
 		}
 		var avgSum float64
 		for _, val := range avg {
 			avgSum += val
 		}
-		if avgSum/float64(len(avg)) > float64(time.Minute) {
+		average := avgSum / float64(len(avg))
+		fmt.Println(average)
+		if average > 60 {
 			break
 		}
 		benchmark := Benchmark{
-			AvgTime:    avgSum,
+			AvgTime:    average,
 			Difficulty: uint8(difficulty),
 		}
 		b.AddBenchmark(benchmark)
