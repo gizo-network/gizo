@@ -66,7 +66,6 @@ func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	bci := bc.iterator()
 	for {
 		block := bci.Next()
-		fmt.Println(block)
 		if block.GetHeight() == 0 && block.GetHeader().GetTimestamp() > now.BeginningOfMinute().Unix() {
 			blocks = append(blocks, *block)
 			break

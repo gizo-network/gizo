@@ -67,7 +67,6 @@ func (p *POW) Run() {
 	var hashInt big.Int
 	var hash [32]byte
 	nonce := 0
-	glg.Info("Mining block")
 	for nonce < maxNonce {
 		hash = sha256.Sum256(p.prepareData(nonce))
 		hashInt.SetBytes(hash[:])

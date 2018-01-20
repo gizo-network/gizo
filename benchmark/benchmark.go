@@ -5,6 +5,13 @@ type Benchmark struct {
 	Difficulty uint8
 }
 
+func NewBenchmark(avgTime float64, difficulty uint8) Benchmark {
+	return Benchmark{
+		AvgTime:    avgTime,
+		Difficulty: difficulty,
+	}
+}
+
 func (b Benchmark) GetAvgTime() float64 {
 	return b.AvgTime
 }

@@ -1,8 +1,8 @@
 package benchmark
 
 import (
-	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/kpango/glg"
@@ -14,6 +14,7 @@ import (
 type BenchmarkEngine struct {
 	Data  []Benchmark
 	Score uint8
+	mu    sync.Mutex
 }
 
 func (b *BenchmarkEngine) SetScore(s uint8) {
@@ -25,10 +26,14 @@ func (b BenchmarkEngine) GetScore() uint8 {
 }
 
 func (b *BenchmarkEngine) AddBenchmark(benchmark Benchmark) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.Data = append(b.Data, benchmark)
 }
 
 func (b BenchmarkEngine) GetData() []Benchmark {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	return b.Data
 }
 
@@ -54,41 +59,55 @@ func (b BenchmarkEngine) Block(difficulty uint8) *core.Block {
 	return core.NewBlock(*tree, []byte("TestingPreviousHash"), uint64(rand.Int()), difficulty)
 }
 
+// Run spins up the benchmark engine
 func (b *BenchmarkEngine) Run() {
-	glg.Info("Benchmarking")
-	difficulty := 1
-	for {
-		fmt.Println("Difficulty ", difficulty)
-		var avg []float64
-		// var mu sync.Mutex
-		// var wg sync.WaitGroup
-		for i := 0; i < 5; i++ {
-			start := time.Now()
-			block := b.Block(uint8(difficulty))
-			end := time.Now()
-			block.DeleteFile()
-			diff := end.Sub(start)
-			// mu.Lock()
-			// defer mu.Unlock()
-			avg = append(avg, diff.Seconds())
+	glg.Info("Benchmarking node")
+	done := false
+	var wg sync.WaitGroup
+	difficulty := 10 //! difficulty starts at 10
+	for done == false {
+		for i := 0; i < 3; i++ {
+			wg.Add(1)
+			go func(myDifficulty int) {
+				var avg []float64
+				var mu sync.Mutex
+				var mineWG sync.WaitGroup
+				for j := 0; j < 5; j++ {
+					mineWG.Add(1)
+					go func() {
+						start := time.Now()
+						block := b.Block(uint8(myDifficulty))
+						end := time.Now()
+						block.DeleteFile()
+						diff := end.Sub(start)
+						mu.Lock()
+						avg = append(avg, diff.Seconds())
+						mu.Unlock()
+						mineWG.Done()
+					}()
+				}
+				mineWG.Wait()
+				var avgSum float64
+				for _, val := range avg {
+					avgSum += val
+				}
+				average := avgSum / float64(len(avg))
+				if average > 60 {
+					done = true
+				} else {
+					benchmark := Benchmark{
+						AvgTime:    average,
+						Difficulty: uint8(myDifficulty),
+					}
+					b.AddBenchmark(benchmark)
+				}
+				wg.Done()
+			}(difficulty)
+			difficulty++
 		}
-		var avgSum float64
-		for _, val := range avg {
-			avgSum += val
-		}
-		average := avgSum / float64(len(avg))
-		fmt.Println(average)
-		if average > 60 {
-			break
-		}
-		benchmark := Benchmark{
-			AvgTime:    average,
-			Difficulty: uint8(difficulty),
-		}
-		b.AddBenchmark(benchmark)
-		difficulty++
+		wg.Wait()
 	}
-	b.SetScore(b.GetData()[len(b.GetData())-1].GetDifficulty())
+	b.SetScore(b.GetData()[len(b.GetData())-1].GetDifficulty() - 10) //! 10 is subtracted to allow the score start from 1 since difficulty starts at 10
 }
 
 func NewBenchmarkEngine() BenchmarkEngine {
