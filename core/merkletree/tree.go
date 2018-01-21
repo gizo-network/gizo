@@ -1,4 +1,4 @@
-package merkle_tree
+package merkletree
 
 import (
 	"bytes"
@@ -9,17 +9,22 @@ import (
 	"github.com/kpango/glg"
 )
 
-var ErrTooMuchLeafNodes = errors.New("core/merkle tree: length of leaf nodes is greater than 24")
-var ErrOddLeafNodes = errors.New("core/merkle tree: odd number of leaf nodes")
-var ErrTreeRebuildAttempt = errors.New("core/merkle tree: attempt to rebuild tree")
-var ErrTreeNotBuilt = errors.New("core/merkle_tree: tree hasn't been built")
-var ErrLeafNodesEmpty = errors.New("core/merkle_tree: leafnodes is empty")
+var (
+	ErrNodeDoesntExist    = errors.New("core/merkletree: node doesn't exist")
+	ErrLeafNodesEmpty     = errors.New("core/merkletree: leafnodes is empty")
+	ErrTreeNotBuilt       = errors.New("core/merkletree: tree hasn't been built")
+	ErrTreeRebuildAttempt = errors.New("core/merkle tree: attempt to rebuild tree")
+	ErrOddLeafNodes       = errors.New("core/merkle tree: odd number of leaf nodes")
+	ErrTooMuchLeafNodes   = errors.New("core/merkle tree: length of leaf nodes is greater than 24")
+)
 
+// MerkleTree tree of jobs
 type MerkleTree struct {
 	Root      []byte        `json:"root"`
 	LeafNodes []*MerkleNode `json:"leafNodes"`
 }
 
+// GetRoot returns root
 func (m MerkleTree) GetRoot() []byte {
 	return m.Root
 }
@@ -28,17 +33,18 @@ func (m *MerkleTree) setRoot(r []byte) {
 	m.Root = r
 }
 
+// GetLeafNodes return leafnodes
 func (m MerkleTree) GetLeafNodes() []*MerkleNode {
 	return m.LeafNodes
 }
 
+// SetLeafNodes return leafnodes
 func (m *MerkleTree) SetLeafNodes(l []*MerkleNode) {
 	m.LeafNodes = l
 }
 
-//builds merkle tree from leafs to root and sets the root of the merkletree
+//Build builds merkle tree from leafs to root, hashed the root and sets it as the root of the merkletree
 func (m *MerkleTree) Build() error {
-	glg.Info("Building MerkleTree")
 	if reflect.ValueOf(m.GetRoot()).IsNil() == false {
 		return ErrTreeRebuildAttempt
 	}
@@ -47,7 +53,7 @@ func (m *MerkleTree) Build() error {
 	} else if len(m.GetLeafNodes())%2 != 0 {
 		return ErrOddLeafNodes
 	} else {
-		var shrink []*MerkleNode = m.LeafNodes
+		var shrink = m.LeafNodes
 		for len(shrink) != 1 {
 			var levelUp []*MerkleNode
 			if len(shrink)%2 == 0 {
@@ -56,7 +62,7 @@ func (m *MerkleTree) Build() error {
 					levelUp = append(levelUp, parent)
 				}
 			} else {
-				glg.Warn("core/merkle_tree: Duplicating solo node...")
+				glg.Warn("core/merkletree: Duplicating solo node...")
 				shrink = append(shrink, shrink[len(shrink)-1]) //duplicate last to balance tree
 				for i := 0; i < len(shrink); i += 2 {
 					parent := merge(*shrink[i], *shrink[i+1])
@@ -78,28 +84,25 @@ func (m MerkleTree) Serialize() ([]byte, error) {
 
 //VerifyTree returns true if tree is verified
 func (m MerkleTree) VerifyTree() bool {
-	// glg.Info("Verifying MerkleTree")
 	t := NewMerkleTree(m.GetLeafNodes())
 	return bytes.Equal(t.GetRoot(), m.GetRoot())
 }
 
 // Search returns true if node with hash exists
-func (m MerkleTree) Search(hash []byte) (bool, error) {
+func (m MerkleTree) Search(hash []byte) (*MerkleNode, error) {
 	if len(m.GetLeafNodes()) == 0 {
-		return false, ErrLeafNodesEmpty
-	} else {
-		for _, n := range m.GetLeafNodes() {
-			if bytes.Equal(n.GetHash(), hash) {
-				return true, nil
-			}
+		return nil, ErrLeafNodesEmpty
+	}
+	for _, n := range m.GetLeafNodes() {
+		if bytes.Equal(n.GetHash(), hash) {
+			return n, nil
 		}
 	}
-	return false, nil
+	return nil, ErrNodeDoesntExist
 }
 
 // NewMerkleTree returns empty merkletree
 func NewMerkleTree(nodes []*MerkleNode) *MerkleTree {
-	glg.Info("Creating MerkleTree")
 	t := &MerkleTree{
 		LeafNodes: nodes,
 	}

@@ -9,13 +9,13 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"path"
-	"reflect"
 	"strconv"
 	"time"
 
-	"github.com/gizo-network/gizo/core/merkle_tree"
+	"github.com/gizo-network/gizo/core/merkletree"
 	"github.com/gizo-network/gizo/helpers"
 
 	"github.com/kpango/glg"
@@ -27,9 +27,12 @@ var (
 )
 
 type Block struct {
-	Header BlockHeader               `json:"header"`
-	Jobs   []*merkle_tree.MerkleNode `json:"jobs"`
-	Height uint64                    `json:"height"`
+	Header       BlockHeader              `json:"header"`
+	Jobs         []*merkletree.MerkleNode `json:"jobs"`
+	Height       uint64                   `json:"height"`
+	ReceivedAt   int64                    `json:"received_at"`   //time it was received
+	ReceivedFrom interface{}              `json:"received_from"` //node it received from
+
 }
 
 func (b Block) GetHeader() BlockHeader {
@@ -40,11 +43,11 @@ func (b *Block) SetHeader(h BlockHeader) {
 	b.Header = h
 }
 
-func (b Block) GetJobs() []*merkle_tree.MerkleNode {
+func (b Block) GetJobs() []*merkletree.MerkleNode {
 	return b.Jobs
 }
 
-func (b *Block) SetJobs(j []*merkle_tree.MerkleNode) {
+func (b *Block) SetJobs(j []*merkletree.MerkleNode) {
 	b.Jobs = j
 }
 
@@ -57,24 +60,20 @@ func (b *Block) SetHeight(h uint64) {
 }
 
 //FIXME: implement block status
-func NewBlock(tree merkle_tree.MerkleTree, pHash []byte, height uint64) *Block {
-	//! pow has to set nonce
-	//! dificullty engine would set difficulty
-
+func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficulty uint8) *Block {
 	block := &Block{
 		Header: BlockHeader{
 			Timestamp:     time.Now().Unix(),
 			PrevBlockHash: pHash,
 			MerkleRoot:    tree.GetRoot(),
+			Difficulty:    big.NewInt(int64(difficulty)),
 		},
 		Jobs:   tree.GetLeafNodes(),
 		Height: height,
 	}
-	err := block.setHash()
-	if err != nil {
-		glg.Fatal(err)
-	}
-	block.export()
+	pow := NewPOW(block)
+	pow.Run() //mines block
+	err := block.export()
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -145,32 +144,26 @@ func DeserializeBlock(b []byte) (*Block, error) {
 	return &temp, nil
 }
 
-func (b *Block) setHash() error {
-	timestamp := []byte(strconv.FormatInt(b.Header.GetTimestamp(), 10))
-	tree := merkle_tree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
-	mBytes, err := tree.Serialize()
-	if err != nil {
-		glg.Fatal(err)
-	}
-	headers := bytes.Join([][]byte{b.Header.GetPrevBlockHash(), timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Header.GetNonce()), 10)), []byte(strconv.FormatInt(int64(b.GetHeight()), 10))}, []byte{})
-	hash := sha256.Sum256(headers)
-	if reflect.ValueOf(b.Header.GetHash()).IsNil() {
-		b.Header.SetHash(hash[:])
-		return nil
-	}
-	return ErrHashModification
-}
-
 func (b *Block) VerifyBlock() bool {
-	timestamp := []byte(strconv.FormatInt(b.Header.GetTimestamp(), 10))
-	tree := merkle_tree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
+	// timestamp := []byte(strconv.FormatInt(b.Header.GetTimestamp(), 10))
+	tree := merkletree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
 	mBytes, err := tree.Serialize()
 	if err != nil {
 		glg.Fatal(err)
 	}
-	headers := bytes.Join([][]byte{b.Header.GetPrevBlockHash(), timestamp, mBytes, []byte(strconv.FormatInt(int64(b.Header.GetNonce()), 10)), []byte(strconv.FormatInt(int64(b.GetHeight()), 10))}, []byte{})
-	hash := sha256.Sum256(headers)
-	return bytes.Equal(hash[:], b.Header.GetHash())
+	data := bytes.Join(
+		[][]byte{
+			b.GetHeader().GetPrevBlockHash(),
+			[]byte(strconv.FormatInt(b.GetHeader().GetTimestamp(), 10)),
+			mBytes,
+			[]byte(strconv.FormatInt(int64(b.GetHeader().GetNonce()), 10)),
+			[]byte(strconv.FormatInt(int64(b.GetHeight()), 10)),
+			[]byte(strconv.FormatInt(b.GetHeader().GetDifficulty().Int64(), 10)),
+		},
+		[]byte{},
+	)
+	hash := sha256.Sum256(data)
+	return bytes.Equal(hash[:], b.GetHeader().GetHash())
 }
 
 func (b Block) DeleteFile() {

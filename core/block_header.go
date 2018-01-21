@@ -43,8 +43,8 @@ func (bh *BlockHeader) SetNonce(n uint64) {
 	bh.Nonce = n
 }
 
-func (bh BlockHeader) GetDifficulty() big.Int {
-	return *bh.Difficulty
+func (bh BlockHeader) GetDifficulty() *big.Int {
+	return bh.Difficulty
 }
 
 func (bh *BlockHeader) SetDifficulty(d big.Int) {
