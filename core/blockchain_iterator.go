@@ -5,7 +5,7 @@ import (
 	"github.com/kpango/glg"
 )
 
-//pass db from blockchain
+//BlockChainIterator - a way to loop through the blockchain (from newest block to oldest block)
 type BlockChainIterator struct {
 	current []byte
 	db      *bolt.DB
@@ -19,6 +19,7 @@ func (i BlockChainIterator) GetCurrent() []byte {
 	return i.current
 }
 
+// Next returns the next block in the blockchain
 func (i *BlockChainIterator) Next() *Block {
 	var block *Block
 	err := i.db.View(func(tx *bolt.Tx) error {

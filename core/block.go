@@ -145,7 +145,6 @@ func DeserializeBlock(b []byte) (*Block, error) {
 }
 
 func (b *Block) VerifyBlock() bool {
-	// timestamp := []byte(strconv.FormatInt(b.Header.GetTimestamp(), 10))
 	tree := merkletree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
 	mBytes, err := tree.Serialize()
 	if err != nil {
@@ -166,6 +165,7 @@ func (b *Block) VerifyBlock() bool {
 	return bytes.Equal(hash[:], b.GetHeader().GetHash())
 }
 
+//DeleteFile deletes block file on disk
 func (b Block) DeleteFile() {
 	err := os.Remove(path.Join(BlockPath, b.FileStats().Name()))
 	if err != nil {

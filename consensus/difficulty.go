@@ -9,6 +9,7 @@ import (
 
 const Blockrate = 15 // blocks per minute
 
+//Difficulty returns a difficulty based on the blockrate and the number of blocks in the last minute
 func Difficulty(benchmarks []benchmark.Benchmark, bc core.BlockChain) int {
 	latest := len(bc.GetBlocksWithinMinute())
 	for _, val := range benchmarks {
@@ -17,5 +18,5 @@ func Difficulty(benchmarks []benchmark.Benchmark, bc core.BlockChain) int {
 			return int(val.GetDifficulty())
 		}
 	}
-	return rand.Intn(int(benchmarks[len(benchmarks)-1].GetDifficulty())) // random difficulty
+	return rand.Intn(int(benchmarks[len(benchmarks)-1].GetDifficulty())) // returns random difficulty if difficulty can't be determined
 }

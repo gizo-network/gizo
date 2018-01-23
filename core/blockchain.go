@@ -45,6 +45,7 @@ func (bc *BlockChain) SetDB(db *bolt.DB) {
 	bc.db = db
 }
 
+//GetBlockInfo returns the blockinfo of a particular block from the db
 func (bc *BlockChain) GetBlockInfo(hash []byte) *BlockInfo {
 	var blockinfo *BlockInfo
 	err := bc.DB().View(func(tx *bolt.Tx) error {
@@ -59,6 +60,7 @@ func (bc *BlockChain) GetBlockInfo(hash []byte) *BlockInfo {
 	return blockinfo
 }
 
+//GetBlocksWithinMinute returns all blocks in the db within the last minute
 func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	var blocks []Block
 	now := now.New(time.Now())
@@ -78,6 +80,7 @@ func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	return blocks
 }
 
+//GetLatestHeight returns the height of the latest block to the blockchain
 func (bc *BlockChain) GetLatestHeight() uint64 {
 	var lastBlock *BlockInfo
 	err := bc.DB().View(func(tx *bolt.Tx) error {
@@ -92,6 +95,7 @@ func (bc *BlockChain) GetLatestHeight() uint64 {
 	return lastBlock.GetHeight()
 }
 
+//AddBlock adds block to the blockchain
 func (bc *BlockChain) AddBlock(block *Block) {
 	if block.VerifyBlock() == false {
 		glg.Warn("Unverified block cannot be added to the blockchain")
@@ -131,6 +135,7 @@ func (bc *BlockChain) AddBlock(block *Block) {
 	}
 }
 
+// return a BlockChainIterator to loop throught the blockchain
 func (bc *BlockChain) iterator() *BlockChainIterator {
 	return &BlockChainIterator{
 		current: bc.GetTip(),
@@ -138,6 +143,7 @@ func (bc *BlockChain) iterator() *BlockChainIterator {
 	}
 }
 
+//FindJob returns the merklenode of a job from the blockchain
 func (bc *BlockChain) FindJob(h []byte) *merkletree.MerkleNode {
 	var tree merkletree.MerkleTree
 	bci := bc.iterator()
@@ -155,6 +161,7 @@ func (bc *BlockChain) FindJob(h []byte) *merkletree.MerkleNode {
 	}
 }
 
+//GetBlockHashes returns all the hashes of all the blocks in the current bc
 func (bc *BlockChain) GetBlockHashes() [][]byte {
 	var hashes [][]byte
 	bci := bc.iterator()
@@ -168,6 +175,7 @@ func (bc *BlockChain) GetBlockHashes() [][]byte {
 	return hashes
 }
 
+//CreateBlockChain initializes a db, set's the tip to GenesisBlock and returns the blockchain
 func CreateBlockChain() *BlockChain {
 	InitializeDataPath()
 	dbFile := path.Join(IndexPath, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id

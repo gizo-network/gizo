@@ -63,6 +63,7 @@ func (p POW) prepareData(nonce int) []byte {
 	return data
 }
 
+//Run looks for a hash that is less than the current target difficulty
 func (p *POW) Run() {
 	var hashInt big.Int
 	var hash [32]byte

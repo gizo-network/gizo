@@ -6,6 +6,7 @@ import (
 	"github.com/kpango/glg"
 )
 
+//BlockInfo - model of data written to embedded database
 type BlockInfo struct {
 	Header    BlockHeader `json:"header"`
 	Height    uint64      `json:"height"`
@@ -62,6 +63,7 @@ func (bi *BlockInfo) Serialize() []byte {
 	return temp
 }
 
+//GetBlock - imports block from file into memory
 func (bi BlockInfo) GetBlock() *Block {
 	var temp Block
 	temp.Import(bi.Header.GetHash())
