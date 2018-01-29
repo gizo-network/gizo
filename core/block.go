@@ -32,7 +32,7 @@ type Block struct {
 	Height       uint64                   `json:"height"`
 	ReceivedAt   int64                    `json:"received_at"`   //time it was received
 	ReceivedFrom interface{}              `json:"received_from"` //node it received from
-
+	By           string                   `json:"by"`            // id of node that generated block
 }
 
 func (b Block) GetHeader() BlockHeader {
@@ -145,7 +145,7 @@ func DeserializeBlock(b []byte) (*Block, error) {
 }
 
 func (b *Block) VerifyBlock() bool {
-	tree := merkletree.MerkleTree{Root: b.Header.GetMerkleRoot(), LeafNodes: b.GetJobs()}
+	tree := merkletree.MerkleTree{Root: b.GetHeader().GetMerkleRoot(), LeafNodes: b.GetJobs()}
 	mBytes, err := tree.Serialize()
 	if err != nil {
 		glg.Fatal(err)

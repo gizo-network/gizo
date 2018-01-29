@@ -56,7 +56,7 @@ func (p POW) prepareData(nonce int) []byte {
 			mBytes,
 			[]byte(strconv.FormatInt(int64(nonce), 10)),
 			[]byte(strconv.FormatInt(int64(p.GetBlock().GetHeight()), 10)),
-			[]byte(strconv.FormatInt(int64(p.GetDifficulty()), 10)),
+			[]byte(strconv.FormatInt(int64(p.GetBlock().GetHeader().GetDifficulty().Int64()), 10)),
 		},
 		[]byte{},
 	)
@@ -79,6 +79,16 @@ func (p *POW) Run() {
 	}
 	p.GetBlock().Header.SetHash(hash[:])
 	p.GetBlock().Header.SetNonce(uint64(nonce))
+}
+
+func (p *POW) Validate() bool {
+	var hashInt big.Int
+
+	data := p.prepareData(int(p.GetBlock().GetHeader().GetNonce()))
+	hash := sha256.Sum256(data)
+	hashInt.SetBytes(hash[:])
+
+	return hashInt.Cmp(p.GetTarget()) == -1
 }
 
 func NewPOW(b *Block) *POW {
