@@ -1,9 +1,6 @@
 package core
 
-//FIXME: unexport all to avoid data modification
 import (
-	"bytes"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -12,7 +9,6 @@ import (
 	"math/big"
 	"os"
 	"path"
-	"strconv"
 	"time"
 
 	"github.com/gizo-network/gizo/core/merkletree"
@@ -145,24 +141,8 @@ func DeserializeBlock(b []byte) (*Block, error) {
 }
 
 func (b *Block) VerifyBlock() bool {
-	tree := merkletree.MerkleTree{Root: b.GetHeader().GetMerkleRoot(), LeafNodes: b.GetJobs()}
-	mBytes, err := tree.Serialize()
-	if err != nil {
-		glg.Fatal(err)
-	}
-	data := bytes.Join(
-		[][]byte{
-			b.GetHeader().GetPrevBlockHash(),
-			[]byte(strconv.FormatInt(b.GetHeader().GetTimestamp(), 10)),
-			mBytes,
-			[]byte(strconv.FormatInt(int64(b.GetHeader().GetNonce()), 10)),
-			[]byte(strconv.FormatInt(int64(b.GetHeight()), 10)),
-			[]byte(strconv.FormatInt(b.GetHeader().GetDifficulty().Int64(), 10)),
-		},
-		[]byte{},
-	)
-	hash := sha256.Sum256(data)
-	return bytes.Equal(hash[:], b.GetHeader().GetHash())
+	pow := NewPOW(b)
+	return pow.Validate()
 }
 
 //DeleteFile deletes block file on disk

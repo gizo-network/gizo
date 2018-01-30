@@ -66,7 +66,7 @@ func (bi *BlockInfo) Serialize() []byte {
 //GetBlock - imports block from file into memory
 func (bi BlockInfo) GetBlock() *Block {
 	var temp Block
-	temp.Import(bi.Header.GetHash())
+	temp.Import(bi.GetHeader().GetHash())
 	return &temp
 }
 
