@@ -55,7 +55,7 @@ func TestSerialize(t *testing.T) {
 	testBlock.DeleteFile()
 }
 
-func TestUnMarshalBlock(t *testing.T) {
+func TestDeserializeBlock(t *testing.T) {
 	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -80,7 +80,9 @@ func TestIsEmpty(t *testing.T) {
 	tree := merkletree.NewMerkleTree(nodes)
 	prevHash := []byte("00000000000000000000000000000000000000")
 	testBlock := NewBlock(*tree, prevHash, 0, 5)
+	b := Block{}
 	assert.False(t, testBlock.IsEmpty())
+	assert.True(t, b.IsEmpty())
 	testBlock.DeleteFile()
 }
 
