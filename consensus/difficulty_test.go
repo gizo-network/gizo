@@ -12,6 +12,7 @@ import (
 
 func TestDifficulty(t *testing.T) {
 	core.RemoveDataPath()
+	bc := core.CreateBlockChain()
 	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode([]byte("test3 asdfasl;dfasdjob"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -23,8 +24,7 @@ func TestDifficulty(t *testing.T) {
 
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 	tree := merkletree.NewMerkleTree(nodes)
-	block := core.NewBlock(*tree, []byte("00000000000000000000000000000000000000"), 3, 10)
-	bc := core.CreateBlockChain()
+	block := core.NewBlock(*tree, bc.GetLatestHash(), 1, 10)
 	bc.AddBlock(block)
 	b := benchmark.NewBenchmarkEngine()
 	assert.NotNil(t, Difficulty(b.GetData(), *bc))
