@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -15,8 +16,14 @@ import (
 	"github.com/jinzhu/now"
 )
 
+var (
+	ErrUnverifiedBlock = errors.New("Unverified block cannot be added to the blockchain")
+	ErrJobNotFound     = errors.New("Job not found")
+	ErrBlockNotFound   = errors.New("Blockinfo not found")
+)
+
 type BlockChain struct {
-	tip []byte
+	tip []byte //! hash of latest block in the blockchain
 	db  *bolt.DB
 	mu  *sync.RWMutex
 }
@@ -45,27 +52,36 @@ func (bc *BlockChain) SetDB(db *bolt.DB) {
 	bc.db = db
 }
 
-func (bc *BlockChain) GetBlockInfo(hash []byte) *BlockInfo {
+//GetBlockInfo returns the blockinfo of a particular block from the db
+func (bc *BlockChain) GetBlockInfo(hash []byte) (*BlockInfo, error) {
 	var blockinfo *BlockInfo
 	err := bc.DB().View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BlockBucket))
 		blockinfoBytes := b.Get(hash)
-		blockinfo = DeserializeBlockInfo(blockinfoBytes)
+		if blockinfoBytes != nil {
+			blockinfo = DeserializeBlockInfo(blockinfoBytes)
+		} else {
+			blockinfo = nil
+		}
 		return nil
 	})
 	if err != nil {
 		glg.Fatal(err)
 	}
-	return blockinfo
+	if blockinfo != nil {
+		return blockinfo, nil
+	}
+	return nil, ErrBlockNotFound
 }
 
+//GetBlocksWithinMinute returns all blocks in the db within the last minute
 func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	var blocks []Block
 	now := now.New(time.Now())
-
 	bci := bc.iterator()
 	for {
 		block := bci.Next()
+		fmt.Println(block)
 		if block.GetHeight() == 0 && block.GetHeader().GetTimestamp() > now.BeginningOfMinute().Unix() {
 			blocks = append(blocks, *block)
 			break
@@ -78,6 +94,7 @@ func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	return blocks
 }
 
+//GetLatestHeight returns the height of the latest block to the blockchain
 func (bc *BlockChain) GetLatestHeight() uint64 {
 	var lastBlock *BlockInfo
 	err := bc.DB().View(func(tx *bolt.Tx) error {
@@ -92,10 +109,10 @@ func (bc *BlockChain) GetLatestHeight() uint64 {
 	return lastBlock.GetHeight()
 }
 
-func (bc *BlockChain) AddBlock(block *Block) {
+//AddBlock adds block to the blockchain
+func (bc *BlockChain) AddBlock(block *Block) error {
 	if block.VerifyBlock() == false {
-		glg.Warn("Unverified block cannot be added to the blockchain")
-		return
+		return ErrUnverifiedBlock
 	}
 	err := bc.DB().Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BlockBucket))
@@ -118,7 +135,11 @@ func (bc *BlockChain) AddBlock(block *Block) {
 		}
 
 		//FIXME: handle a fork
-		if block.GetHeight() > bc.GetBlockInfo(bc.GetTip()).GetHeight() {
+		latest, err := bc.GetBlockInfo(bc.GetTip())
+		if err != nil {
+			glg.Fatal(err)
+		}
+		if block.GetHeight() > latest.GetHeight() {
 			if err := b.Put([]byte("l"), block.GetHeader().GetHash()); err != nil {
 				glg.Fatal(err)
 			}
@@ -129,8 +150,10 @@ func (bc *BlockChain) AddBlock(block *Block) {
 	if err != nil {
 		glg.Fatal(err)
 	}
+	return nil
 }
 
+// return a BlockChainIterator to loop throught the blockchain
 func (bc *BlockChain) iterator() *BlockChainIterator {
 	return &BlockChainIterator{
 		current: bc.GetTip(),
@@ -138,23 +161,38 @@ func (bc *BlockChain) iterator() *BlockChainIterator {
 	}
 }
 
-func (bc *BlockChain) FindJob(h []byte) *merkletree.MerkleNode {
+//FindJob returns the merklenode of a job from the blockchain
+func (bc *BlockChain) FindJob(h []byte) (*merkletree.MerkleNode, error) {
 	var tree merkletree.MerkleTree
 	bci := bc.iterator()
 	for {
 		block := bci.Next()
 		if block.GetHeight() == 0 {
-			return nil
+			return nil, ErrJobNotFound
 		}
 		tree.SetLeafNodes(block.GetJobs())
 		found, err := tree.Search(h)
 		if err != nil {
 			glg.Fatal(err)
 		}
-		return found
+		return found, nil
 	}
 }
 
+func (bc *BlockChain) Verify() bool {
+	bci := bc.iterator()
+	for {
+		block := bci.Next()
+		if block.GetHeight() == 0 {
+			return true
+		}
+		if block.VerifyBlock() == false {
+			return false
+		}
+	}
+}
+
+//GetBlockHashes returns all the hashes of all the blocks in the current bc
 func (bc *BlockChain) GetBlockHashes() [][]byte {
 	var hashes [][]byte
 	bci := bc.iterator()
@@ -168,6 +206,7 @@ func (bc *BlockChain) GetBlockHashes() [][]byte {
 	return hashes
 }
 
+//CreateBlockChain initializes a db, set's the tip to GenesisBlock and returns the blockchain
 func CreateBlockChain() *BlockChain {
 	InitializeDataPath()
 	dbFile := path.Join(IndexPath, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
@@ -211,12 +250,12 @@ func CreateBlockChain() *BlockChain {
 		}
 		blockinfoBytes := blockinfo.Serialize()
 
-		if err = b.Put(genesis.Header.GetHash(), blockinfoBytes); err != nil {
+		if err = b.Put(genesis.GetHeader().GetHash(), blockinfoBytes); err != nil {
 			glg.Fatal(err)
 		}
 
 		//latest block on the chain
-		if err = b.Put([]byte("l"), genesis.Header.GetHash()); err != nil {
+		if err = b.Put([]byte("l"), genesis.GetHeader().GetHash()); err != nil {
 			glg.Fatal(err)
 		}
 		return nil

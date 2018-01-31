@@ -37,6 +37,7 @@ func (b BenchmarkEngine) GetData() []Benchmark {
 	return b.Data
 }
 
+//Block returns a block with mock data
 func (b BenchmarkEngine) Block(difficulty uint8) *core.Block {
 	//random data
 	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -110,6 +111,7 @@ func (b *BenchmarkEngine) Run() {
 	b.SetScore(b.GetData()[len(b.GetData())-1].GetDifficulty() - 10) //! 10 is subtracted to allow the score start from 1 since difficulty starts at 10
 }
 
+//NewBenchmarkEngine returns a benchmarkengine with benchmarks run
 func NewBenchmarkEngine() BenchmarkEngine {
 	b := BenchmarkEngine{}
 	b.Run()

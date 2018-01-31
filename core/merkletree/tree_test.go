@@ -66,3 +66,31 @@ func TestVerifyTree(t *testing.T) {
 	tree.SetLeafNodes(tree.GetLeafNodes()[2:])
 	assert.False(t, tree.VerifyTree())
 }
+
+func TestSearch(t *testing.T) {
+	node1 := NewNode([]byte("test1asdfasdf job"), &MerkleNode{}, &MerkleNode{})
+	node2 := NewNode([]byte("test2 job asldkj;fasldkjfasd"), &MerkleNode{}, &MerkleNode{})
+	node3 := NewNode([]byte("test3 asdfasl;dfasdjob"), &MerkleNode{}, &MerkleNode{})
+	node4 := NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
+	node5 := NewNode([]byte("tesasdfa;sdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
+	node6 := NewNode([]byte("tesasdfa;sadasdfasdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
+	node7 := NewNode([]byte("tesasdfa;sdlkfj;asasdfasfdat4 job"), &MerkleNode{}, &MerkleNode{})
+	node8 := NewNode([]byte("tesasdfasdfsadfasdfa;sdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
+	nodes := []*MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
+
+	tree := NewMerkleTree(nodes)
+	f, err := tree.Search(node5.GetHash())
+	assert.NoError(t, err)
+	assert.NotNil(t, f)
+}
+
+func TestMerge(t *testing.T) {
+	node1 := NewNode([]byte("test1asdfasdf job"), &MerkleNode{}, &MerkleNode{})
+	node2 := NewNode([]byte("test2 job asldkj;fasldkjfasd"), &MerkleNode{}, &MerkleNode{})
+
+	parent := merge(*node1, *node2)
+	assert.NotNil(t, parent)
+	assert.NotNil(t, parent.GetHash())
+	assert.Equal(t, node1.GetHash(), parent.GetLeftNode().GetHash())
+	assert.Equal(t, node2.GetHash(), parent.GetRightNode().GetHash())
+}

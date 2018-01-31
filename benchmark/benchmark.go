@@ -1,5 +1,6 @@
 package benchmark
 
+//Benchmark holds a difficulty and the average time the node takes to run the difficulty
 type Benchmark struct {
 	AvgTime    float64
 	Difficulty uint8
