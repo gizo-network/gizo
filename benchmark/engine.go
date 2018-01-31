@@ -13,15 +13,15 @@ import (
 
 type BenchmarkEngine struct {
 	Data  []Benchmark
-	Score uint8
+	Score float64
 	mu    sync.Mutex
 }
 
-func (b *BenchmarkEngine) SetScore(s uint8) {
+func (b *BenchmarkEngine) SetScore(s float64) {
 	b.Score = s
 }
 
-func (b BenchmarkEngine) GetScore() uint8 {
+func (b BenchmarkEngine) GetScore() float64 {
 	return b.Score
 }
 
@@ -80,9 +80,9 @@ func (b *BenchmarkEngine) Run() {
 						block := b.Block(uint8(myDifficulty))
 						end := time.Now()
 						block.DeleteFile()
-						diff := end.Sub(start)
+						diff := end.Sub(start).Seconds()
 						mu.Lock()
-						avg = append(avg, diff.Seconds())
+						avg = append(avg, diff)
 						mu.Unlock()
 						mineWG.Done()
 					}()
@@ -108,7 +108,10 @@ func (b *BenchmarkEngine) Run() {
 		}
 		wg.Wait()
 	}
-	b.SetScore(b.GetData()[len(b.GetData())-1].GetDifficulty() - 10) //! 10 is subtracted to allow the score start from 1 since difficulty starts at 10
+	score := float64(b.GetData()[len(b.GetData())-1].GetDifficulty()) - 10  //! 10 is subtracted to allow the score start from 1 since difficulty starts at 10
+	scoreDecimal := 1 - b.GetData()[len(b.GetData())-1].GetAvgTime()/100 // determine decimal part of score 
+	b.SetScore(score + scoreDecimal)
+
 }
 
 //NewBenchmarkEngine returns a benchmarkengine with benchmarks run
