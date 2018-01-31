@@ -81,7 +81,7 @@ func (b *BenchmarkEngine) Run() {
 						block.DeleteFile()
 						diff := end.Sub(start).Seconds()
 						mu.Lock()
-						avg = append(avg, diff.Seconds())
+						avg = append(avg, diff)
 						mu.Unlock()
 						mineWG.Done()
 					}()
