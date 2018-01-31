@@ -38,7 +38,7 @@ func (b BenchmarkEngine) GetData() []Benchmark {
 }
 
 //Block returns a block with mock data
-func (b BenchmarkEngine) Block(difficulty uint8) *core.Block {
+func (b BenchmarkEngine) block(difficulty uint8) *core.Block {
 	//random data
 	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode([]byte("test2 job asldkj;fasldkjfasd"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -61,7 +61,7 @@ func (b BenchmarkEngine) Block(difficulty uint8) *core.Block {
 }
 
 // Run spins up the benchmark engine
-func (b *BenchmarkEngine) Run() {
+func (b *BenchmarkEngine) run() {
 	glg.Info("Benchmarking node")
 	done := false
 	var wg sync.WaitGroup
@@ -77,7 +77,7 @@ func (b *BenchmarkEngine) Run() {
 					mineWG.Add(1)
 					go func() {
 						start := time.Now()
-						block := b.Block(uint8(myDifficulty))
+						block := b.block(uint8(myDifficulty))
 						end := time.Now()
 						block.DeleteFile()
 						diff := end.Sub(start).Seconds()
@@ -108,8 +108,8 @@ func (b *BenchmarkEngine) Run() {
 		}
 		wg.Wait()
 	}
-	score := float64(b.GetData()[len(b.GetData())-1].GetDifficulty()) - 10  //! 10 is subtracted to allow the score start from 1 since difficulty starts at 10
-	scoreDecimal := 1 - b.GetData()[len(b.GetData())-1].GetAvgTime()/100 // determine decimal part of score 
+	score := float64(b.GetData()[len(b.GetData())-1].GetDifficulty()) - 10 //! 10 is subtracted to allow the score start from 1 since difficulty starts at 10
+	scoreDecimal := 1 - b.GetData()[len(b.GetData())-1].GetAvgTime()/100   // determine decimal part of score
 	b.SetScore(score + scoreDecimal)
 
 }
@@ -117,6 +117,6 @@ func (b *BenchmarkEngine) Run() {
 //NewBenchmarkEngine returns a benchmarkengine with benchmarks run
 func NewBenchmarkEngine() BenchmarkEngine {
 	b := BenchmarkEngine{}
-	b.Run()
+	b.run()
 	return b
 }
