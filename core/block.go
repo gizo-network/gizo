@@ -23,12 +23,11 @@ var (
 )
 
 type Block struct {
-	Header       BlockHeader              `json:"header"`
-	Jobs         []*merkletree.MerkleNode `json:"jobs"`
-	Height       uint64                   `json:"height"`
-	ReceivedAt   int64                    `json:"received_at"`   //time it was received
-	ReceivedFrom interface{}              `json:"received_from"` //node it received from
-	By           string                   `json:"by"`            // id of node that generated block
+	Header     BlockHeader              `json:"header"`
+	Jobs       []*merkletree.MerkleNode `json:"jobs"`
+	Height     uint64                   `json:"height"`
+	ReceivedAt int64                    `json:"received_at"` //time it was received
+	By         string                   `json:"by"`          // id of node that generated block
 }
 
 func (b Block) GetHeader() BlockHeader {

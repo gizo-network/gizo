@@ -1,14 +1,22 @@
-hash: 573f5e3e46acc4ea7efacbed2041c085270927ad1b8b5cc0fc25b5faf08a230c
-updated: 2018-01-19T00:38:34.718765242-05:00
+hash: ffd6c8f8d0ac5aaa0f096b0ddb4a12fc05640043367703a062273935b034c93f
+updated: 2018-02-17T23:33:01.388550543-05:00
 imports:
 - name: github.com/boltdb/bolt
   version: 2f1ce7a837dcb8da3ec595b1dac9d0632f0f99e8
+- name: github.com/google/uuid
+  version: 064e2069ce9c359c118179501254f67d7d37ba24
 - name: github.com/jinzhu/now
   version: d939ba741945c047cac69c329c5fb0d6b4a06520
 - name: github.com/kpango/glg
   version: fcb2a2966be7d6e3e94e72b1ab155a21c20b64c5
+- name: github.com/mattn/anko
+  version: d5441ca3f0c7e071a9ede864f9db2cc652690f42
+  subpackages:
+  - ast
+  - parser
+  - vm
 - name: github.com/stretchr/testify
-  version: b91bfb9ebec76498946beb6af7c0230c7cc7ba6c
+  version: 12b6f73e6084dad08a7c6e575284b177ecafbc71
   subpackages:
   - assert
 - name: golang.org/x/sys
