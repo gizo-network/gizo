@@ -80,7 +80,7 @@ func (n *MerkleNode) IsLeaf() bool {
 //IsEmpty check if the merklenode is empty
 func (n *MerkleNode) IsEmpty() bool {
 	//FIXME: add isempty check for job
-	return reflect.ValueOf(n.Right).IsNil() && reflect.ValueOf(n.Left).IsNil() && reflect.ValueOf(n.Job).IsNil() && reflect.ValueOf(n.Hash).IsNil()
+	return reflect.ValueOf(n.Right).IsNil() && reflect.ValueOf(n.Left).IsNil() && n.GetJob().IsEmpty() && reflect.ValueOf(n.Hash).IsNil()
 }
 
 //IsEqual check if the input merklenode equals the merklenode calling the function

@@ -67,11 +67,11 @@ func TestVerifyTree(t *testing.T) {
 	tree := NewMerkleTree(nodes)
 	assert.True(t, tree.VerifyTree())
 
-	tree.SetLeafNodes(tree.GetLeafNodes()[2:])
+	tree.SetLeafNodes(tree.GetLeafNodes()[4:])
 	assert.False(t, tree.VerifyTree())
 }
 
-func TestSearch(t *testing.T) {
+func TestSearchNode(t *testing.T) {
 	j := job.NewJob("func test(){return 1+1}; test()")
 	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
@@ -84,7 +84,25 @@ func TestSearch(t *testing.T) {
 	nodes := []*MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 
 	tree := NewMerkleTree(nodes)
-	f, err := tree.Search(node5.GetHash())
+	f, err := tree.SearchNode(node5.GetHash())
+	assert.NoError(t, err)
+	assert.NotNil(t, f)
+}
+
+func TestSearchJob(t *testing.T) {
+	j := job.NewJob("func test(){return 1+1}; test()")
+	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node3 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node4 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node5 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node6 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node7 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node8 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	nodes := []*MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
+
+	tree := NewMerkleTree(nodes)
+	f, err := tree.SearchJob(j.GetID())
 	assert.NoError(t, err)
 	assert.NotNil(t, f)
 }

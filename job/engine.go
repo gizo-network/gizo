@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"time"
 
 	"github.com/gizo-network/gizo/helpers"
@@ -24,6 +25,10 @@ type Job struct {
 	Execs     []JobExec `json:"execs"`
 	Source    string    `json:"source"`
 	Signature []byte    `json:"signature"` // signature of deployer
+}
+
+func (j Job) IsEmpty() bool {
+	return j.GetID() == "" && reflect.ValueOf(j.GetHash()).IsNil() && reflect.ValueOf(j.GetExecs()).IsNil() && j.GetSource() == "" && reflect.ValueOf(j.GetSignature()).IsNil()
 }
 
 func NewJob(s string) *Job {
