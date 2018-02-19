@@ -5,7 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"time"
+
+	"github.com/gizo-network/gizo/helpers"
 
 	"github.com/google/uuid"
 	"github.com/kpango/glg"
@@ -17,24 +20,28 @@ var (
 )
 
 type Job struct {
-	ID        uuid.UUID `json:"id"`
+	ID        string    `json:"id"`
 	Hash      []byte    `json:"hash"`
-	Exec      []JobExec `json:"jobexec"`
-	Source    []byte    `json:"source"`
+	Execs     []JobExec `json:"execs"`
+	Source    string    `json:"source"`
 	Signature []byte    `json:"signature"` // signature of deployer
+}
+
+func (j Job) IsEmpty() bool {
+	return j.GetID() == "" && reflect.ValueOf(j.GetHash()).IsNil() && reflect.ValueOf(j.GetExecs()).IsNil() && j.GetSource() == "" && reflect.ValueOf(j.GetSignature()).IsNil()
 }
 
 func NewJob(s string) *Job {
 	j := &Job{
-		ID:     uuid.New(),
-		Exec:   []JobExec{},
-		Source: []byte(s),
+		ID:     uuid.New().String(),
+		Execs:  []JobExec{},
+		Source: helpers.Encode64([]byte(s)),
 	}
 	j.setHash()
 	return j
 }
 
-func (j Job) GetID() uuid.UUID {
+func (j Job) GetID() string {
 	return j.ID
 }
 
@@ -45,9 +52,9 @@ func (j Job) GetHash() []byte {
 func (j *Job) setHash() {
 	headers := bytes.Join(
 		[][]byte{
-			[]byte(j.GetID().String()),
+			[]byte(j.GetID()),
 			j.serializeExecs(),
-			j.GetSource(),
+			[]byte(j.GetSource()),
 		},
 		[]byte{},
 	)
@@ -75,24 +82,28 @@ func (j Job) GetExec(hash []byte) (*JobExec, error) {
 }
 
 func (j Job) GetLatestExec() JobExec {
-	return j.Exec[len(j.GetExecs())-1]
+	return j.Execs[len(j.GetExecs())-1]
 }
 
 func (j Job) GetExecs() []JobExec {
-	return j.Exec
+	return j.Execs
+}
+
+func (j Job) GetSignature() []byte {
+	return j.Signature
+}
+
+func (j *Job) SetSignature(sign []byte) {
+	j.Signature = sign
 }
 
 func (j *Job) AddExec(je JobExec) {
-	j.Exec = append(j.Exec, je)
+	j.Execs = append(j.Execs, je)
 	j.setHash() //regenerates hash
 }
 
-func (j Job) GetSource() []byte {
+func (j Job) GetSource() string {
 	return j.Source
-}
-
-func (j *Job) SetSource(s []byte) {
-	j.Source = s
 }
 
 func (j *Job) Serialize() []byte {
@@ -107,7 +118,7 @@ func (j *Job) Serialize() []byte {
 func (j *Job) Execute() (interface{}, error) {
 	env := vm.NewEnv()
 	start := time.Now()
-	result, err := env.Execute(string(j.GetSource()))
+	result, err := env.Execute(string(helpers.Decode64(j.GetSource())))
 	exec := JobExec{
 		Timestamp: time.Now().Unix(),
 		Duration:  time.Now().Sub(start).Nanoseconds(),
@@ -115,6 +126,7 @@ func (j *Job) Execute() (interface{}, error) {
 		Result:    result,
 		By:        []byte("0000"), //FIXME: replace with real ID
 	}
+	exec.setHash()
 	j.AddExec(exec)
 	return result, err
 }

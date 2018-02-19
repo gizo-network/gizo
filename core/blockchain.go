@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gizo-network/gizo/job"
+
 	"github.com/gizo-network/gizo/core/merkletree"
 
 	"github.com/kpango/glg"
@@ -109,6 +111,20 @@ func (bc *BlockChain) GetLatestHeight() uint64 {
 	return lastBlock.GetHeight()
 }
 
+func (bc *BlockChain) GetLatestBlock() *Block {
+	var lastBlock *BlockInfo
+	err := bc.DB().View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(BlockBucket))
+		lastBlockBytes := b.Get(bc.GetTip())
+		lastBlock = DeserializeBlockInfo(lastBlockBytes)
+		return nil
+	})
+	if err != nil {
+		glg.Fatal(err)
+	}
+	return lastBlock.GetBlock()
+}
+
 //AddBlock adds block to the blockchain
 func (bc *BlockChain) AddBlock(block *Block) error {
 	if block.VerifyBlock() == false {
@@ -161,8 +177,8 @@ func (bc *BlockChain) iterator() *BlockChainIterator {
 	}
 }
 
-//FindJob returns the merklenode of a job from the blockchain
-func (bc *BlockChain) FindJob(h []byte) (*merkletree.MerkleNode, error) {
+//FindJob returns the job from the blockchain
+func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
 	var tree merkletree.MerkleTree
 	bci := bc.iterator()
 	for {
@@ -171,7 +187,25 @@ func (bc *BlockChain) FindJob(h []byte) (*merkletree.MerkleNode, error) {
 			return nil, ErrJobNotFound
 		}
 		tree.SetLeafNodes(block.GetJobs())
-		found, err := tree.Search(h)
+		found, err := tree.SearchJob(id)
+		if err != nil {
+			glg.Fatal(err)
+		}
+		return found, nil
+	}
+}
+
+//FindJob returns the merklenode from the blockchain
+func (bc *BlockChain) FindMerkleNode(h []byte) (*merkletree.MerkleNode, error) {
+	var tree merkletree.MerkleTree
+	bci := bc.iterator()
+	for {
+		block := bci.Next()
+		if block.GetHeight() == 0 {
+			return nil, ErrJobNotFound
+		}
+		tree.SetLeafNodes(block.GetJobs())
+		found, err := tree.SearchNode(h)
 		if err != nil {
 			glg.Fatal(err)
 		}

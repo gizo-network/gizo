@@ -23,17 +23,27 @@ func (j JobExec) GetHash() []byte {
 }
 
 func (j *JobExec) setHash() {
-	headers := bytes.Join(
+	e, err := json.Marshal(j.GetErr())
+	if err != nil {
+		glg.Error(err)
+	}
+	result, err := json.Marshal(j.GetResult())
+	if err != nil {
+		glg.Error(err)
+	}
+
+	header := bytes.Join(
 		[][]byte{
 			[]byte(strconv.FormatInt(j.GetTimestamp(), 10)),
 			[]byte(strconv.FormatInt(j.GetDuration(), 10)),
-			j.GetErr().([]byte),
-			j.GetResult().([]byte),
+			e,
+			result,
 			j.GetBy(),
 		},
 		[]byte{},
 	)
-	hash := sha256.Sum256(headers)
+
+	hash := sha256.Sum256(header)
 	j.Hash = hash[:]
 }
 

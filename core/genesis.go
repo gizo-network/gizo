@@ -1,11 +1,15 @@
 package core
 
-import "github.com/gizo-network/gizo/core/merkletree"
+import (
+	"github.com/gizo-network/gizo/core/merkletree"
+	"github.com/gizo-network/gizo/job"
+)
 
 //! modify on job engine creation
 
 func GenesisBlock() *Block {
-	node := merkletree.NewNode([]byte("Create genesis block"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
+	j := job.NewJob("func test(){return 1+1}; test()")
+	node := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	tree := merkletree.MerkleTree{
 		Root:      node.GetHash(),
 		LeafNodes: []*merkletree.MerkleNode{node},
