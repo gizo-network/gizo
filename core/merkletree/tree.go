@@ -115,6 +115,6 @@ func NewMerkleTree(nodes []*MerkleNode) *MerkleTree {
 
 //merges two nodes
 func merge(left, right MerkleNode) *MerkleNode {
-	parent := NewNode(HashJobs(left, right), &left, &right)
+	parent := NewNode(MergeJobs(left, right), &left, &right)
 	return parent
 }
