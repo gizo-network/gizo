@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
-	"errors"
 	"reflect"
 	"time"
 
@@ -15,30 +14,36 @@ import (
 	"github.com/mattn/anko/vm"
 )
 
-var (
-	ErrExecNotFound = errors.New("Exec Not Found")
-)
-
 type Job struct {
 	ID        string    `json:"id"`
 	Hash      []byte    `json:"hash"`
 	Execs     []JobExec `json:"execs"`
-	Source    string    `json:"source"`
+	Name      string    `json:"name"`
+	Task      string    `json:"task"`
 	Signature []byte    `json:"signature"` // signature of deployer
 }
 
 func (j Job) IsEmpty() bool {
-	return j.GetID() == "" && reflect.ValueOf(j.GetHash()).IsNil() && reflect.ValueOf(j.GetExecs()).IsNil() && j.GetSource() == "" && reflect.ValueOf(j.GetSignature()).IsNil()
+	return j.GetID() == "" && reflect.ValueOf(j.GetHash()).IsNil() && reflect.ValueOf(j.GetExecs()).IsNil() && j.GetTask() == "" && reflect.ValueOf(j.GetSignature()).IsNil() && j.GetName() == ""
 }
 
-func NewJob(s string) *Job {
+func NewJob(task string, name string) *Job {
 	j := &Job{
-		ID:     uuid.New().String(),
-		Execs:  []JobExec{},
-		Source: helpers.Encode64([]byte(s)),
+		ID:    uuid.New().String(),
+		Execs: []JobExec{},
+		Name:  name,
+		Task:  helpers.Encode64([]byte(task)),
 	}
 	j.setHash()
 	return j
+}
+
+func (j Job) GetName() string {
+	return j.Name
+}
+
+func (j *Job) setName(n string) {
+	j.Name = n
 }
 
 func (j Job) GetID() string {
@@ -54,7 +59,7 @@ func (j *Job) setHash() {
 		[][]byte{
 			[]byte(j.GetID()),
 			j.serializeExecs(),
-			[]byte(j.GetSource()),
+			[]byte(j.GetTask()),
 		},
 		[]byte{},
 	)
@@ -102,8 +107,8 @@ func (j *Job) AddExec(je JobExec) {
 	j.setHash() //regenerates hash
 }
 
-func (j Job) GetSource() string {
-	return j.Source
+func (j Job) GetTask() string {
+	return j.Task
 }
 
 func (j *Job) Serialize() []byte {
@@ -114,19 +119,46 @@ func (j *Job) Serialize() []byte {
 	return temp
 }
 
-//FIXME: add fault tolerance and security
-func (j *Job) Execute() (interface{}, error) {
+func argsStringified(args []interface{}) string {
+	temp := "("
+	for i, val := range args {
+		if i == len(args)-1 {
+			temp += val.(string) + ""
+		} else {
+			temp += val.(string) + ","
+		}
+	}
+	return temp + ")"
+}
+
+//!TODO: handle retry and retrydelay limit
+func (j *Job) Execute(exec *JobExec) {
+	exec.SetStatus(RUNNING)
+	r := exec.GetRetries()
+retry:
 	env := vm.NewEnv()
 	start := time.Now()
-	result, err := env.Execute(string(helpers.Decode64(j.GetSource())))
-	exec := JobExec{
-		Timestamp: time.Now().Unix(),
-		Duration:  time.Now().Sub(start).Nanoseconds(),
-		Err:       err,
-		Result:    result,
-		By:        []byte("0000"), //FIXME: replace with real ID
+	var result interface{}
+	var err error
+	if len(exec.GetArgs()) == 0 {
+		result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
+	} else {
+		result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(exec.GetArgs()))
 	}
+
+	if r != 0 && err != nil {
+		r--
+		time.Sleep(exec.GetRetryDelay() * time.Second)
+		exec.SetStatus(RETRYING)
+		glg.Info("Retrying job - " + j.GetID())
+		goto retry
+	}
+	exec.SetTimestamp(time.Now().Unix())
+	exec.SetDuration(time.Duration(time.Now().Sub(start).Nanoseconds()))
+	exec.SetErr(err)
+	exec.SetResult(result)
 	exec.setHash()
-	j.AddExec(exec)
-	return result, err
+	exec.SetStatus(FINISHED)
+	j.AddExec(*exec)
+	// return &exec
 }

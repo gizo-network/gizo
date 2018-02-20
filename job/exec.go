@@ -5,17 +5,122 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"strconv"
+	"time"
 
 	"github.com/kpango/glg"
 )
 
 type JobExec struct {
-	Hash      []byte      `json:"hash"`
-	Timestamp int64       `json:"timestamp"`
-	Duration  int64       `json:"duaration"` //saved in nanoseconds
-	Err       interface{} `json:"err"`
-	Result    interface{} `json:"result"`
-	By        []byte      `json:"by"` //! ID of the worker node that ran this
+	Hash          []byte        `json:"hash"`
+	Timestamp     int64         `json:"timestamp"`
+	Duration      time.Duration `json:"duaration"` //saved in nanoseconds
+	Args          []interface{} `json:"args"`
+	Err           interface{}   `json:"err"`
+	Priority      int           `json:"priority"`
+	Result        interface{}   `json:"result"`
+	Status        string        `json:"status"`         //job status
+	Retries       int           `json:"retries"`        // number of retries
+	RetryDelay    time.Duration `json:"retry_delay"`    //backoff time of retries (seconds)
+	ExecutionTime int64         `json:"execution_time"` // time scheduled to run (unix) - should sleep # of seconds before adding to job queue
+	Interval      int           `json:"interval"`       //periodic job exec (seconds)
+	By            []byte        `json:"by"`             //! ID of the worker node that ran this
+}
+
+func NewJobExec(args []interface{}, retries, priority int, retrydelay time.Duration, execTime int64, interval int) (*JobExec, error) {
+	switch priority {
+	case HIGH:
+	case MEDIUM:
+	case LOW:
+	case NORMAL:
+
+	default:
+		return nil, ErrInvalidPriority
+	}
+	if retries > MaxRetries {
+		return nil, ErrRetriesOutsideLimit
+	}
+	return &JobExec{
+		Args:          args,
+		Retries:       retries,
+		Priority:      priority,
+		Status:        STARTED,
+		RetryDelay:    retrydelay,
+		ExecutionTime: execTime,
+		Interval:      interval,
+		By:            []byte("0000"), //!FIXME: replace with real ID
+	}, nil
+}
+
+func (j JobExec) GetInterval() int {
+	return j.Interval
+}
+
+func (j *JobExec) SetInterval(i int) {
+	j.Interval = i
+}
+
+func (j JobExec) GetPriority() int {
+	return j.Priority
+}
+
+func (j *JobExec) SetPriority(p int) error {
+	if p != HIGH || p != MEDIUM || p != LOW || p != NORMAL {
+		return ErrInvalidPriority
+	}
+	return nil
+}
+
+func (j JobExec) GetExecutionTime() int64 {
+	return j.ExecutionTime
+}
+
+//? takes unix time
+func (j *JobExec) SetExecutionTime(e int64) error {
+	if e < time.Now().Unix() {
+		return ErrExecutionTimeBehind
+	}
+	j.ExecutionTime = e
+	return nil
+}
+
+func (j JobExec) GetRetryDelay() time.Duration {
+	return j.RetryDelay
+}
+
+func (j *JobExec) SetRetryDelay(d time.Duration) error {
+	if d > MaxRetryDelay {
+		return ErrRetryDelayOutsideLimit
+	}
+	j.RetryDelay = d
+	return nil
+}
+
+func (j JobExec) GetRetries() int {
+	return j.Retries
+}
+
+func (j *JobExec) SetRetries(r int) error {
+	if r > MaxRetries {
+		return ErrRetriesOutsideLimit
+	}
+	j.Retries = r
+	return nil
+}
+
+func (j JobExec) GetStatus() string {
+	return j.Status
+}
+
+func (j *JobExec) SetStatus(s string) {
+	j.Status = s
+}
+
+func (j JobExec) GetArgs() []interface{} {
+	return j.Args
+}
+
+func (j *JobExec) SetArgs(a []interface{}) {
+	j.Args = a
 }
 
 func (j JobExec) GetHash() []byte {
@@ -35,7 +140,7 @@ func (j *JobExec) setHash() {
 	header := bytes.Join(
 		[][]byte{
 			[]byte(strconv.FormatInt(j.GetTimestamp(), 10)),
-			[]byte(strconv.FormatInt(j.GetDuration(), 10)),
+			[]byte(strconv.FormatInt(int64(j.GetDuration()), 10)),
 			e,
 			result,
 			j.GetBy(),
@@ -55,11 +160,11 @@ func (j *JobExec) SetTimestamp(t int64) {
 	j.Timestamp = t
 }
 
-func (j JobExec) GetDuration() int64 {
+func (j JobExec) GetDuration() time.Duration {
 	return j.Duration
 }
 
-func (j *JobExec) SetDuration(t int64) {
+func (j *JobExec) SetDuration(t time.Duration) {
 	j.Duration = t
 }
 
