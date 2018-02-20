@@ -16,7 +16,7 @@ func TestErrors(t *testing.T) {
 }
 
 func TestBuild(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node3 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
@@ -36,7 +36,7 @@ func TestBuild(t *testing.T) {
 }
 
 func TestNewMerkleTree(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node3 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
@@ -53,7 +53,7 @@ func TestNewMerkleTree(t *testing.T) {
 }
 
 func TestVerifyTree(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node3 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
@@ -72,7 +72,7 @@ func TestVerifyTree(t *testing.T) {
 }
 
 func TestSearchNode(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node3 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
@@ -90,7 +90,7 @@ func TestSearchNode(t *testing.T) {
 }
 
 func TestSearchJob(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node3 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
@@ -108,7 +108,7 @@ func TestSearchJob(t *testing.T) {
 }
 
 func TestMerge(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 

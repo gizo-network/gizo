@@ -8,7 +8,7 @@ import (
 //! modify on job engine creation
 
 func GenesisBlock() *Block {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	tree := merkletree.MerkleTree{
 		Root:      node.GetHash(),

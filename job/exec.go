@@ -20,13 +20,13 @@ type JobExec struct {
 	Result        interface{}   `json:"result"`
 	Status        string        `json:"status"`         //job status
 	Retries       int           `json:"retries"`        // number of retries
-	RetryDelay    time.Duration `json:"retry_delay"`    //backoff time of retries (seconds)
+	Backoff       time.Duration `json:"backoff"`        //backoff time of retries (seconds)
 	ExecutionTime int64         `json:"execution_time"` // time scheduled to run (unix) - should sleep # of seconds before adding to job queue
 	Interval      int           `json:"interval"`       //periodic job exec (seconds)
 	By            []byte        `json:"by"`             //! ID of the worker node that ran this
 }
 
-func NewJobExec(args []interface{}, retries, priority int, retrydelay time.Duration, execTime int64, interval int) (*JobExec, error) {
+func NewJobExec(args []interface{}, retries, priority int, backoff time.Duration, execTime int64, interval int) (*JobExec, error) {
 	switch priority {
 	case HIGH:
 	case MEDIUM:
@@ -44,7 +44,7 @@ func NewJobExec(args []interface{}, retries, priority int, retrydelay time.Durat
 		Retries:       retries,
 		Priority:      priority,
 		Status:        STARTED,
-		RetryDelay:    retrydelay,
+		Backoff:       backoff,
 		ExecutionTime: execTime,
 		Interval:      interval,
 		By:            []byte("0000"), //!FIXME: replace with real ID
@@ -83,15 +83,15 @@ func (j *JobExec) SetExecutionTime(e int64) error {
 	return nil
 }
 
-func (j JobExec) GetRetryDelay() time.Duration {
-	return j.RetryDelay
+func (j JobExec) GetBackoff() time.Duration {
+	return j.Backoff
 }
 
-func (j *JobExec) SetRetryDelay(d time.Duration) error {
-	if d > MaxRetryDelay {
+func (j *JobExec) SetBackoff(b time.Duration) error {
+	if b > MaxRetryDelay {
 		return ErrRetryDelayOutsideLimit
 	}
-	j.RetryDelay = d
+	j.Backoff = b
 	return nil
 }
 

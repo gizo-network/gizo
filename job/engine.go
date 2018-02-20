@@ -131,7 +131,6 @@ func argsStringified(args []interface{}) string {
 	return temp + ")"
 }
 
-//!TODO: handle retry and retrydelay limit
 func (j *Job) Execute(exec *JobExec) {
 	exec.SetStatus(RUNNING)
 	r := exec.GetRetries()
@@ -148,7 +147,7 @@ retry:
 
 	if r != 0 && err != nil {
 		r--
-		time.Sleep(exec.GetRetryDelay() * time.Second)
+		time.Sleep(exec.GetBackoff() * time.Second)
 		exec.SetStatus(RETRYING)
 		glg.Info("Retrying job - " + j.GetID())
 		goto retry
