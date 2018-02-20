@@ -5,21 +5,31 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"strconv"
+	"time"
 
 	"github.com/kpango/glg"
 )
 
 type JobExec struct {
-	Hash           []byte      `json:"hash"`
-	Timestamp      int64       `json:"timestamp"`
-	Duration       int64       `json:"duaration"` //saved in nanoseconds
-	Err            interface{} `json:"err"`
-	Result         interface{} `json:"result"`
-	Status         string      `json:"status"`         //job status
-	Retries        int         `json:"retries"`        // number of retries
-	Retry_Delay    int         `json:"retry_delay"`    //backoff time of retries (seconds)
-	Execution_Time int         `json:"execution_time"` // time scheduled to run (seconds)
-	By             []byte      `json:"by"`             //! ID of the worker node that ran this
+	Hash          []byte        `json:"hash"`
+	Timestamp     int64         `json:"timestamp"`
+	Duration      time.Duration `json:"duaration"` //saved in nanoseconds
+	Args          []interface{} `json:"args"`
+	Err           interface{}   `json:"err"`
+	Result        interface{}   `json:"result"`
+	Status        string        `json:"status"`         //job status
+	Retries       int           `json:"retries"`        // number of retries
+	RetryDelay    time.Duration `json:"retry_delay"`    //backoff time of retries (seconds)
+	ExecutionTime time.Duration `json:"execution_time"` // time scheduled to run (seconds)
+	By            []byte        `json:"by"`             //! ID of the worker node that ran this
+}
+
+func (j JobExec) GetArgs() []interface{} {
+	return j.Args
+}
+
+func (j *JobExec) SetArgs(a []interface{}) {
+	j.Args = a
 }
 
 func (j JobExec) GetHash() []byte {
@@ -39,7 +49,7 @@ func (j *JobExec) setHash() {
 	header := bytes.Join(
 		[][]byte{
 			[]byte(strconv.FormatInt(j.GetTimestamp(), 10)),
-			[]byte(strconv.FormatInt(j.GetDuration(), 10)),
+			[]byte(strconv.FormatInt(int64(j.GetDuration()), 10)),
 			e,
 			result,
 			j.GetBy(),
@@ -59,11 +69,11 @@ func (j *JobExec) SetTimestamp(t int64) {
 	j.Timestamp = t
 }
 
-func (j JobExec) GetDuration() int64 {
+func (j JobExec) GetDuration() time.Duration {
 	return j.Duration
 }
 
-func (j *JobExec) SetDuration(t int64) {
+func (j *JobExec) SetDuration(t time.Duration) {
 	j.Duration = t
 }
 

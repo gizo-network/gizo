@@ -23,22 +23,32 @@ type Job struct {
 	ID        string    `json:"id"`
 	Hash      []byte    `json:"hash"`
 	Execs     []JobExec `json:"execs"`
-	Source    string    `json:"source"`
+	Name      string    `json:"name"`
+	Task      string    `json:"task"`
 	Signature []byte    `json:"signature"` // signature of deployer
 }
 
 func (j Job) IsEmpty() bool {
-	return j.GetID() == "" && reflect.ValueOf(j.GetHash()).IsNil() && reflect.ValueOf(j.GetExecs()).IsNil() && j.GetSource() == "" && reflect.ValueOf(j.GetSignature()).IsNil()
+	return j.GetID() == "" && reflect.ValueOf(j.GetHash()).IsNil() && reflect.ValueOf(j.GetExecs()).IsNil() && j.GetTask() == "" && reflect.ValueOf(j.GetSignature()).IsNil() && j.GetName() == ""
 }
 
-func NewJob(s string) *Job {
+func NewJob(task string, name string) *Job {
 	j := &Job{
-		ID:     uuid.New().String(),
-		Execs:  []JobExec{},
-		Source: helpers.Encode64([]byte(s)),
+		ID:    uuid.New().String(),
+		Execs: []JobExec{},
+		Name:  name,
+		Task:  helpers.Encode64([]byte(task)),
 	}
 	j.setHash()
 	return j
+}
+
+func (j Job) GetName() string {
+	return j.Name
+}
+
+func (j *Job) setName(n string) {
+	j.Name = n
 }
 
 func (j Job) GetID() string {
@@ -54,7 +64,7 @@ func (j *Job) setHash() {
 		[][]byte{
 			[]byte(j.GetID()),
 			j.serializeExecs(),
-			[]byte(j.GetSource()),
+			[]byte(j.GetTask()),
 		},
 		[]byte{},
 	)
@@ -102,8 +112,8 @@ func (j *Job) AddExec(je JobExec) {
 	j.setHash() //regenerates hash
 }
 
-func (j Job) GetSource() string {
-	return j.Source
+func (j Job) GetTask() string {
+	return j.Task
 }
 
 func (j *Job) Serialize() []byte {
@@ -114,14 +124,33 @@ func (j *Job) Serialize() []byte {
 	return temp
 }
 
+func argsStringified(args []interface{}) string {
+	temp := "("
+	for i, val := range args {
+		if i == len(args)-1 {
+			temp += val.(string) + ""
+		} else {
+			temp += val.(string) + ","
+		}
+	}
+	return temp + ")"
+}
+
 //FIXME: add fault tolerance and security
-func (j *Job) Execute() JobExec {
+func (j *Job) Execute(args []interface{}) JobExec {
 	env := vm.NewEnv()
 	start := time.Now()
-	result, err := env.Execute(string(helpers.Decode64(j.GetSource())))
+	var result interface{}
+	var err error
+	if len(args) == 0 {
+		result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
+	} else {
+		result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(args))
+	}
 	exec := JobExec{
 		Timestamp: time.Now().Unix(),
-		Duration:  time.Now().Sub(start).Nanoseconds(),
+		Duration:  time.Duration(time.Now().Sub(start).Nanoseconds()),
+		Args:      args,
 		Err:       err,
 		Result:    result,
 		By:        []byte("0000"), //FIXME: replace with real ID
