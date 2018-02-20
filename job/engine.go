@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
-	"errors"
 	"reflect"
 	"time"
 
@@ -13,10 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/kpango/glg"
 	"github.com/mattn/anko/vm"
-)
-
-var (
-	ErrExecNotFound = errors.New("Exec Not Found")
 )
 
 type Job struct {
@@ -136,26 +131,34 @@ func argsStringified(args []interface{}) string {
 	return temp + ")"
 }
 
-//FIXME: add fault tolerance and security
-func (j *Job) Execute(args []interface{}) JobExec {
+//!TODO: handle retry and retrydelay limit
+func (j *Job) Execute(exec *JobExec) {
+	exec.SetStatus(RUNNING)
+	r := exec.GetRetries()
+retry:
 	env := vm.NewEnv()
 	start := time.Now()
 	var result interface{}
 	var err error
-	if len(args) == 0 {
+	if len(exec.GetArgs()) == 0 {
 		result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
 	} else {
-		result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(args))
+		result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(exec.GetArgs()))
 	}
-	exec := JobExec{
-		Timestamp: time.Now().Unix(),
-		Duration:  time.Duration(time.Now().Sub(start).Nanoseconds()),
-		Args:      args,
-		Err:       err,
-		Result:    result,
-		By:        []byte("0000"), //FIXME: replace with real ID
+
+	if r != 0 && err != nil {
+		r--
+		time.Sleep(exec.GetRetryDelay() * time.Second)
+		exec.SetStatus(RETRYING)
+		glg.Info("Retrying job - " + j.GetID())
+		goto retry
 	}
+	exec.SetTimestamp(time.Now().Unix())
+	exec.SetDuration(time.Duration(time.Now().Sub(start).Nanoseconds()))
+	exec.SetErr(err)
+	exec.SetResult(result)
 	exec.setHash()
-	j.AddExec(exec)
-	return exec
+	exec.SetStatus(FINISHED)
+	j.AddExec(*exec)
+	// return &exec
 }
