@@ -9,7 +9,7 @@ import (
 )
 
 func TestGetBlock(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})

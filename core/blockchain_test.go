@@ -18,7 +18,7 @@ func TestNewBlockChain(t *testing.T) {
 
 func TestAddBlock(t *testing.T) {
 	RemoveDataPath()
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -39,7 +39,7 @@ func TestAddBlock(t *testing.T) {
 
 func TestVerify(t *testing.T) {
 	RemoveDataPath()
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -59,7 +59,7 @@ func TestVerify(t *testing.T) {
 
 func TestGetBlockInfo(t *testing.T) {
 	RemoveDataPath()
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -81,7 +81,7 @@ func TestGetBlockInfo(t *testing.T) {
 
 func TestGetBlocksWithinMinute(t *testing.T) {
 	RemoveDataPath()
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -101,7 +101,7 @@ func TestGetBlocksWithinMinute(t *testing.T) {
 
 func TestGetLatestHeight(t *testing.T) {
 	RemoveDataPath()
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -121,7 +121,7 @@ func TestGetLatestHeight(t *testing.T) {
 
 func TestFindJob(t *testing.T) {
 	RemoveDataPath()
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -143,7 +143,7 @@ func TestFindJob(t *testing.T) {
 
 func TestGetBlockHashes(t *testing.T) {
 	RemoveDataPath()
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})

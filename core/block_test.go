@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewBlock(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -26,8 +26,8 @@ func TestNewBlock(t *testing.T) {
 	testBlock.DeleteFile()
 }
 
-func TestVeriyBlock(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+func TestVerifyBlock(t *testing.T) {
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -45,7 +45,7 @@ func TestVeriyBlock(t *testing.T) {
 }
 
 func TestSerialize(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -60,7 +60,7 @@ func TestSerialize(t *testing.T) {
 }
 
 func TestDeserializeBlock(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -77,7 +77,7 @@ func TestDeserializeBlock(t *testing.T) {
 }
 
 func TestIsEmpty(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -93,7 +93,7 @@ func TestIsEmpty(t *testing.T) {
 }
 
 func TestExport(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -107,7 +107,7 @@ func TestExport(t *testing.T) {
 }
 
 func TestImport(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -126,7 +126,7 @@ func TestImport(t *testing.T) {
 }
 
 func TestFileStats(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}; test()")
+	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
