@@ -115,7 +115,7 @@ func (j *Job) Serialize() []byte {
 }
 
 //FIXME: add fault tolerance and security
-func (j *Job) Execute() (interface{}, error) {
+func (j *Job) Execute() JobExec {
 	env := vm.NewEnv()
 	start := time.Now()
 	result, err := env.Execute(string(helpers.Decode64(j.GetSource())))
@@ -128,5 +128,5 @@ func (j *Job) Execute() (interface{}, error) {
 	}
 	exec.setHash()
 	j.AddExec(exec)
-	return result, err
+	return exec
 }

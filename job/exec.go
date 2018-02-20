@@ -10,12 +10,16 @@ import (
 )
 
 type JobExec struct {
-	Hash      []byte      `json:"hash"`
-	Timestamp int64       `json:"timestamp"`
-	Duration  int64       `json:"duaration"` //saved in nanoseconds
-	Err       interface{} `json:"err"`
-	Result    interface{} `json:"result"`
-	By        []byte      `json:"by"` //! ID of the worker node that ran this
+	Hash           []byte      `json:"hash"`
+	Timestamp      int64       `json:"timestamp"`
+	Duration       int64       `json:"duaration"` //saved in nanoseconds
+	Err            interface{} `json:"err"`
+	Result         interface{} `json:"result"`
+	Status         string      `json:"status"`         //job status
+	Retries        int         `json:"retries"`        // number of retries
+	Retry_Delay    int         `json:"retry_delay"`    //backoff time of retries (seconds)
+	Execution_Time int         `json:"execution_time"` // time scheduled to run (seconds)
+	By             []byte      `json:"by"`             //! ID of the worker node that ran this
 }
 
 func (j JobExec) GetHash() []byte {
