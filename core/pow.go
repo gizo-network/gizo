@@ -65,6 +65,7 @@ func (p POW) prepareData(nonce int) []byte {
 
 //Run looks for a hash that is less than the current target difficulty
 func (p *POW) Run() {
+	glg.Info("Core: Initiating POW")
 	var hashInt big.Int
 	var hash [32]byte
 	nonce := 0
@@ -82,19 +83,17 @@ func (p *POW) Run() {
 }
 
 func (p *POW) Validate() bool {
+	glg.Info("Core: Validating POW")
 	var hashInt big.Int
-
 	data := p.prepareData(int(p.GetBlock().GetHeader().GetNonce()))
 	hash := sha256.Sum256(data)
 	hashInt.SetBytes(hash[:])
-
 	return hashInt.Cmp(p.GetTarget()) == -1
 }
 
 func NewPOW(b *Block) *POW {
 	target := big.NewInt(1)
 	target.Lsh(target, uint(256-b.GetHeader().GetDifficulty().Int64()))
-
 	pow := &POW{
 		target: target,
 		block:  b,

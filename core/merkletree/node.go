@@ -116,9 +116,6 @@ func NewNode(j job.Job, lNode, rNode *MerkleNode) *MerkleNode {
 //FIXME: merge jobs
 //HashJobs hashes the jobs of two merklenodes
 func MergeJobs(x, y MerkleNode) job.Job {
-	// headers := bytes.Join([][]byte{x.Job.Serialize(), y.Job.Serialize()}, []byte{})
-	// hash := sha256.Sum256(headers)
-	// return hash[:]
 	return job.Job{
 		ID:        x.GetJob().GetID() + y.GetJob().GetID(),
 		Hash:      append(x.GetJob().GetHash(), y.GetJob().GetHash()...),
