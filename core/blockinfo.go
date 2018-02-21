@@ -71,7 +71,6 @@ func (bi BlockInfo) GetBlock() *Block {
 }
 
 func DeserializeBlockInfo(bi []byte) *BlockInfo {
-	glg.Warn("inside deserializeblockinfo")
 	var temp BlockInfo
 	err := json.Unmarshal(bi, &temp)
 	if err != nil {

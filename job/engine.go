@@ -3,6 +3,7 @@ package job
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"reflect"
 	"time"
@@ -76,6 +77,7 @@ func (j Job) serializeExecs() []byte {
 }
 
 func (j Job) GetExec(hash []byte) (*JobExec, error) {
+	glg.Info("Job: Getting exec - " + hex.EncodeToString(hash))
 	var check int
 	for _, exec := range j.GetExecs() {
 		check = bytes.Compare(exec.GetHash(), hash)
@@ -103,6 +105,7 @@ func (j *Job) SetSignature(sign []byte) {
 }
 
 func (j *Job) AddExec(je JobExec) {
+	glg.Info("Job: Adding exec - " + hex.EncodeToString(je.GetHash()) + " to job - " + j.GetID())
 	j.Execs = append(j.Execs, je)
 	j.setHash() //regenerates hash
 }
@@ -132,6 +135,7 @@ func argsStringified(args []interface{}) string {
 }
 
 func (j *Job) Execute(exec *JobExec) {
+	glg.Info("Job: Executing job - " + j.GetID())
 	exec.SetStatus(RUNNING)
 	r := exec.GetRetries()
 retry:

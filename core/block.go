@@ -77,12 +77,13 @@ func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficult
 
 //writes block on disk
 func (b Block) export() error {
+	glg.Info("Core: Exporting block - " + hex.EncodeToString(b.GetHeader().GetHash()))
 	InitializeDataPath()
 	if b.IsEmpty() {
 		return ErrUnableToExport
 	}
 	bBytes := b.Serialize()
-	err := ioutil.WriteFile(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()[:]))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
+	err := ioutil.WriteFile(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -91,12 +92,13 @@ func (b Block) export() error {
 
 // reads block into memory
 func (b *Block) Import(hash []byte) {
+	glg.Info("Core: Importing block - " + hex.EncodeToString(hash))
 	if b.IsEmpty() == false {
 		glg.Warn("Overwriting umempty block")
 	}
 	read, err := ioutil.ReadFile(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(hash))))
 	if err != nil {
-		glg.Fatal(err) //FIXME: handle block doesn't exist
+		glg.Fatal(err) //FIXME: handle block doesn't exist by asking peer
 	}
 	bBytes := helpers.Decode64(string(read))
 	temp, err := DeserializeBlock(bBytes)
@@ -140,12 +142,14 @@ func DeserializeBlock(b []byte) (*Block, error) {
 }
 
 func (b *Block) VerifyBlock() bool {
+	glg.Info("Core: Verigying block - " + hex.EncodeToString(b.GetHeader().GetHash()))
 	pow := NewPOW(b)
 	return pow.Validate()
 }
 
 //DeleteFile deletes block file on disk
 func (b Block) DeleteFile() {
+	glg.Info("Core: Deleting blockfile - " + hex.EncodeToString(b.GetHeader().GetHash()))
 	err := os.Remove(path.Join(BlockPath, b.FileStats().Name()))
 	if err != nil {
 		glg.Fatal(err)
