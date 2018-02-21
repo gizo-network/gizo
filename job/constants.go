@@ -1,6 +1,9 @@
 package job
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 var (
 	ErrExecNotFound           = errors.New("Exec Not Found")
@@ -13,6 +16,7 @@ var (
 const (
 	MaxRetries      = 5
 	MaxRetryDelay   = 120 //! 2 minutes
+	DefaultMaxTTL   = time.Minute * 10
 	DefaultRetries  = 0
 	DefaultPriority = NORMAL
 )
@@ -28,6 +32,7 @@ const (
 //TODO: add errors
 //! statuses
 const (
+	TIMEOUT     = "timeout"
 	RUNNING     = "running"    //job executed
 	FINISHED    = "finished"   //job done
 	RETRYING    = "retrying"   //job retrying

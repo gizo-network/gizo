@@ -65,7 +65,7 @@ func (b BenchmarkEngine) block(difficulty uint8) *core.Block {
 
 // Run spins up the benchmark engine
 func (b *BenchmarkEngine) run() {
-	glg.Info("Benchmark: Benchmarking node")
+	glg.Warn("Benchmarking node")
 	done := false
 	var wg sync.WaitGroup
 	difficulty := 10 //! difficulty starts at 10
@@ -114,7 +114,7 @@ func (b *BenchmarkEngine) run() {
 	score := float64(b.GetData()[len(b.GetData())-1].GetDifficulty()) - 10 //! 10 is subtracted to allow the score start from 1 since difficulty starts at 10
 	scoreDecimal := 1 - b.GetData()[len(b.GetData())-1].GetAvgTime()/100   // determine decimal part of score
 	b.SetScore(score + scoreDecimal)
-
+	glg.Warn("Benchmark: Benchmark done")
 }
 
 //NewBenchmarkEngine returns a benchmarkengine with benchmarks run
