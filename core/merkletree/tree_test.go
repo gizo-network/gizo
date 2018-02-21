@@ -3,6 +3,7 @@ package merkletree
 import (
 	"testing"
 
+	"github.com/gizo-network/gizo/job"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,14 +16,15 @@ func TestErrors(t *testing.T) {
 }
 
 func TestBuild(t *testing.T) {
-	node1 := NewNode([]byte("test1asdfasdf job"), &MerkleNode{}, &MerkleNode{})
-	node2 := NewNode([]byte("test2 job asldkj;fasldkjfasd"), &MerkleNode{}, &MerkleNode{})
-	node3 := NewNode([]byte("test3 asdfasl;dfasdjob"), &MerkleNode{}, &MerkleNode{})
-	node4 := NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
-	node5 := NewNode([]byte("tesasdfa;sdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
-	node6 := NewNode([]byte("tesasdfa;sadasdfasdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
-	node7 := NewNode([]byte("tesasdfa;sdlkfj;asasdfasfdat4 job"), &MerkleNode{}, &MerkleNode{})
-	node8 := NewNode([]byte("tesasdfasdfsadfasdfa;sdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
+	j := job.NewJob("func test(){return 1+1}", "test")
+	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node3 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node4 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node5 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node6 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node7 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node8 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	nodes := []*MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 
 	tree := MerkleTree{
@@ -34,14 +36,15 @@ func TestBuild(t *testing.T) {
 }
 
 func TestNewMerkleTree(t *testing.T) {
-	node1 := NewNode([]byte("test1asdfasdf job"), &MerkleNode{}, &MerkleNode{})
-	node2 := NewNode([]byte("test2 job asldkj;fasldkjfasd"), &MerkleNode{}, &MerkleNode{})
-	node3 := NewNode([]byte("test3 asdfasl;dfasdjob"), &MerkleNode{}, &MerkleNode{})
-	node4 := NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
-	node5 := NewNode([]byte("tesasdfa;sdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
-	node6 := NewNode([]byte("tesasdfa;sadasdfasdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
-	node7 := NewNode([]byte("tesasdfa;sdlkfj;asasdfasfdat4 job"), &MerkleNode{}, &MerkleNode{})
-	node8 := NewNode([]byte("tesasdfasdfsadfasdfa;sdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
+	j := job.NewJob("func test(){return 1+1}", "test")
+	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node3 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node4 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node5 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node6 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node7 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node8 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	nodes := []*MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 
 	tree := NewMerkleTree(nodes)
@@ -50,43 +53,64 @@ func TestNewMerkleTree(t *testing.T) {
 }
 
 func TestVerifyTree(t *testing.T) {
-	node1 := NewNode([]byte("test1asdfasdf job"), &MerkleNode{}, &MerkleNode{})
-	node2 := NewNode([]byte("test2 job asldkj;fasldkjfasd"), &MerkleNode{}, &MerkleNode{})
-	node3 := NewNode([]byte("test3 asdfasl;dfasdjob"), &MerkleNode{}, &MerkleNode{})
-	node4 := NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
-	node5 := NewNode([]byte("tesasdfa;sdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
-	node6 := NewNode([]byte("tesasdfa;sadasdfasdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
-	node7 := NewNode([]byte("tesasdfa;sdlkfj;asasdfasfdat4 job"), &MerkleNode{}, &MerkleNode{})
-	node8 := NewNode([]byte("tesasdfasdfsadfasdfa;sdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
+	j := job.NewJob("func test(){return 1+1}", "test")
+	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node3 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node4 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node5 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node6 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node7 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node8 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	nodes := []*MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 
 	tree := NewMerkleTree(nodes)
 	assert.True(t, tree.VerifyTree())
 
-	tree.SetLeafNodes(tree.GetLeafNodes()[2:])
+	tree.SetLeafNodes(tree.GetLeafNodes()[4:])
 	assert.False(t, tree.VerifyTree())
 }
 
-func TestSearch(t *testing.T) {
-	node1 := NewNode([]byte("test1asdfasdf job"), &MerkleNode{}, &MerkleNode{})
-	node2 := NewNode([]byte("test2 job asldkj;fasldkjfasd"), &MerkleNode{}, &MerkleNode{})
-	node3 := NewNode([]byte("test3 asdfasl;dfasdjob"), &MerkleNode{}, &MerkleNode{})
-	node4 := NewNode([]byte("tesasdfa;sdasd;laskdjf;alsjflkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
-	node5 := NewNode([]byte("tesasdfa;sdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
-	node6 := NewNode([]byte("tesasdfa;sadasdfasdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
-	node7 := NewNode([]byte("tesasdfa;sdlkfj;asasdfasfdat4 job"), &MerkleNode{}, &MerkleNode{})
-	node8 := NewNode([]byte("tesasdfasdfsadfasdfa;sdlkfj;ast4 job"), &MerkleNode{}, &MerkleNode{})
+func TestSearchNode(t *testing.T) {
+	j := job.NewJob("func test(){return 1+1}", "test")
+	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node3 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node4 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node5 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node6 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node7 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node8 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	nodes := []*MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 
 	tree := NewMerkleTree(nodes)
-	f, err := tree.Search(node5.GetHash())
+	f, err := tree.SearchNode(node5.GetHash())
+	assert.NoError(t, err)
+	assert.NotNil(t, f)
+}
+
+func TestSearchJob(t *testing.T) {
+	j := job.NewJob("func test(){return 1+1}", "test")
+	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node3 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node4 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node5 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node6 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node7 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node8 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	nodes := []*MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
+
+	tree := NewMerkleTree(nodes)
+	f, err := tree.SearchJob(j.GetID())
 	assert.NoError(t, err)
 	assert.NotNil(t, f)
 }
 
 func TestMerge(t *testing.T) {
-	node1 := NewNode([]byte("test1asdfasdf job"), &MerkleNode{}, &MerkleNode{})
-	node2 := NewNode([]byte("test2 job asldkj;fasldkjfasd"), &MerkleNode{}, &MerkleNode{})
+	j := job.NewJob("func test(){return 1+1}", "test")
+	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
+	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 
 	parent := merge(*node1, *node2)
 	assert.NotNil(t, parent)

@@ -3,31 +3,28 @@ package merkletree
 import (
 	"testing"
 
+	"github.com/gizo-network/gizo/job"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewNode(t *testing.T) {
-	n := NewNode([]byte("test job"), &MerkleNode{}, &MerkleNode{})
+	j := job.NewJob("func test(){return 1+1}", "test")
+	n := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	assert.NotNil(t, n.GetHash(), "empty hash value")
 	assert.NotNil(t, n, "returned empty node")
 }
 
-func TestHashJobs(t *testing.T) {
-	l := NewNode([]byte("test job 1"), &MerkleNode{}, &MerkleNode{})
-	r := NewNode([]byte("test job 2"), &MerkleNode{}, &MerkleNode{})
-	b := HashJobs(*l, *r)
-	assert.NotNil(t, b)
-}
-
 func TestMarshalMerkleNode(t *testing.T) {
-	n := NewNode([]byte("test job"), &MerkleNode{}, &MerkleNode{})
+	j := job.NewJob("func test(){return 1+1}", "test")
+	n := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	b, err := n.Serialize()
 	assert.NoError(t, err)
 	assert.NotNil(t, b)
 }
 
 func TestIsLeaf(t *testing.T) {
-	n := NewNode([]byte("test job"), &MerkleNode{}, &MerkleNode{})
+	j := job.NewJob("func test(){return 1+1}", "test")
+	n := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	assert.True(t, n.IsLeaf())
 }
 
@@ -37,6 +34,7 @@ func TestIsEmpty(t *testing.T) {
 }
 
 func TestIsEqual(t *testing.T) {
-	n := NewNode([]byte("test job"), &MerkleNode{}, &MerkleNode{})
+	j := job.NewJob("func test(){return 1+1}", "test")
+	n := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	assert.True(t, n.IsEqual(*n))
 }

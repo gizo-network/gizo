@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"reflect"
 
+	"github.com/gizo-network/gizo/job"
 	"github.com/kpango/glg"
 )
 
 // MerkleNode nodes that make a merkletree
 type MerkleNode struct {
 	Hash  []byte      `json:"hash"` //hash of a job struct
-	Job   []byte      `json:"job"`
+	Job   job.Job     `json:"job"`
 	Left  *MerkleNode `json:"left"`
 	Right *MerkleNode `json:"right"`
 }
@@ -33,7 +34,7 @@ func (n *MerkleNode) setHash() {
 		glg.Fatal(err)
 	}
 
-	headers := bytes.Join([][]byte{l, r, n.Job}, []byte{})
+	headers := bytes.Join([][]byte{l, r, n.Job.Serialize()}, []byte{})
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -42,12 +43,12 @@ func (n *MerkleNode) setHash() {
 }
 
 // GetJob returns job
-func (n MerkleNode) GetJob() []byte {
+func (n MerkleNode) GetJob() job.Job {
 	return n.Job
 }
 
 // SetJob setter for job
-func (n *MerkleNode) SetJob(j []byte) {
+func (n *MerkleNode) SetJob(j job.Job) {
 	n.Job = j
 }
 
@@ -78,7 +79,8 @@ func (n *MerkleNode) IsLeaf() bool {
 
 //IsEmpty check if the merklenode is empty
 func (n *MerkleNode) IsEmpty() bool {
-	return reflect.ValueOf(n.Right).IsNil() && reflect.ValueOf(n.Left).IsNil() && reflect.ValueOf(n.Job).IsNil() && reflect.ValueOf(n.Hash).IsNil()
+	//FIXME: add isempty check for job
+	return reflect.ValueOf(n.Right).IsNil() && reflect.ValueOf(n.Left).IsNil() && n.GetJob().IsEmpty() && reflect.ValueOf(n.Hash).IsNil()
 }
 
 //IsEqual check if the input merklenode equals the merklenode calling the function
@@ -101,7 +103,7 @@ func (n MerkleNode) Serialize() ([]byte, error) {
 }
 
 //NewNode returns a new merklenode
-func NewNode(j []byte, lNode, rNode *MerkleNode) *MerkleNode {
+func NewNode(j job.Job, lNode, rNode *MerkleNode) *MerkleNode {
 	n := &MerkleNode{
 		Left:  lNode,
 		Right: rNode,
@@ -111,9 +113,17 @@ func NewNode(j []byte, lNode, rNode *MerkleNode) *MerkleNode {
 	return n
 }
 
+//FIXME: merge jobs
 //HashJobs hashes the jobs of two merklenodes
-func HashJobs(x, y MerkleNode) []byte {
-	headers := bytes.Join([][]byte{x.GetJob(), y.GetJob()}, []byte{})
-	hash := sha256.Sum256(headers)
-	return hash[:]
+func MergeJobs(x, y MerkleNode) job.Job {
+	// headers := bytes.Join([][]byte{x.Job.Serialize(), y.Job.Serialize()}, []byte{})
+	// hash := sha256.Sum256(headers)
+	// return hash[:]
+	return job.Job{
+		ID:        x.GetJob().GetID() + y.GetJob().GetID(),
+		Hash:      append(x.GetJob().GetHash(), y.GetJob().GetHash()...),
+		Execs:     append(x.GetJob().GetExecs(), y.GetJob().GetExecs()...),
+		Task:      x.GetJob().GetTask() + y.GetJob().GetTask(),
+		Signature: append(x.GetJob().GetSignature(), y.GetJob().GetSignature()...),
+	}
 }

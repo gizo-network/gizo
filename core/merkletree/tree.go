@@ -6,6 +6,8 @@ import (
 	"errors"
 	"reflect"
 
+	"github.com/gizo-network/gizo/job"
+
 	"github.com/kpango/glg"
 )
 
@@ -16,6 +18,7 @@ var (
 	ErrTreeRebuildAttempt = errors.New("core/merkle tree: attempt to rebuild tree")
 	ErrOddLeafNodes       = errors.New("core/merkle tree: odd number of leaf nodes")
 	ErrTooMuchLeafNodes   = errors.New("core/merkle tree: length of leaf nodes is greater than 24")
+	ErrJobDoesntExist     = errors.New("core/merkletree: job doesn't exist")
 )
 
 // MerkleTree tree of jobs
@@ -89,13 +92,25 @@ func (m MerkleTree) VerifyTree() bool {
 }
 
 // Search returns true if node with hash exists
-func (m MerkleTree) Search(hash []byte) (*MerkleNode, error) {
+func (m MerkleTree) SearchNode(hash []byte) (*MerkleNode, error) {
 	if len(m.GetLeafNodes()) == 0 {
 		return nil, ErrLeafNodesEmpty
 	}
 	for _, n := range m.GetLeafNodes() {
 		if bytes.Equal(n.GetHash(), hash) {
 			return n, nil
+		}
+	}
+	return nil, ErrNodeDoesntExist
+}
+
+func (m MerkleTree) SearchJob(ID string) (*job.Job, error) {
+	if len(m.GetLeafNodes()) == 0 {
+		return nil, ErrLeafNodesEmpty
+	}
+	for _, n := range m.GetLeafNodes() {
+		if n.GetJob().GetID() == ID {
+			return &n.Job, nil
 		}
 	}
 	return nil, ErrNodeDoesntExist
@@ -115,6 +130,6 @@ func NewMerkleTree(nodes []*MerkleNode) *MerkleTree {
 
 //merges two nodes
 func merge(left, right MerkleNode) *MerkleNode {
-	parent := NewNode(HashJobs(left, right), &left, &right)
+	parent := NewNode(MergeJobs(left, right), &left, &right)
 	return parent
 }
