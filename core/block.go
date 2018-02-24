@@ -67,7 +67,7 @@ func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficult
 		Height: height,
 	}
 	pow := NewPOW(block)
-	pow.Run() //mines block
+	pow.Run() //! mines block
 	err := block.export()
 	if err != nil {
 		glg.Fatal(err)
@@ -78,12 +78,12 @@ func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficult
 //writes block on disk
 func (b Block) export() error {
 	glg.Info("Core: Exporting block - " + hex.EncodeToString(b.GetHeader().GetHash()))
-	InitializeDataPath()
+	InitializeDataPath(IndexPathDev)
 	if b.IsEmpty() {
 		return ErrUnableToExport
 	}
 	bBytes := b.Serialize()
-	err := ioutil.WriteFile(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
+	err := ioutil.WriteFile(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func (b *Block) Import(hash []byte) {
 	if b.IsEmpty() == false {
 		glg.Warn("Overwriting umempty block")
 	}
-	read, err := ioutil.ReadFile(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(hash))))
+	read, err := ioutil.ReadFile(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(hash))))
 	if err != nil {
 		glg.Fatal(err) //FIXME: handle block doesn't exist by asking peer
 	}
@@ -111,7 +111,7 @@ func (b *Block) Import(hash []byte) {
 }
 
 func (b Block) FileStats() os.FileInfo {
-	info, err := os.Stat(path.Join(BlockPath, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))))
+	info, err := os.Stat(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))))
 	if os.IsNotExist(err) {
 		glg.Fatal("Block file doesn't exist")
 	}
@@ -150,7 +150,7 @@ func (b *Block) VerifyBlock() bool {
 //DeleteFile deletes block file on disk
 func (b Block) DeleteFile() {
 	glg.Info("Core: Deleting blockfile - " + hex.EncodeToString(b.GetHeader().GetHash()))
-	err := os.Remove(path.Join(BlockPath, b.FileStats().Name()))
+	err := os.Remove(path.Join(BlockPathDev, b.FileStats().Name()))
 	if err != nil {
 		glg.Fatal(err)
 	}
