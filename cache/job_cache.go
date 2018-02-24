@@ -19,10 +19,15 @@ var (
 
 type JobCache struct {
 	cache *bigcache.BigCache
+	bc    *core.BlockChain
 }
 
 func (c JobCache) getCache() *bigcache.BigCache {
 	return c.cache
+}
+
+func (c JobCache) getBC() *core.BlockChain {
+	return c.bc
 }
 
 func (c JobCache) IsFull() bool {
@@ -30,6 +35,22 @@ func (c JobCache) IsFull() bool {
 		return true
 	}
 	return false
+}
+
+func (c JobCache) watch() {
+	ticker := time.NewTicker(time.Minute)
+	quit := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				c.fill()
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }
 
 func (c JobCache) Set(key string, val []byte) error {
@@ -44,9 +65,9 @@ func (c JobCache) Get(key string) ([]byte, error) {
 	return c.getCache().Get(key)
 }
 
-func (c JobCache) fill(blks []core.Block) {
+func (c JobCache) fill() {
 	var jobs []job.Job
-	for _, blk := range blks {
+	for _, blk := range c.getBC().GetBlocksWithinMinute() {
 		for _, job := range blk.GetNodes() {
 			jobs = append(jobs, job.GetJob())
 		}
@@ -58,11 +79,12 @@ func (c JobCache) fill(blks []core.Block) {
 
 }
 
-func NewJobCache(bc core.BlockChain) JobCache {
+func NewJobCache(bc core.BlockChain) *JobCache {
 	c, _ := bigcache.NewBigCache(bigcache.DefaultConfig(time.Minute))
-	jc := JobCache{c}
-	jc.fill(bc.GetBlocksWithinMinute())
-	return jc
+	jc := JobCache{c, &bc}
+	jc.fill()
+	jc.watch()
+	return &jc
 }
 
 // Merge returns an array of job in order of number of execs in the job from max to min
