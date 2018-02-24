@@ -3,8 +3,11 @@ package job
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/gizo-network/gizo/helpers"
@@ -15,12 +18,12 @@ import (
 )
 
 type Job struct {
-	ID        string    `json:"id"`
-	Hash      []byte    `json:"hash"`
-	Execs     []JobExec `json:"execs"`
-	Name      string    `json:"name"`
-	Task      string    `json:"task"`
-	Signature []byte    `json:"signature"` // signature of deployer
+	ID        string `json:"id"`
+	Hash      []byte `json:"hash"`
+	Execs     []Exec `json:"execs"`
+	Name      string `json:"name"`
+	Task      string `json:"task"`
+	Signature []byte `json:"signature"` // signature of deployer
 }
 
 func (j Job) IsEmpty() bool {
@@ -30,7 +33,7 @@ func (j Job) IsEmpty() bool {
 func NewJob(task string, name string) *Job {
 	j := &Job{
 		ID:    uuid.New().String(),
-		Execs: []JobExec{},
+		Execs: []Exec{},
 		Name:  name,
 		Task:  helpers.Encode64([]byte(task)),
 	}
@@ -75,7 +78,8 @@ func (j Job) serializeExecs() []byte {
 	return temp
 }
 
-func (j Job) GetExec(hash []byte) (*JobExec, error) {
+func (j Job) GetExec(hash []byte) (*Exec, error) {
+	glg.Info("Job: Getting exec - " + hex.EncodeToString(hash))
 	var check int
 	for _, exec := range j.GetExecs() {
 		check = bytes.Compare(exec.GetHash(), hash)
@@ -86,11 +90,11 @@ func (j Job) GetExec(hash []byte) (*JobExec, error) {
 	return nil, ErrExecNotFound
 }
 
-func (j Job) GetLatestExec() JobExec {
+func (j Job) GetLatestExec() Exec {
 	return j.Execs[len(j.GetExecs())-1]
 }
 
-func (j Job) GetExecs() []JobExec {
+func (j Job) GetExecs() []Exec {
 	return j.Execs
 }
 
@@ -102,7 +106,8 @@ func (j *Job) SetSignature(sign []byte) {
 	j.Signature = sign
 }
 
-func (j *Job) AddExec(je JobExec) {
+func (j *Job) AddExec(je Exec) {
+	glg.Info("Job: Adding exec - " + hex.EncodeToString(je.GetHash()) + " to job - " + j.GetID())
 	j.Execs = append(j.Execs, je)
 	j.setHash() //regenerates hash
 }
@@ -131,33 +136,62 @@ func argsStringified(args []interface{}) string {
 	return temp + ")"
 }
 
-func (j *Job) Execute(exec *JobExec) {
-	exec.SetStatus(RUNNING)
-	r := exec.GetRetries()
-retry:
-	env := vm.NewEnv()
+//! run in goroutine
+func (j *Job) Execute(exec *Exec) {
+	glg.Info("Job: Executing job - " + j.GetID())
 	start := time.Now()
-	var result interface{}
-	var err error
-	if len(exec.GetArgs()) == 0 {
-		result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
-	} else {
-		result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(exec.GetArgs()))
-	}
-
-	if r != 0 && err != nil {
-		r--
-		time.Sleep(exec.GetBackoff() * time.Second)
-		exec.SetStatus(RETRYING)
-		glg.Info("Retrying job - " + j.GetID())
-		goto retry
-	}
+	var wg sync.WaitGroup
+	done := make(chan bool)
+	exec.SetStatus(RUNNING)
 	exec.SetTimestamp(time.Now().Unix())
-	exec.SetDuration(time.Duration(time.Now().Sub(start).Nanoseconds()))
-	exec.SetErr(err)
-	exec.SetResult(result)
-	exec.setHash()
-	exec.SetStatus(FINISHED)
-	j.AddExec(*exec)
-	// return &exec
+	go func() {
+		var ttl time.Duration
+		if exec.GetTTL() != 0 {
+			ttl = exec.GetTTL()
+		} else {
+			ttl = DefaultMaxTTL
+		}
+		select {
+		case <-time.NewTimer(ttl).C:
+			exec.SetStatus(TIMEOUT)
+			glg.Warn("Job: Job timeout - " + j.GetID())
+			done <- true
+		}
+	}()
+	go func() {
+		r := exec.GetRetries()
+	retry:
+		env := vm.NewEnv()
+		var result interface{}
+		var err error
+		if len(exec.GetArgs()) == 0 {
+			result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
+		} else {
+			result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(exec.GetArgs()))
+		}
+
+		if r != 0 && err != nil {
+			r--
+			time.Sleep(exec.GetBackoff() * time.Second)
+			exec.SetStatus(RETRYING)
+			glg.Info("Retrying job - " + j.GetID())
+			goto retry
+		}
+		exec.SetDuration(time.Duration(time.Now().Sub(start).Nanoseconds()))
+		exec.SetErr(err)
+		exec.SetResult(result)
+		exec.setHash()
+		exec.SetStatus(FINISHED)
+		done <- true
+	}()
+	wg.Add(1)
+	go func() {
+		select {
+		case <-done:
+			j.AddExec(*exec)
+			fmt.Println("done")
+			wg.Done()
+		}
+	}()
+	wg.Wait()
 }
