@@ -26,7 +26,7 @@ type Job struct {
 	Signature      []byte    `json:"signature"` // signature of owner
 	SubmissionTime time.Time `json:"submission_time"`
 	Private        bool      `json:"private"` //private job flag (default to false - public)
-	Owner          []byte    `json: "owner"`
+	Owner          []byte    `json:"owner"`
 }
 
 func (j Job) GetSubmissionTime() time.Time {

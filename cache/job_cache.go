@@ -70,7 +70,7 @@ func (c JobCache) Get(key string) ([]byte, error) {
 
 func (c JobCache) fill() {
 	var jobs []job.Job
-	blks := c.getBC().GetBlocksWithinMinute()
+	blks := c.getBC().GetLatest15()
 	if len(blks) != 0 {
 		for _, blk := range blks {
 			for _, job := range blk.GetNodes() {

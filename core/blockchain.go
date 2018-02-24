@@ -98,6 +98,26 @@ func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	return blocks
 }
 
+func (bc *BlockChain) GetLatest15() []Block {
+	glg.Info("Core: Getting blocks within last minute")
+	var blocks []Block
+	bci := bc.iterator()
+	for {
+		if len(blocks) <= 15 {
+			block := bci.Next()
+			if block.GetHeight() == 0 {
+				blocks = append(blocks, *block)
+				break
+			} else {
+				blocks = append(blocks, *block)
+			}
+		} else {
+			break
+		}
+	}
+	return blocks
+}
+
 //GetLatestHeight returns the height of the latest block to the blockchain
 func (bc *BlockChain) GetLatestHeight() uint64 {
 	glg.Info("Core: Getting latest block height")
