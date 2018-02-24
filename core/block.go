@@ -38,11 +38,11 @@ func (b *Block) SetHeader(h BlockHeader) {
 	b.Header = h
 }
 
-func (b Block) GetJobs() []*merkletree.MerkleNode {
+func (b Block) GetNodes() []*merkletree.MerkleNode {
 	return b.Jobs
 }
 
-func (b *Block) SetJobs(j []*merkletree.MerkleNode) {
+func (b *Block) SetNodes(j []*merkletree.MerkleNode) {
 	b.Jobs = j
 }
 
@@ -107,7 +107,7 @@ func (b *Block) Import(hash []byte) {
 	}
 	b.SetHeader(temp.GetHeader())
 	b.SetHeight(temp.GetHeight())
-	b.SetJobs(temp.GetJobs())
+	b.SetNodes(temp.GetNodes())
 }
 
 func (b Block) FileStats() os.FileInfo {

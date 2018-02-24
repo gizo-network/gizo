@@ -5,25 +5,36 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"sync"
 	"time"
 
+	"github.com/satori/go.uuid"
+
 	"github.com/gizo-network/gizo/helpers"
 
-	"github.com/google/uuid"
 	"github.com/kpango/glg"
 	"github.com/mattn/anko/vm"
 )
 
 type Job struct {
-	ID        string `json:"id"`
-	Hash      []byte `json:"hash"`
-	Execs     []Exec `json:"execs"`
-	Name      string `json:"name"`
-	Task      string `json:"task"`
-	Signature []byte `json:"signature"` // signature of deployer
+	ID             string    `json:"id"`
+	Hash           []byte    `json:"hash"`
+	Execs          []Exec    `json:"execs"`
+	Name           string    `json:"name"`
+	Task           string    `json:"task"`
+	Signature      []byte    `json:"signature"` // signature of owner
+	SubmissionTime time.Time `json:"submission_time"`
+	Private        bool      `json:"private"` //private job flag (default to false - public)
+	Owner          []byte    `json: "owner"`
+}
+
+func (j Job) GetSubmissionTime() time.Time {
+	return j.SubmissionTime
+}
+
+func (j *Job) SetSubmissionTime(t time.Time) {
+	j.SubmissionTime = t
 }
 
 func (j Job) IsEmpty() bool {
@@ -32,10 +43,11 @@ func (j Job) IsEmpty() bool {
 
 func NewJob(task string, name string) *Job {
 	j := &Job{
-		ID:    uuid.New().String(),
-		Execs: []Exec{},
-		Name:  name,
-		Task:  helpers.Encode64([]byte(task)),
+		SubmissionTime: time.Now(),
+		ID:             uuid.NewV4().String(),
+		Execs:          []Exec{},
+		Name:           name,
+		Task:           helpers.Encode64([]byte(task)),
 	}
 	j.setHash()
 	return j
@@ -47,6 +59,14 @@ func (j Job) GetName() string {
 
 func (j *Job) setName(n string) {
 	j.Name = n
+}
+
+func (j Job) GetOwner() []byte {
+	return j.Owner
+}
+
+func (j *Job) SetOwner(o []byte) {
+	j.Owner = o
 }
 
 func (j Job) GetID() string {
@@ -61,13 +81,32 @@ func (j *Job) setHash() {
 	headers := bytes.Join(
 		[][]byte{
 			[]byte(j.GetID()),
-			j.serializeExecs(),
 			[]byte(j.GetTask()),
+			[]byte(j.GetName()),
+			j.GetSignature(),
+			[]byte(string(j.GetSubmissionTime().Unix())),
+			j.GetOwner(),
 		},
 		[]byte{},
 	)
 	hash := sha256.Sum256(headers)
 	j.Hash = hash[:]
+}
+
+func (j Job) Verify() bool {
+	headers := bytes.Join(
+		[][]byte{
+			[]byte(j.GetID()),
+			[]byte(j.GetTask()),
+			[]byte(j.GetName()),
+			j.GetSignature(),
+			[]byte(string(j.GetSubmissionTime().Unix())),
+			j.GetOwner(),
+		},
+		[]byte{},
+	)
+	hash := sha256.Sum256(headers)
+	return bytes.Compare(j.GetHash(), hash[:]) == 0
 }
 
 func (j Job) serializeExecs() []byte {
@@ -124,6 +163,15 @@ func (j *Job) Serialize() []byte {
 	return temp
 }
 
+func DeserializeJob(b []byte) (*Job, error) {
+	var temp Job
+	err := json.Unmarshal(b, &temp)
+	if err != nil {
+		return nil, err
+	}
+	return &temp, nil
+}
+
 func argsStringified(args []interface{}) string {
 	temp := "("
 	for i, val := range args {
@@ -141,7 +189,7 @@ func (j *Job) Execute(exec *Exec) {
 	glg.Info("Job: Executing job - " + j.GetID())
 	start := time.Now()
 	var wg sync.WaitGroup
-	done := make(chan bool)
+	done := make(chan struct{})
 	exec.SetStatus(RUNNING)
 	exec.SetTimestamp(time.Now().Unix())
 	go func() {
@@ -155,7 +203,7 @@ func (j *Job) Execute(exec *Exec) {
 		case <-time.NewTimer(ttl).C:
 			exec.SetStatus(TIMEOUT)
 			glg.Warn("Job: Job timeout - " + j.GetID())
-			done <- true
+			done <- struct{}{}
 		}
 	}()
 	go func() {
@@ -172,9 +220,10 @@ func (j *Job) Execute(exec *Exec) {
 
 		if r != 0 && err != nil {
 			r--
-			time.Sleep(exec.GetBackoff() * time.Second)
+			time.Sleep(exec.GetBackoff())
 			exec.SetStatus(RETRYING)
-			glg.Info("Retrying job - " + j.GetID())
+			exec.IncrRetriesCount()
+			glg.Error("Job: Retrying job - " + j.GetID())
 			goto retry
 		}
 		exec.SetDuration(time.Duration(time.Now().Sub(start).Nanoseconds()))
@@ -182,14 +231,13 @@ func (j *Job) Execute(exec *Exec) {
 		exec.SetResult(result)
 		exec.setHash()
 		exec.SetStatus(FINISHED)
-		done <- true
+		done <- struct{}{}
 	}()
 	wg.Add(1)
 	go func() {
 		select {
 		case <-done:
 			j.AddExec(*exec)
-			fmt.Println("done")
 			wg.Done()
 		}
 	}()

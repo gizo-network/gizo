@@ -44,7 +44,7 @@ func (p *POW) SetDifficulty(d uint8) {
 }
 
 func (p POW) prepareData(nonce int) []byte {
-	tree := merkletree.MerkleTree{Root: p.GetBlock().GetHeader().GetMerkleRoot(), LeafNodes: p.GetBlock().GetJobs()}
+	tree := merkletree.MerkleTree{Root: p.GetBlock().GetHeader().GetMerkleRoot(), LeafNodes: p.GetBlock().GetNodes()}
 	mBytes, err := tree.Serialize()
 	if err != nil {
 		glg.Fatal(err)

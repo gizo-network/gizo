@@ -19,7 +19,8 @@ type Exec struct {
 	Priority      int           `json:"priority"`
 	Result        interface{}   `json:"result"`
 	Status        string        `json:"status"`         //job status
-	Retries       int           `json:"retries"`        // number of retries
+	Retries       int           `json:"retries"`        // number of max retries
+	RetriesCount  int           `json:"retries_count"`   //number of retries
 	Backoff       time.Duration `json:"backoff"`        //backoff time of retries (seconds)
 	ExecutionTime int64         `json:"execution_time"` // time scheduled to run (unix) - should sleep # of seconds before adding to job queue
 	Interval      int           `json:"interval"`       //periodic job exec (seconds)
@@ -34,6 +35,7 @@ func NewExec(args []interface{}, retries, priority int, backoff time.Duration, e
 	return &Exec{
 		Args:          args,
 		Retries:       retries,
+		RetriesCount:  0,
 		Priority:      priority,
 		Status:        STARTED,
 		Backoff:       backoff,
@@ -100,6 +102,14 @@ func (j *Exec) SetBackoff(b time.Duration) error {
 	}
 	j.Backoff = b
 	return nil
+}
+
+func (j Exec) GetRetriesCount() int {
+	return j.RetriesCount
+}
+
+func (j *Exec) IncrRetriesCount() {
+	j.RetriesCount++
 }
 
 func (j Exec) GetRetries() int {

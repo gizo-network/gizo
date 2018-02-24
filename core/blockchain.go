@@ -147,7 +147,7 @@ func (bc *BlockChain) AddBlock(block *Block) error {
 		blockinfo := BlockInfo{
 			Header:    block.GetHeader(),
 			Height:    block.GetHeight(),
-			TotalJobs: uint(len(block.GetJobs())),
+			TotalJobs: uint(len(block.GetNodes())),
 			FileName:  block.FileStats().Name(),
 			FileSize:  block.FileStats().Size(),
 		}
@@ -193,7 +193,7 @@ func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
 		if block.GetHeight() == 0 {
 			return nil, ErrJobNotFound
 		}
-		tree.SetLeafNodes(block.GetJobs())
+		tree.SetLeafNodes(block.GetNodes())
 		found, err := tree.SearchJob(id)
 		if err != nil {
 			glg.Fatal(err)
@@ -212,7 +212,7 @@ func (bc *BlockChain) FindMerkleNode(h []byte) (*merkletree.MerkleNode, error) {
 		if block.GetHeight() == 0 {
 			return nil, ErrJobNotFound
 		}
-		tree.SetLeafNodes(block.GetJobs())
+		tree.SetLeafNodes(block.GetNodes())
 		found, err := tree.SearchNode(h)
 		if err != nil {
 			glg.Fatal(err)
@@ -288,7 +288,7 @@ func CreateBlockChain() *BlockChain {
 		blockinfo := BlockInfo{
 			Header:    genesis.GetHeader(),
 			Height:    genesis.GetHeight(),
-			TotalJobs: uint(len(genesis.GetJobs())),
+			TotalJobs: uint(len(genesis.GetNodes())),
 			FileName:  genesis.FileStats().Name(),
 			FileSize:  genesis.FileStats().Size(),
 		}

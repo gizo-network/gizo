@@ -53,7 +53,7 @@ func (m *MerkleTree) Build() error {
 	if reflect.ValueOf(m.GetRoot()).IsNil() == false {
 		return ErrTreeRebuildAttempt
 	}
-	if int64(len(m.GetLeafNodes())) > MaxTreeJobs.Int64() {
+	if len(m.GetLeafNodes()) > MaxTreeJobs {
 		return ErrTooMuchLeafNodes
 	} else if len(m.GetLeafNodes())%2 != 0 {
 		return ErrOddLeafNodes

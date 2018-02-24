@@ -8,5 +8,8 @@ import:
   version: ^1.1.4
 - package: github.com/jinzhu/now
 - package: github.com/mattn/anko
-- package: github.com/google/uuid
-  version: ~0.2.0
+- package: github.com/dimiro1/banner
+- package: github.com/satori/go.uuid
+  version: ^1.2.0
+- package: github.com/allegro/bigcache
+  version: ^1.0.0
