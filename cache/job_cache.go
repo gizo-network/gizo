@@ -4,6 +4,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/kpango/glg"
+
 	"github.com/allegro/bigcache"
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
@@ -44,6 +46,7 @@ func (c JobCache) watch() {
 		for {
 			select {
 			case <-ticker.C:
+				glg.Warn("Job Cache: Updating cache")
 				c.fill()
 			case <-quit:
 				ticker.Stop()
@@ -53,7 +56,7 @@ func (c JobCache) watch() {
 	}()
 }
 
-func (c JobCache) Set(key string, val []byte) error {
+func (c JobCache) set(key string, val []byte) error {
 	if c.getCache().Len() >= MaxCacheLen {
 		return ErrCacheFull
 	}
@@ -67,21 +70,31 @@ func (c JobCache) Get(key string) ([]byte, error) {
 
 func (c JobCache) fill() {
 	var jobs []job.Job
-	for _, blk := range c.getBC().GetBlocksWithinMinute() {
-		for _, job := range blk.GetNodes() {
-			jobs = append(jobs, job.GetJob())
+	blks := c.getBC().GetBlocksWithinMinute()
+	if len(blks) != 0 {
+		for _, blk := range blks {
+			for _, job := range blk.GetNodes() {
+				jobs = append(jobs, job.GetJob())
+			}
 		}
+		sorted := mergeSort(jobs)
+		if len(sorted) > 128 {
+			for i := 0; i <= 128; i++ {
+				c.set(sorted[i].GetID(), sorted[i].Serialize())
+			}
+		} else {
+			for _, job := range sorted {
+				c.set(job.GetID(), job.Serialize())
+			}
+		}
+	} else {
+		glg.Warn("Job Cache: Unable to refill cache - Not blocks in the last minute")
 	}
-	sorted := mergeSort(jobs)
-	for i := 0; i <= 128; i++ {
-		c.Set(sorted[i].GetID(), sorted[i].Serialize())
-	}
-
 }
 
-func NewJobCache(bc core.BlockChain) *JobCache {
+func NewJobCache(bc *core.BlockChain) *JobCache {
 	c, _ := bigcache.NewBigCache(bigcache.DefaultConfig(time.Minute))
-	jc := JobCache{c, &bc}
+	jc := JobCache{c, bc}
 	jc.fill()
 	jc.watch()
 	return &jc

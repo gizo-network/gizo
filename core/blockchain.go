@@ -86,7 +86,6 @@ func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	bci := bc.iterator()
 	for {
 		block := bci.Next()
-		fmt.Println(block)
 		if block.GetHeight() == 0 && block.GetHeader().GetTimestamp() > now.BeginningOfMinute().Unix() {
 			blocks = append(blocks, *block)
 			break
@@ -128,6 +127,10 @@ func (bc *BlockChain) GetLatestBlock() *Block {
 		glg.Fatal(err)
 	}
 	return lastBlock.GetBlock()
+}
+
+func (bc BlockChain) GetNextHeight() uint64 {
+	return bc.GetLatestBlock().GetHeight() + 1
 }
 
 //AddBlock adds block to the blockchain
