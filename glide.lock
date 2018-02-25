@@ -1,10 +1,12 @@
-hash: ffd6c8f8d0ac5aaa0f096b0ddb4a12fc05640043367703a062273935b034c93f
-updated: 2018-02-17T23:33:01.388550543-05:00
+hash: 32653425b7c3b94072f18cd57fe9142701461b7132e74b2784c05ca74e69d3a8
+updated: 2018-02-23T13:20:56.267231243-05:00
 imports:
+- name: github.com/allegro/bigcache
+  version: aa76879d59fa5d93c43680238227dbf7a53f5c28
 - name: github.com/boltdb/bolt
   version: 2f1ce7a837dcb8da3ec595b1dac9d0632f0f99e8
-- name: github.com/google/uuid
-  version: 064e2069ce9c359c118179501254f67d7d37ba24
+- name: github.com/dimiro1/banner
+  version: c2f858997d49ffd03f84818bef3c25c2fcc67e16
 - name: github.com/jinzhu/now
   version: d939ba741945c047cac69c329c5fb0d6b4a06520
 - name: github.com/kpango/glg
@@ -15,6 +17,10 @@ imports:
   - ast
   - parser
   - vm
+- name: github.com/mattn/go-isatty
+  version: 6ca4dbf54d38eea1a992b3c722a76a5d1c4cb25c
+- name: github.com/satori/go.uuid
+  version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/stretchr/testify
   version: 12b6f73e6084dad08a7c6e575284b177ecafbc71
   subpackages:

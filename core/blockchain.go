@@ -86,12 +86,31 @@ func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	bci := bc.iterator()
 	for {
 		block := bci.Next()
-		fmt.Println(block)
 		if block.GetHeight() == 0 && block.GetHeader().GetTimestamp() > now.BeginningOfMinute().Unix() {
 			blocks = append(blocks, *block)
 			break
 		} else if block.GetHeader().GetTimestamp() > now.BeginningOfMinute().Unix() {
 			blocks = append(blocks, *block)
+		} else {
+			break
+		}
+	}
+	return blocks
+}
+
+func (bc *BlockChain) GetLatest15() []Block {
+	glg.Info("Core: Getting blocks within last minute")
+	var blocks []Block
+	bci := bc.iterator()
+	for {
+		if len(blocks) <= 15 {
+			block := bci.Next()
+			if block.GetHeight() == 0 {
+				blocks = append(blocks, *block)
+				break
+			} else {
+				blocks = append(blocks, *block)
+			}
 		} else {
 			break
 		}
@@ -130,6 +149,10 @@ func (bc *BlockChain) GetLatestBlock() *Block {
 	return lastBlock.GetBlock()
 }
 
+func (bc BlockChain) GetNextHeight() uint64 {
+	return bc.GetLatestBlock().GetHeight() + 1
+}
+
 //AddBlock adds block to the blockchain
 func (bc *BlockChain) AddBlock(block *Block) error {
 	glg.Info("Core: Adding block to the blockchain - " + hex.EncodeToString(block.GetHeader().GetHash()))
@@ -147,7 +170,7 @@ func (bc *BlockChain) AddBlock(block *Block) error {
 		blockinfo := BlockInfo{
 			Header:    block.GetHeader(),
 			Height:    block.GetHeight(),
-			TotalJobs: uint(len(block.GetJobs())),
+			TotalJobs: uint(len(block.GetNodes())),
 			FileName:  block.FileStats().Name(),
 			FileSize:  block.FileStats().Size(),
 		}
@@ -193,7 +216,7 @@ func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
 		if block.GetHeight() == 0 {
 			return nil, ErrJobNotFound
 		}
-		tree.SetLeafNodes(block.GetJobs())
+		tree.SetLeafNodes(block.GetNodes())
 		found, err := tree.SearchJob(id)
 		if err != nil {
 			glg.Fatal(err)
@@ -212,7 +235,7 @@ func (bc *BlockChain) FindMerkleNode(h []byte) (*merkletree.MerkleNode, error) {
 		if block.GetHeight() == 0 {
 			return nil, ErrJobNotFound
 		}
-		tree.SetLeafNodes(block.GetJobs())
+		tree.SetLeafNodes(block.GetNodes())
 		found, err := tree.SearchNode(h)
 		if err != nil {
 			glg.Fatal(err)
@@ -252,8 +275,8 @@ func (bc *BlockChain) GetBlockHashes() [][]byte {
 //CreateBlockChain initializes a db, set's the tip to GenesisBlock and returns the blockchain
 func CreateBlockChain() *BlockChain {
 	glg.Info("Core: Creating blockchain database")
-	InitializeDataPath()
-	dbFile := path.Join(IndexPath, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
+	InitializeDataPath(BlockPathDev)                                      //FIXME: change to prod var on deployment
+	dbFile := path.Join(IndexPathDev, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
 	if dbExists(dbFile) {
 		var tip []byte
 		glg.Warn("Core: Using existing blockchain")
@@ -288,7 +311,7 @@ func CreateBlockChain() *BlockChain {
 		blockinfo := BlockInfo{
 			Header:    genesis.GetHeader(),
 			Height:    genesis.GetHeight(),
-			TotalJobs: uint(len(genesis.GetJobs())),
+			TotalJobs: uint(len(genesis.GetNodes())),
 			FileName:  genesis.FileStats().Name(),
 			FileSize:  genesis.FileStats().Size(),
 		}

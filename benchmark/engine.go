@@ -13,29 +13,29 @@ import (
 )
 
 type BenchmarkEngine struct {
-	Data  []Benchmark
-	Score float64
+	data  []Benchmark
+	score float64
 	mu    sync.Mutex
 }
 
 func (b *BenchmarkEngine) SetScore(s float64) {
-	b.Score = s
+	b.score = s
 }
 
 func (b BenchmarkEngine) GetScore() float64 {
-	return b.Score
+	return b.score
 }
 
 func (b *BenchmarkEngine) AddBenchmark(benchmark Benchmark) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.Data = append(b.Data, benchmark)
+	b.data = append(b.data, benchmark)
 }
 
 func (b BenchmarkEngine) GetData() []Benchmark {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.Data
+	return b.data
 }
 
 //Block returns a block with mock data
@@ -99,10 +99,7 @@ func (b *BenchmarkEngine) run() {
 				if average > 60 {
 					done = true
 				} else {
-					benchmark := Benchmark{
-						AvgTime:    average,
-						Difficulty: uint8(myDifficulty),
-					}
+					benchmark := NewBenchmark(average, uint8(myDifficulty))
 					b.AddBenchmark(benchmark)
 				}
 				wg.Done()

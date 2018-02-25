@@ -7,16 +7,16 @@ import (
 )
 
 //InitializeDataPath creates .gizo folder and block subfolder
-func InitializeDataPath() {
+func InitializeDataPath(path string) {
 	glg.Info("Core: Initializing Data Path")
-	os.Mkdir(IndexPath, os.FileMode(0777))
-	os.Mkdir(BlockPath, os.FileMode(0777))
+	os.Mkdir(path, os.FileMode(0777))
+	os.Mkdir(path, os.FileMode(0777))
 }
 
 //RemoveDataPath delete's .gizo folder
-func RemoveDataPath() {
+func RemoveDataPath(path string) {
 	glg.Info("Core: Removing Data Path")
-	err := os.RemoveAll(IndexPath)
+	err := os.RemoveAll(path)
 	if err != nil {
 		glg.Fatal(err)
 	}
