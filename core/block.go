@@ -78,7 +78,7 @@ func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficult
 //writes block on disk
 func (b Block) export() error {
 	glg.Info("Core: Exporting block - " + hex.EncodeToString(b.GetHeader().GetHash()))
-	InitializeDataPath(IndexPathDev)
+	InitializeDataPath()
 	if b.IsEmpty() {
 		return ErrUnableToExport
 	}

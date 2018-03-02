@@ -13,3 +13,5 @@ import:
   version: ^1.2.0
 - package: github.com/allegro/bigcache
   version: ^1.0.0
+- package: github.com/joho/godotenv
+  version: ^1.2.0
