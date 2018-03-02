@@ -2,6 +2,7 @@ package merkletree
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -48,10 +49,11 @@ func (m *MerkleTree) SetLeafNodes(l []*MerkleNode) {
 
 //Build builds merkle tree from leafs to root, hashed the root and sets it as the root of the merkletree
 func (m *MerkleTree) Build() error {
+	glg.Info("Merkletree: Building merkletree with " + string(len(m.GetLeafNodes())) + " nodes")
 	if reflect.ValueOf(m.GetRoot()).IsNil() == false {
 		return ErrTreeRebuildAttempt
 	}
-	if int64(len(m.GetLeafNodes())) > MaxTreeJobs.Int64() {
+	if len(m.GetLeafNodes()) > MaxTreeJobs {
 		return ErrTooMuchLeafNodes
 	} else if len(m.GetLeafNodes())%2 != 0 {
 		return ErrOddLeafNodes
@@ -65,7 +67,7 @@ func (m *MerkleTree) Build() error {
 					levelUp = append(levelUp, parent)
 				}
 			} else {
-				glg.Warn("core/merkletree: Duplicating solo node...")
+				glg.Warn("Merkletree: Duplicating solo node")
 				shrink = append(shrink, shrink[len(shrink)-1]) //duplicate last to balance tree
 				for i := 0; i < len(shrink); i += 2 {
 					parent := merge(*shrink[i], *shrink[i+1])
@@ -87,12 +89,14 @@ func (m MerkleTree) Serialize() ([]byte, error) {
 
 //VerifyTree returns true if tree is verified
 func (m MerkleTree) VerifyTree() bool {
+	glg.Info("Merkletree: Verifying Tree")
 	t := NewMerkleTree(m.GetLeafNodes())
 	return bytes.Equal(t.GetRoot(), m.GetRoot())
 }
 
 // Search returns true if node with hash exists
 func (m MerkleTree) SearchNode(hash []byte) (*MerkleNode, error) {
+	glg.Info("MerkleTree: Searching for node " + hex.EncodeToString(hash))
 	if len(m.GetLeafNodes()) == 0 {
 		return nil, ErrLeafNodesEmpty
 	}
@@ -105,6 +109,7 @@ func (m MerkleTree) SearchNode(hash []byte) (*MerkleNode, error) {
 }
 
 func (m MerkleTree) SearchJob(ID string) (*job.Job, error) {
+	glg.Info("MerkleTree: Searching for job " + ID)
 	if len(m.GetLeafNodes()) == 0 {
 		return nil, ErrLeafNodesEmpty
 	}

@@ -3,6 +3,8 @@ package consensus
 import (
 	"math/rand"
 
+	"github.com/kpango/glg"
+
 	"github.com/gizo-network/gizo/benchmark"
 	"github.com/gizo-network/gizo/core"
 )
@@ -11,6 +13,7 @@ const Blockrate = 15 // blocks per minute
 
 //Difficulty returns a difficulty based on the blockrate and the number of blocks in the last minute
 func Difficulty(benchmarks []benchmark.Benchmark, bc core.BlockChain) int {
+	glg.Info("Concensus: Determining difficulty")
 	latest := len(bc.GetBlocksWithinMinute())
 	for _, val := range benchmarks {
 		rate := 60 / val.GetAvgTime()

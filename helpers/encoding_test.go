@@ -1,24 +1,18 @@
-package helpers
+package helpers_test
 
 import (
 	"testing"
 
+	"github.com/gizo-network/gizo/helpers"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/gizo-network/gizo/core/merkletree"
 )
 
 func TestEncode64(t *testing.T) {
-	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
-	b, err := node1.Serialize()
-	assert.NoError(t, err)
-	assert.NotNil(t, Encode64(b))
+	assert.NotNil(t, helpers.Encode64([]byte("testing")))
 }
 
 func TestDecode64(t *testing.T) {
-	node1 := merkletree.NewNode([]byte("test1asdfasdf job"), &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
-	b, err := node1.Serialize()
-	assert.NoError(t, err)
-	enc := Encode64(b)
-	assert.Equal(t, b, Decode64(enc))
+	b := []byte("testing")
+	enc := helpers.Encode64(b)
+	assert.Equal(t, b, helpers.Decode64(enc))
 }
