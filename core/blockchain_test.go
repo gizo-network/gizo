@@ -5,18 +5,21 @@ import (
 
 	"github.com/gizo-network/gizo/core/merkletree"
 	"github.com/gizo-network/gizo/job"
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
 
 //FIXME: Debug bc iterator
 
 func TestNewBlockChain(t *testing.T) {
+	godotenv.Load()
 	RemoveDataPath()
 	bc := CreateBlockChain()
 	assert.NotNil(t, bc)
 }
 
 func TestAddBlock(t *testing.T) {
+	godotenv.Load()
 	RemoveDataPath()
 	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -38,6 +41,7 @@ func TestAddBlock(t *testing.T) {
 }
 
 func TestVerify(t *testing.T) {
+	godotenv.Load()
 	RemoveDataPath()
 	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -58,6 +62,7 @@ func TestVerify(t *testing.T) {
 }
 
 func TestGetBlockInfo(t *testing.T) {
+	godotenv.Load()
 	RemoveDataPath()
 	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -80,6 +85,7 @@ func TestGetBlockInfo(t *testing.T) {
 }
 
 func TestGetBlocksWithinMinute(t *testing.T) {
+	godotenv.Load()
 	RemoveDataPath()
 	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -100,6 +106,7 @@ func TestGetBlocksWithinMinute(t *testing.T) {
 }
 
 func TestGetLatestHeight(t *testing.T) {
+	godotenv.Load()
 	RemoveDataPath()
 	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -120,6 +127,7 @@ func TestGetLatestHeight(t *testing.T) {
 }
 
 func TestFindJob(t *testing.T) {
+	godotenv.Load()
 	RemoveDataPath()
 	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -142,6 +150,7 @@ func TestFindJob(t *testing.T) {
 }
 
 func TestGetBlockHashes(t *testing.T) {
+	godotenv.Load()
 	RemoveDataPath()
 	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -162,6 +171,7 @@ func TestGetBlockHashes(t *testing.T) {
 }
 
 func TestCreateBlockChain(t *testing.T) {
+	godotenv.Load()
 	RemoveDataPath()
 	bc := CreateBlockChain()
 	assert.NotNil(t, bc)
