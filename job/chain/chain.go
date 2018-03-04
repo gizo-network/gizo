@@ -118,7 +118,6 @@ func (c *Chain) Dispatch() {
 		}
 		grouped = append(grouped, req)
 	}
-
 	c.setResults(grouped)
 	c.setStatus(job.FINISHED)
 }

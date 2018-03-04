@@ -85,7 +85,8 @@ func (b Batch) Result() []job.JobRequest {
 }
 
 func (b *Batch) Dispatch() {
-	//! should be run as a go routine because it blocks till all jobs are complete
+	//! should be run in a go routine because it blocks till all jobs are complete
+	var items []queue.Item
 	b.setStatus(job.RUNNING)
 	results := make(chan queue.Item, b.getLength())
 	var jobIDs []string
@@ -113,11 +114,15 @@ func (b *Batch) Dispatch() {
 		}
 	}
 
+	for item := range results {
+		items = append(items, item)
+	}
+
 	var grouped []job.JobRequest
 	for _, jID := range jobIDs {
 		var req job.JobRequest
 		req.SetID(jID)
-		for item := range results {
+		for _, item := range items {
 			if item.GetID() == jID {
 				req.AppendExec(item.GetExec())
 			}
