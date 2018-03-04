@@ -15,46 +15,57 @@ type BlockInfo struct {
 	FileSize  int64       `json:"file_size"`
 }
 
-func (bi *BlockInfo) SetHeader(bh BlockHeader) {
+//sets blockinfo header
+func (bi *BlockInfo) setHeader(bh BlockHeader) {
 	bi.Header = bh
 }
 
+//GetHeader returns block header
 func (bi BlockInfo) GetHeader() BlockHeader {
 	return bi.Header
 }
 
-func (bi *BlockInfo) SetHeight(h uint64) {
+//sets height
+func (bi *BlockInfo) setHeight(h uint64) {
 	bi.Height = h
 }
 
+//GetHeight return height
 func (bi BlockInfo) GetHeight() uint64 {
 	return bi.Height
 }
 
-func (bi *BlockInfo) SetTotalJobs(t uint) {
+//sets total jobs
+func (bi *BlockInfo) setTotalJobs(t uint) {
 	bi.TotalJobs = t
 }
 
+//GetTotalJobs returns total jobs
 func (bi BlockInfo) GetTotalJobs() uint {
 	return bi.TotalJobs
 }
 
-func (bi *BlockInfo) SetFileName(n string) {
+//sets filename
+func (bi *BlockInfo) setFileName(n string) {
 	bi.FileName = n
 }
 
+//GetFileName returns filename
 func (bi BlockInfo) GetFileName() string {
 	return bi.FileName
 }
 
-func (bi *BlockInfo) SetFileSize(s int64) {
+//sets filename
+func (bi *BlockInfo) setFileSize(s int64) {
 	bi.FileSize = s
 }
 
+//GetFileSize returns the blocks filesize
 func (bi BlockInfo) GetFileSize() int64 {
 	return bi.FileSize
 }
 
+//Serialize returns the blockinfo in json bytes
 func (bi *BlockInfo) Serialize() []byte {
 	temp, err := json.Marshal(*bi)
 	if err != nil {
@@ -70,6 +81,7 @@ func (bi BlockInfo) GetBlock() *Block {
 	return &temp
 }
 
+//DeserializeBlockInfo return blockinfo
 func DeserializeBlockInfo(bi []byte) *BlockInfo {
 	var temp BlockInfo
 	err := json.Unmarshal(bi, &temp)

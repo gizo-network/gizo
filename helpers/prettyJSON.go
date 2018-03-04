@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 )
 
+//PrettyJson indents json byte
 func PrettyJSON(b []byte) ([]byte, error) {
 	var out bytes.Buffer
 	err := json.Indent(&out, b, "", "    ")

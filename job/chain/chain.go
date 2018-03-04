@@ -18,6 +18,7 @@ var (
 	ErrJobsLenRange = errors.New("Number of jobs is more than allowed")
 )
 
+//Chain - Jobs executed one after the other
 type Chain struct {
 	jobs   []job.JobRequest
 	bc     *core.BlockChain
@@ -27,6 +28,7 @@ type Chain struct {
 	status string
 }
 
+//NewChain returns chain
 func NewChain(j []job.JobRequest, bc *core.BlockChain, pq *queue.JobPriorityQueue) (*Chain, error) {
 	length := 0
 	for _, jr := range j {
@@ -44,14 +46,16 @@ func NewChain(j []job.JobRequest, bc *core.BlockChain, pq *queue.JobPriorityQueu
 	return c, nil
 }
 
+//GetJobs returns jobs
 func (c Chain) GetJobs() []job.JobRequest {
 	return c.jobs
 }
 
-func (c *Chain) SetJobs(j []job.JobRequest) {
+func (c *Chain) setJobs(j []job.JobRequest) {
 	c.jobs = j
 }
 
+//GetStatus returns status
 func (c Chain) GetStatus() string {
 	return c.status
 }
@@ -80,10 +84,12 @@ func (c *Chain) setResults(res []job.JobRequest) {
 	c.result = res
 }
 
+//Result returns result
 func (c Chain) Result() []job.JobRequest {
 	return c.result
 }
 
+//Dispatch executes the batch
 func (c *Chain) Dispatch() {
 	c.setStatus(job.RUNNING)
 	var items []queue.Item // used to hold results

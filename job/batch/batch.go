@@ -17,6 +17,7 @@ var (
 	ErrJobsLenRange = errors.New("Number of jobs is more than allowed")
 )
 
+//Batch - Jobs executed in parralele
 type Batch struct {
 	jobs   []job.JobRequest
 	bc     *core.BlockChain
@@ -26,6 +27,7 @@ type Batch struct {
 	status string
 }
 
+//NewBatch returns batch
 func NewBatch(j []job.JobRequest, bc *core.BlockChain, pq *queue.JobPriorityQueue) (*Batch, error) {
 	length := 0
 	for _, jr := range j {
@@ -44,14 +46,16 @@ func NewBatch(j []job.JobRequest, bc *core.BlockChain, pq *queue.JobPriorityQueu
 	return b, nil
 }
 
+//GetJobs return jobs
 func (b Batch) GetJobs() []job.JobRequest {
 	return b.jobs
 }
 
-func (b *Batch) SetJobs(j []job.JobRequest) {
+func (b *Batch) setJobs(j []job.JobRequest) {
 	b.jobs = j
 }
 
+//GetStatus returns status
 func (b Batch) GetStatus() string {
 	return b.status
 }
@@ -80,10 +84,12 @@ func (b *Batch) setResults(res []job.JobRequest) {
 	b.result = res
 }
 
+//Result returns result
 func (b Batch) Result() []job.JobRequest {
 	return b.result
 }
 
+//Dispatch executes the batch
 func (b *Batch) Dispatch() {
 	//! should be run in a go routine because it blocks till all jobs are complete
 	var items []queue.Item

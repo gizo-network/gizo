@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	MaxCacheLen = 128
+	MaxCacheLen = 128 //number of jobs held in cache
 )
 
 var (
@@ -32,6 +32,7 @@ func (c JobCache) getBC() *core.BlockChain {
 	return c.bc
 }
 
+//IsFull returns true is cache is full
 func (c JobCache) IsFull() bool {
 	if c.getCache().Len() >= MaxCacheLen {
 		return true
@@ -39,6 +40,7 @@ func (c JobCache) IsFull() bool {
 	return false
 }
 
+//updates cache every minute
 func (c JobCache) watch() {
 	ticker := time.NewTicker(time.Minute)
 	quit := make(chan struct{})
@@ -56,7 +58,8 @@ func (c JobCache) watch() {
 	}()
 }
 
-func (c JobCache) set(key string, val []byte) error {
+//Set adds key and value to cache
+func (c JobCache) Set(key string, val []byte) error {
 	if c.getCache().Len() >= MaxCacheLen {
 		return ErrCacheFull
 	}
@@ -64,10 +67,20 @@ func (c JobCache) set(key string, val []byte) error {
 	return nil
 }
 
-func (c JobCache) Get(key string) ([]byte, error) {
-	return c.getCache().Get(key)
+//Get returns job from cache
+func (c JobCache) Get(key string) (*job.Job, error) {
+	jBytes, err := c.getCache().Get(key)
+	if err != nil {
+		return nil, err
+	}
+	j, err := job.DeserializeJob(jBytes)
+	if err != nil {
+		return nil, err
+	}
+	return j, nil
 }
 
+//fills up the cache with jobs with most execs in the last 15 blocks
 func (c JobCache) fill() {
 	var jobs []job.Job
 	blks := c.getBC().GetLatest15()
@@ -78,17 +91,17 @@ func (c JobCache) fill() {
 			}
 		}
 		sorted := mergeSort(jobs)
-		if len(sorted) > 128 {
-			for i := 0; i <= 128; i++ {
-				c.set(sorted[i].GetID(), sorted[i].Serialize())
+		if len(sorted) > MaxCacheLen {
+			for i := 0; i <= MaxCacheLen; i++ {
+				c.Set(sorted[i].GetID(), sorted[i].Serialize())
 			}
 		} else {
 			for _, job := range sorted {
-				c.set(job.GetID(), job.Serialize())
+				c.Set(job.GetID(), job.Serialize())
 			}
 		}
 	} else {
-		glg.Warn("Job Cache: Unable to refill cache - Not blocks in the last minute")
+		glg.Warn("Job Cache: Unable to refill cache - No blocks")
 	}
 }
 
@@ -100,7 +113,7 @@ func NewJobCache(bc *core.BlockChain) *JobCache {
 	return &jc
 }
 
-// Merge returns an array of job in order of number of execs in the job from max to min
+// merge returns an array of job in order of number of execs in the job from max to min
 func merge(left, right []job.Job) []job.Job {
 	size, i, j := len(left)+len(right), 0, 0
 	slice := make([]job.Job, size, size)
@@ -122,6 +135,7 @@ func merge(left, right []job.Job) []job.Job {
 	return slice
 }
 
+//used to quickly sort the jobs from max execs to min execs
 func mergeSort(slice []job.Job) []job.Job {
 	if len(slice) < 2 {
 		return slice

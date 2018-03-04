@@ -11,10 +11,12 @@ type BlockChainIterator struct {
 	db      *bolt.DB
 }
 
-func (i *BlockChainIterator) SetCurrent(c []byte) {
+//sets current block
+func (i *BlockChainIterator) setCurrent(c []byte) {
 	i.current = c
 }
 
+//GetCurrent returns current block
 func (i BlockChainIterator) GetCurrent() []byte {
 	return i.current
 }
@@ -32,6 +34,6 @@ func (i *BlockChainIterator) Next() *Block {
 	if err != nil {
 		glg.Fatal(err)
 	}
-	i.SetCurrent(block.GetHeader().GetPrevBlockHash())
+	i.setCurrent(block.GetHeader().GetPrevBlockHash())
 	return block
 }
