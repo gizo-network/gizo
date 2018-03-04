@@ -12,6 +12,14 @@ func NewJobRequest(id string, exec ...*Exec) *JobRequest {
 	}
 }
 
+func (jr *JobRequest) AppendExec(exec *Exec) {
+	jr.exec = append(jr.exec, exec)
+}
+
+func (jr *JobRequest) SetID(id string) {
+	jr.id = id
+}
+
 func (jr JobRequest) GetID() string {
 	return jr.id
 }
