@@ -22,6 +22,7 @@ var (
 	ErrHashModification = errors.New("Attempt to modify hash value of block")
 )
 
+//Block - the foundation of blockchain
 type Block struct {
 	Header     BlockHeader              `json:"header"`
 	Jobs       []*merkletree.MerkleNode `json:"jobs"`
@@ -30,31 +31,37 @@ type Block struct {
 	By         string                   `json:"by"`          // id of node that generated block
 }
 
+//GetHeader returns the block header
 func (b Block) GetHeader() BlockHeader {
 	return b.Header
 }
 
-func (b *Block) SetHeader(h BlockHeader) {
+//sets the block header
+func (b *Block) setHeader(h BlockHeader) {
 	b.Header = h
 }
 
+//GetNodes retuns the block's merklenodes
 func (b Block) GetNodes() []*merkletree.MerkleNode {
 	return b.Jobs
 }
 
-func (b *Block) SetNodes(j []*merkletree.MerkleNode) {
+//sets merklenodes
+func (b *Block) setNodes(j []*merkletree.MerkleNode) {
 	b.Jobs = j
 }
 
+//GetHeight returns the block height
 func (b Block) GetHeight() uint64 {
 	return b.Height
 }
 
-func (b *Block) SetHeight(h uint64) {
+//sets the block height
+func (b *Block) setHeight(h uint64) {
 	b.Height = h
 }
 
-//FIXME: implement block status
+//NewBlock returns a new block
 func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficulty uint8) *Block {
 	block := &Block{
 		Header: BlockHeader{
@@ -67,7 +74,7 @@ func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficult
 		Height: height,
 	}
 	pow := NewPOW(block)
-	pow.Run() //! mines block
+	pow.run() //! mines block
 	err := block.export()
 	if err != nil {
 		glg.Fatal(err)
@@ -90,7 +97,7 @@ func (b Block) export() error {
 	return nil
 }
 
-// reads block into memory
+//Import reads block file into memory
 func (b *Block) Import(hash []byte) {
 	glg.Info("Core: Importing block - " + hex.EncodeToString(hash))
 	if b.IsEmpty() == false {
@@ -105,12 +112,13 @@ func (b *Block) Import(hash []byte) {
 	if err != nil {
 		glg.Fatal(err)
 	}
-	b.SetHeader(temp.GetHeader())
-	b.SetHeight(temp.GetHeight())
-	b.SetNodes(temp.GetNodes())
+	b.setHeader(temp.GetHeader())
+	b.setHeight(temp.GetHeight())
+	b.setNodes(temp.GetNodes())
 }
 
-func (b Block) FileStats() os.FileInfo {
+//returns the file stats of a blockfile
+func (b Block) fileStats() os.FileInfo {
 	info, err := os.Stat(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))))
 	if os.IsNotExist(err) {
 		glg.Fatal("Block file doesn't exist")
@@ -118,6 +126,7 @@ func (b Block) FileStats() os.FileInfo {
 	return info
 }
 
+//IsEmpty returns true is block is empty
 func (b *Block) IsEmpty() bool {
 	return b.Header.GetHash() == nil
 }
@@ -131,7 +140,7 @@ func (b *Block) Serialize() []byte {
 	return temp
 }
 
-//DeserializeBlock returns block of bytes
+//DeserializeBlock returns block from bytes
 func DeserializeBlock(b []byte) (*Block, error) {
 	var temp Block
 	err := json.Unmarshal(b, &temp)
@@ -141,8 +150,9 @@ func DeserializeBlock(b []byte) (*Block, error) {
 	return &temp, nil
 }
 
+//VerifyBlock verifies a block
 func (b *Block) VerifyBlock() bool {
-	glg.Info("Core: Verigying block - " + hex.EncodeToString(b.GetHeader().GetHash()))
+	glg.Info("Core: Verifying block - " + hex.EncodeToString(b.GetHeader().GetHash()))
 	pow := NewPOW(b)
 	return pow.Validate()
 }
@@ -150,7 +160,7 @@ func (b *Block) VerifyBlock() bool {
 //DeleteFile deletes block file on disk
 func (b Block) DeleteFile() {
 	glg.Info("Core: Deleting blockfile - " + hex.EncodeToString(b.GetHeader().GetHash()))
-	err := os.Remove(path.Join(BlockPathDev, b.FileStats().Name()))
+	err := os.Remove(path.Join(BlockPathDev, b.fileStats().Name()))
 	if err != nil {
 		glg.Fatal(err)
 	}

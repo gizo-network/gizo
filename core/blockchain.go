@@ -25,31 +25,36 @@ var (
 	ErrBlockNotFound   = errors.New("Blockinfo not found")
 )
 
+//BlockChain - singly linked list of blocks
 type BlockChain struct {
 	tip []byte //! hash of latest block in the blockchain
 	db  *bolt.DB
 	mu  *sync.RWMutex
 }
 
-func (bc *BlockChain) GetTip() []byte {
+//returns the blockinfo of the latest block in the blockchain
+func (bc *BlockChain) getTip() []byte {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()
 	return bc.tip
 }
 
-func (bc *BlockChain) SetTip(t []byte) {
+//sets the tip
+func (bc *BlockChain) setTip(t []byte) {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 	bc.tip = t
 }
 
-func (bc *BlockChain) DB() *bolt.DB {
+//returns the db
+func (bc *BlockChain) getDB() *bolt.DB {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 	return bc.db
 }
 
-func (bc *BlockChain) SetDB(db *bolt.DB) {
+//sets the db
+func (bc *BlockChain) setDB(db *bolt.DB) {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 	bc.db = db
@@ -59,7 +64,7 @@ func (bc *BlockChain) SetDB(db *bolt.DB) {
 func (bc *BlockChain) GetBlockInfo(hash []byte) (*BlockInfo, error) {
 	glg.Info("Core: Getting blockinfo - " + hex.EncodeToString(hash))
 	var blockinfo *BlockInfo
-	err := bc.DB().View(func(tx *bolt.Tx) error {
+	err := bc.getDB().View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BlockBucket))
 		blockinfoBytes := b.Get(hash)
 		if blockinfoBytes != nil {
@@ -98,6 +103,7 @@ func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	return blocks
 }
 
+//GetLatest15 retuns the latest 15 blocks
 func (bc *BlockChain) GetLatest15() []Block {
 	glg.Info("Core: Getting blocks within last minute")
 	var blocks []Block
@@ -122,9 +128,9 @@ func (bc *BlockChain) GetLatest15() []Block {
 func (bc *BlockChain) GetLatestHeight() uint64 {
 	glg.Info("Core: Getting latest block height")
 	var lastBlock *BlockInfo
-	err := bc.DB().View(func(tx *bolt.Tx) error {
+	err := bc.getDB().View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BlockBucket))
-		lastBlockBytes := b.Get(bc.GetTip())
+		lastBlockBytes := b.Get(bc.getTip())
 		lastBlock = DeserializeBlockInfo(lastBlockBytes)
 		return nil
 	})
@@ -134,12 +140,13 @@ func (bc *BlockChain) GetLatestHeight() uint64 {
 	return lastBlock.GetHeight()
 }
 
+//GetLatestBlock returns the tip as a block
 func (bc *BlockChain) GetLatestBlock() *Block {
 	glg.Info("Core: Getting latest block")
 	var lastBlock *BlockInfo
-	err := bc.DB().View(func(tx *bolt.Tx) error {
+	err := bc.getDB().View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BlockBucket))
-		lastBlockBytes := b.Get(bc.GetTip())
+		lastBlockBytes := b.Get(bc.getTip())
 		lastBlock = DeserializeBlockInfo(lastBlockBytes)
 		return nil
 	})
@@ -149,6 +156,7 @@ func (bc *BlockChain) GetLatestBlock() *Block {
 	return lastBlock.GetBlock()
 }
 
+//GetNextHeight returns the next height in the blockchain
 func (bc BlockChain) GetNextHeight() uint64 {
 	return bc.GetLatestBlock().GetHeight() + 1
 }
@@ -159,7 +167,7 @@ func (bc *BlockChain) AddBlock(block *Block) error {
 	if block.VerifyBlock() == false {
 		return ErrUnverifiedBlock
 	}
-	err := bc.DB().Update(func(tx *bolt.Tx) error {
+	err := bc.getDB().Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BlockBucket))
 		inDb := b.Get(block.Header.GetHash())
 		if inDb != nil {
@@ -171,8 +179,8 @@ func (bc *BlockChain) AddBlock(block *Block) error {
 			Header:    block.GetHeader(),
 			Height:    block.GetHeight(),
 			TotalJobs: uint(len(block.GetNodes())),
-			FileName:  block.FileStats().Name(),
-			FileSize:  block.FileStats().Size(),
+			FileName:  block.fileStats().Name(),
+			FileSize:  block.fileStats().Size(),
 		}
 
 		if err := b.Put(block.GetHeader().GetHash(), blockinfo.Serialize()); err != nil {
@@ -180,7 +188,7 @@ func (bc *BlockChain) AddBlock(block *Block) error {
 		}
 
 		//FIXME: handle a fork
-		latest, err := bc.GetBlockInfo(bc.GetTip())
+		latest, err := bc.GetBlockInfo(bc.getTip())
 		if err != nil {
 			glg.Fatal(err)
 		}
@@ -188,7 +196,7 @@ func (bc *BlockChain) AddBlock(block *Block) error {
 			if err := b.Put([]byte("l"), block.GetHeader().GetHash()); err != nil {
 				glg.Fatal(err)
 			}
-			bc.SetTip(block.GetHeader().GetHash())
+			bc.setTip(block.GetHeader().GetHash())
 		}
 		return nil
 	})
@@ -201,8 +209,8 @@ func (bc *BlockChain) AddBlock(block *Block) error {
 // return a BlockChainIterator to loop throught the blockchain
 func (bc *BlockChain) iterator() *BlockChainIterator {
 	return &BlockChainIterator{
-		current: bc.GetTip(),
-		db:      bc.DB(),
+		current: bc.getTip(),
+		db:      bc.getDB(),
 	}
 }
 
@@ -225,7 +233,7 @@ func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
 	}
 }
 
-//FindJob returns the merklenode from the blockchain
+//FindMerkleNode returns the merklenode from the blockchain
 func (bc *BlockChain) FindMerkleNode(h []byte) (*merkletree.MerkleNode, error) {
 	glg.Info("Core: Finding merklenode - " + hex.EncodeToString(h))
 	var tree merkletree.MerkleTree
@@ -244,6 +252,7 @@ func (bc *BlockChain) FindMerkleNode(h []byte) (*merkletree.MerkleNode, error) {
 	}
 }
 
+//Verify verifies the blockchain
 func (bc *BlockChain) Verify() bool {
 	glg.Info("Core: Verifying Blockchain")
 	bci := bc.iterator()
@@ -312,8 +321,8 @@ func CreateBlockChain() *BlockChain {
 			Header:    genesis.GetHeader(),
 			Height:    genesis.GetHeight(),
 			TotalJobs: uint(len(genesis.GetNodes())),
-			FileName:  genesis.FileStats().Name(),
-			FileSize:  genesis.FileStats().Size(),
+			FileName:  genesis.fileStats().Name(),
+			FileSize:  genesis.fileStats().Size(),
 		}
 		blockinfoBytes := blockinfo.Serialize()
 

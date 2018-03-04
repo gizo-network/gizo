@@ -15,7 +15,7 @@ var (
 
 const (
 	MaxRetries      = 5
-	MaxRetryDelay   = 120 //! 2 minutes
+	MaxRetryBackoff   = 120 //! 2 minutes
 	DefaultMaxTTL   = time.Minute * 10
 	DefaultRetries  = 0
 	DefaultPriority = NORMAL

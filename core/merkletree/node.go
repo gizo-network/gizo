@@ -113,11 +113,10 @@ func NewNode(j job.Job, lNode, rNode *MerkleNode) *MerkleNode {
 	return n
 }
 
-//FIXME: merge jobs
-//HashJobs hashes the jobs of two merklenodes
+//MergeJobs merges two jobs into one
 func MergeJobs(x, y MerkleNode) job.Job {
 	return job.Job{
-		ID:        x.GetJob().GetID() + y.GetJob().GetID(),
+		ID:        x.GetJob().GetID() + ":" + y.GetJob().GetID(),
 		Hash:      append(x.GetJob().GetHash(), y.GetJob().GetHash()...),
 		Execs:     append(x.GetJob().GetExecs(), y.GetJob().GetExecs()...),
 		Task:      x.GetJob().GetTask() + y.GetJob().GetTask(),

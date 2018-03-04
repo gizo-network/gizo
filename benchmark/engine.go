@@ -12,34 +12,37 @@ import (
 	"github.com/gizo-network/gizo/job"
 )
 
-type BenchmarkEngine struct {
+//Engine hold's an array of benchmarks and a score of the node
+type Engine struct {
 	data  []Benchmark
 	score float64
-	mu    sync.Mutex
+	mu    *sync.Mutex
 }
 
-func (b *BenchmarkEngine) SetScore(s float64) {
+func (b *Engine) setScore(s float64) {
 	b.score = s
 }
 
-func (b BenchmarkEngine) GetScore() float64 {
+//GetScore returns the score
+func (b Engine) GetScore() float64 {
 	return b.score
 }
 
-func (b *BenchmarkEngine) AddBenchmark(benchmark Benchmark) {
+func (b *Engine) addBenchmark(benchmark Benchmark) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.data = append(b.data, benchmark)
 }
 
-func (b BenchmarkEngine) GetData() []Benchmark {
+//GetData returns an array of benchmarks
+func (b Engine) GetData() []Benchmark {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.data
 }
 
-//Block returns a block with mock data
-func (b BenchmarkEngine) block(difficulty uint8) *core.Block {
+//returns a block with mock data
+func (b Engine) block(difficulty uint8) *core.Block {
 	//random data
 	j := job.NewJob("func test(){return 1+1}", "test")
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -64,7 +67,7 @@ func (b BenchmarkEngine) block(difficulty uint8) *core.Block {
 }
 
 // Run spins up the benchmark engine
-func (b *BenchmarkEngine) run() {
+func (b *Engine) run() {
 	glg.Warn("Benchmarking node")
 	done := false
 	var wg sync.WaitGroup
@@ -96,11 +99,11 @@ func (b *BenchmarkEngine) run() {
 					avgSum += val
 				}
 				average := avgSum / float64(len(avg))
-				if average > 60 {
+				if average > float64(time.Minute) {
 					done = true
 				} else {
 					benchmark := NewBenchmark(average, uint8(myDifficulty))
-					b.AddBenchmark(benchmark)
+					b.addBenchmark(benchmark)
 				}
 				wg.Done()
 			}(difficulty)
@@ -110,13 +113,13 @@ func (b *BenchmarkEngine) run() {
 	}
 	score := float64(b.GetData()[len(b.GetData())-1].GetDifficulty()) - 10 //! 10 is subtracted to allow the score start from 1 since difficulty starts at 10
 	scoreDecimal := 1 - b.GetData()[len(b.GetData())-1].GetAvgTime()/100   // determine decimal part of score
-	b.SetScore(score + scoreDecimal)
+	b.setScore(score + scoreDecimal)
 	glg.Warn("Benchmark: Benchmark done")
 }
 
-//NewBenchmarkEngine returns a benchmarkengine with benchmarks run
-func NewBenchmarkEngine() BenchmarkEngine {
-	b := BenchmarkEngine{}
+//NewEngine returns a Engine with benchmarks run
+func NewEngine() Engine {
+	b := Engine{}
 	b.run()
 	return b
 }
