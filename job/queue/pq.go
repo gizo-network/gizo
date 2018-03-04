@@ -1,8 +1,6 @@
 package queue
 
 import (
-	"fmt"
-
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
 	lane "gopkg.in/oleiade/lane.v1"
@@ -23,7 +21,6 @@ func (pq JobPriorityQueue) Push(j job.Job, exec *job.Exec, results chan<- Item) 
 			Signature:      j.GetSignature(),
 			SubmissionTime: j.GetSubmissionTime(),
 			Private:        j.GetPrivate(),
-			Owner:          j.GetOwner(),
 		},
 		exec:    exec,
 		results: results,
@@ -46,9 +43,7 @@ func (pq JobPriorityQueue) watch() {
 				//TODO: dispatch to next available worker node
 				item := pq.Pop()
 				exec := item.job.Execute(item.GetExec())
-				fmt.Println(item.job.GetID())
-				fmt.Println("result - ", exec.GetResult())
-				item.SetExec(exec)
+				item.setExec(exec)
 				item.ResultsChan() <- item
 			}
 		}

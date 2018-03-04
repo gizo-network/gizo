@@ -1,18 +1,17 @@
-package chain_test
+package batch_test
 
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/core/merkletree"
 	"github.com/gizo-network/gizo/job"
-	"github.com/gizo-network/gizo/job/chain"
+	"github.com/gizo-network/gizo/job/batch"
 	"github.com/gizo-network/gizo/job/queue"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestChain(t *testing.T) {
+func TestBatch(t *testing.T) {
 	core.RemoveDataPath()
 	pq := queue.NewJobPriorityQueue()
 	j := job.NewJob(`
@@ -45,8 +44,8 @@ func TestChain(t *testing.T) {
 	bc.AddBlock(block)
 	jr := job.NewJobRequest(j.GetID(), exec1, exec2, exec3)
 	jr2 := job.NewJobRequest(j2.GetID(), exec4, exec4, exec4, exec4, exec4)
-	chain, err := chain.NewChain([]job.JobRequest{*jr, *jr2}, bc, pq)
+	batch, err := batch.NewBatch([]job.JobRequest{*jr, *jr2}, bc, pq)
 	assert.NoError(t, err)
-	chain.Dispatch()
-	assert.NotNil(t, chain.Result())
+	batch.Dispatch()
+	assert.NotNil(t, batch.Result())
 }

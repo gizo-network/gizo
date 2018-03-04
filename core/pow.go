@@ -13,33 +13,39 @@ import (
 
 var maxNonce = math.MaxInt64
 
+//POW - consensus algorithm
 type POW struct {
 	difficulty uint8
 	block      *Block
 	target     *big.Int
 }
 
-func (p *POW) SetBlock(b *Block) {
+//sets block
+func (p *POW) setBlock(b *Block) {
 	p.block = b
 }
 
+//GetBlock returns block
 func (p POW) GetBlock() *Block {
 	return p.block
 }
 
-func (p *POW) SetTarget(t *big.Int) {
+//sets target difficult
+func (p *POW) setTarget(t *big.Int) {
 	p.target = t
 }
 
+//GetTarget returns target
 func (p POW) GetTarget() *big.Int {
 	return p.target
 }
 
+//GetDifficulty returns difficulty
 func (p POW) GetDifficulty() uint8 {
 	return p.difficulty
 }
 
-func (p *POW) SetDifficulty(d uint8) {
+func (p *POW) setDifficulty(d uint8) {
 	p.difficulty = d
 }
 
@@ -64,7 +70,7 @@ func (p POW) prepareData(nonce int) []byte {
 }
 
 //Run looks for a hash that is less than the current target difficulty
-func (p *POW) Run() {
+func (p *POW) run() {
 	glg.Info("Core: Initiating POW")
 	var hashInt big.Int
 	var hash [32]byte
@@ -78,10 +84,11 @@ func (p *POW) Run() {
 			nonce++
 		}
 	}
-	p.GetBlock().Header.SetHash(hash[:])
-	p.GetBlock().Header.SetNonce(uint64(nonce))
+	p.GetBlock().Header.setHash(hash[:])
+	p.GetBlock().Header.setNonce(uint64(nonce))
 }
 
+//Validate - validates POW
 func (p *POW) Validate() bool {
 	glg.Info("Core: Validating POW")
 	var hashInt big.Int
@@ -91,6 +98,7 @@ func (p *POW) Validate() bool {
 	return hashInt.Cmp(p.GetTarget()) == -1
 }
 
+//NewPOW returns POW
 func NewPOW(b *Block) *POW {
 	target := big.NewInt(1)
 	target.Lsh(target, uint(256-b.GetHeader().GetDifficulty().Int64()))

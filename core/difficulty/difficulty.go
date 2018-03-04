@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"math/rand"
+	"time"
 
 	"github.com/kpango/glg"
 
@@ -16,7 +17,7 @@ func Difficulty(benchmarks []benchmark.Benchmark, bc core.BlockChain) int {
 	glg.Info("Concensus: Determining difficulty")
 	latest := len(bc.GetBlocksWithinMinute())
 	for _, val := range benchmarks {
-		rate := 60 / val.GetAvgTime()
+		rate := float64(time.Minute) / val.GetAvgTime()
 		if int(rate)+latest <= Blockrate {
 			return int(val.GetDifficulty())
 		}
