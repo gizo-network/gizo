@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"reflect"
-	"sync"
 	"time"
 
 	"github.com/satori/go.uuid"
@@ -51,6 +50,14 @@ func NewJob(task string, name string) *Job {
 	}
 	j.setHash()
 	return j
+}
+
+func (j Job) GetPrivate() bool {
+	return j.Private
+}
+
+func (j *Job) SetPrivate(p bool) {
+	j.Private = p
 }
 
 func (j Job) GetName() string {
@@ -185,10 +192,9 @@ func argsStringified(args []interface{}) string {
 }
 
 //! run in goroutine
-func (j *Job) Execute(exec *Exec) {
+func (j *Job) Execute(exec *Exec) *Exec {
 	glg.Info("Job: Executing job - " + j.GetID())
 	start := time.Now()
-	var wg sync.WaitGroup
 	done := make(chan struct{})
 	exec.SetStatus(RUNNING)
 	exec.SetTimestamp(time.Now().Unix())
@@ -233,13 +239,8 @@ func (j *Job) Execute(exec *Exec) {
 		exec.SetStatus(FINISHED)
 		done <- struct{}{}
 	}()
-	wg.Add(1)
-	go func() {
-		select {
-		case <-done:
-			j.AddExec(*exec)
-			wg.Done()
-		}
-	}()
-	wg.Wait()
+	select {
+	case <-done:
+		return exec
+	}
 }

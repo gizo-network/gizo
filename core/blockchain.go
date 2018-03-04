@@ -275,7 +275,7 @@ func (bc *BlockChain) GetBlockHashes() [][]byte {
 //CreateBlockChain initializes a db, set's the tip to GenesisBlock and returns the blockchain
 func CreateBlockChain() *BlockChain {
 	glg.Info("Core: Creating blockchain database")
-	InitializeDataPath(BlockPathDev)                                      //FIXME: change to prod var on deployment
+	InitializeDataPath()                                                  //FIXME: change to prod var on deployment
 	dbFile := path.Join(IndexPathDev, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
 	if dbExists(dbFile) {
 		var tip []byte

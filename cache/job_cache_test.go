@@ -3,6 +3,7 @@ package cache_test
 import (
 	"testing"
 
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/gizo-network/gizo/cache"
@@ -12,6 +13,7 @@ import (
 )
 
 func TestJobCache(t *testing.T) {
+	godotenv.Load()
 	core.RemoveDataPath()
 	j1 := job.NewJob(`
 		func Factorial(n){

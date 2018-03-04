@@ -32,10 +32,11 @@ const (
 //TODO: add errors
 //! statuses
 const (
-	TIMEOUT     = "timeout"
-	RUNNING     = "running"    //job executed
-	FINISHED    = "finished"   //job done
-	RETRYING    = "retrying"   //job retrying
-	DISPATHCHED = "dispatched" //job dispatched to worker
-	STARTED     = "started"    //job received by dispatcher (prior to dispatch)
+	QUEUED      = "QUEUED"     // job added to job queue
+	TIMEOUT     = "TIMEOUT"    // job timed out
+	RUNNING     = "RUNNING"    //job executed
+	FINISHED    = "FINISHED"   //job done
+	RETRYING    = "RETRYING"   //job retrying
+	DISPATHCHED = "DISPATCHED" //job dispatched to worker
+	STARTED     = "STARTED"    //job received by dispatcher (prior to dispatch)
 )
