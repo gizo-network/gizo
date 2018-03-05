@@ -10,7 +10,7 @@ import (
 )
 
 //GenKeys returns private and public keys
-func GenKeys() (private_key_bytes, public_key_bytes []byte) {
+func GenKeys() ([]byte, []byte) {
 	privKey, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
 	if err != nil {
 		glg.Fatal(err)
