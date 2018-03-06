@@ -2,6 +2,7 @@ package core
 
 import "math/big"
 
+//BlockHeader holds the header of the block
 type BlockHeader struct {
 	Timestamp     int64    `json:"timestamp"`
 	PrevBlockHash []byte   `json:"prevBlockHash"`
@@ -11,50 +12,62 @@ type BlockHeader struct {
 	Hash          []byte   `json:"hash"`
 }
 
+//GetTimestamp returns timestamp
 func (bh BlockHeader) GetTimestamp() int64 {
 	return bh.Timestamp
 }
 
-func (bh *BlockHeader) SetTimestamp(t int64) {
+//sets the timestamp
+func (bh *BlockHeader) setTimestamp(t int64) {
 	bh.Timestamp = t
 }
 
+//GetPrevBlockHash returns previous block hash
 func (bh BlockHeader) GetPrevBlockHash() []byte {
 	return bh.PrevBlockHash
 }
 
-func (bh *BlockHeader) SetPrevBlockHash(h []byte) {
+//sets prevblockhash
+func (bh *BlockHeader) setPrevBlockHash(h []byte) {
 	bh.PrevBlockHash = h
 }
 
+//GetMerkleRoot returns merkleroot
 func (bh BlockHeader) GetMerkleRoot() []byte {
 	return bh.MerkleRoot
 }
 
-func (bh *BlockHeader) SetMerkleRoot(mr []byte) {
+//sets merkleroot
+func (bh *BlockHeader) setMerkleRoot(mr []byte) {
 	bh.MerkleRoot = mr
 }
 
+//GetNonce returns the nonce
 func (bh BlockHeader) GetNonce() uint64 {
 	return bh.Nonce
 }
 
-func (bh *BlockHeader) SetNonce(n uint64) {
+//sets the nonce
+func (bh *BlockHeader) setNonce(n uint64) {
 	bh.Nonce = n
 }
 
+//GetDifficulty returns difficulty
 func (bh BlockHeader) GetDifficulty() *big.Int {
 	return bh.Difficulty
 }
 
-func (bh *BlockHeader) SetDifficulty(d big.Int) {
+//sets the difficulty
+func (bh *BlockHeader) setDifficulty(d big.Int) {
 	bh.Difficulty = &d
 }
 
+//GetHash returns hash
 func (bh BlockHeader) GetHash() []byte {
 	return bh.Hash
 }
 
-func (bh *BlockHeader) SetHash(h []byte) {
+//sets hash
+func (bh *BlockHeader) setHash(h []byte) {
 	bh.Hash = h
 }

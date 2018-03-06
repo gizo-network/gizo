@@ -2,11 +2,17 @@ package job
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"log"
+	"math/big"
 	"reflect"
-	"sync"
+	"strconv"
 	"time"
 
 	"github.com/satori/go.uuid"
@@ -17,23 +23,59 @@ import (
 	"github.com/mattn/anko/vm"
 )
 
+var (
+	ErrUnverifiedSignature = errors.New("signature not verified")
+)
+
 type Job struct {
 	ID             string    `json:"id"`
 	Hash           []byte    `json:"hash"`
 	Execs          []Exec    `json:"execs"`
 	Name           string    `json:"name"`
 	Task           string    `json:"task"`
-	Signature      []byte    `json:"signature"` // signature of owner
+	Signature      [][]byte  `json:"signature"` // signature of owner
 	SubmissionTime time.Time `json:"submission_time"`
 	Private        bool      `json:"private"` //private job flag (default to false - public)
-	Owner          []byte    `json:"owner"`
+}
+
+func (j *Job) Sign(priv []byte) {
+	hash := sha256.Sum256([]byte(j.GetTask()))
+	privateKey, _ := x509.ParseECPrivateKey(priv)
+	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash[:])
+	if err != nil {
+		glg.Fatal("Job: unable to sign job")
+	}
+	var temp [][]byte
+	temp = append(temp, r.Bytes(), s.Bytes())
+	j.setSignature(temp)
+}
+
+func (j Job) VerifySignature(pub string) bool {
+	pubBytes, err := hex.DecodeString(pub)
+	if err != nil {
+		glg.Fatal(err)
+	}
+
+	var r big.Int
+	var s big.Int
+	r.SetBytes(j.GetSignature()[0])
+	s.SetBytes(j.GetSignature()[1])
+
+	publicKey, _ := x509.ParsePKIXPublicKey(pubBytes)
+	hash := sha256.Sum256([]byte(j.GetTask()))
+	switch pubConv := publicKey.(type) {
+	case *ecdsa.PublicKey:
+		return ecdsa.Verify(pubConv, hash[:], &r, &s)
+	default:
+		return false
+	}
 }
 
 func (j Job) GetSubmissionTime() time.Time {
 	return j.SubmissionTime
 }
 
-func (j *Job) SetSubmissionTime(t time.Time) {
+func (j *Job) setSubmissionTime(t time.Time) {
 	j.SubmissionTime = t
 }
 
@@ -41,16 +83,30 @@ func (j Job) IsEmpty() bool {
 	return j.GetID() == "" && reflect.ValueOf(j.GetHash()).IsNil() && reflect.ValueOf(j.GetExecs()).IsNil() && j.GetTask() == "" && reflect.ValueOf(j.GetSignature()).IsNil() && j.GetName() == ""
 }
 
-func NewJob(task string, name string) *Job {
+func NewJob(task string, name string, priv bool, privKey string) *Job {
 	j := &Job{
 		SubmissionTime: time.Now(),
 		ID:             uuid.NewV4().String(),
 		Execs:          []Exec{},
 		Name:           name,
 		Task:           helpers.Encode64([]byte(task)),
+		Private:        priv,
 	}
+	privBytes, err := hex.DecodeString(privKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	j.Sign(privBytes)
 	j.setHash()
 	return j
+}
+
+func (j Job) GetPrivate() bool {
+	return j.Private
+}
+
+func (j *Job) setPrivate(p bool) {
+	j.Private = p
 }
 
 func (j Job) GetName() string {
@@ -59,14 +115,6 @@ func (j Job) GetName() string {
 
 func (j *Job) setName(n string) {
 	j.Name = n
-}
-
-func (j Job) GetOwner() []byte {
-	return j.Owner
-}
-
-func (j *Job) SetOwner(o []byte) {
-	j.Owner = o
 }
 
 func (j Job) GetID() string {
@@ -83,9 +131,11 @@ func (j *Job) setHash() {
 			[]byte(j.GetID()),
 			[]byte(j.GetTask()),
 			[]byte(j.GetName()),
-			j.GetSignature(),
+			j.GetSignature()[0],
+			j.GetSignature()[1],
 			[]byte(string(j.GetSubmissionTime().Unix())),
-			j.GetOwner(),
+			[]byte(strconv.FormatBool(j.GetPrivate())),
+			// j.GetOwner(),
 		},
 		[]byte{},
 	)
@@ -99,9 +149,11 @@ func (j Job) Verify() bool {
 			[]byte(j.GetID()),
 			[]byte(j.GetTask()),
 			[]byte(j.GetName()),
-			j.GetSignature(),
+			j.GetSignature()[0],
+			j.GetSignature()[1],
 			[]byte(string(j.GetSubmissionTime().Unix())),
-			j.GetOwner(),
+			[]byte(strconv.FormatBool(j.GetPrivate())),
+			// j.GetOwner(),
 		},
 		[]byte{},
 	)
@@ -137,11 +189,11 @@ func (j Job) GetExecs() []Exec {
 	return j.Execs
 }
 
-func (j Job) GetSignature() []byte {
+func (j Job) GetSignature() [][]byte {
 	return j.Signature
 }
 
-func (j *Job) SetSignature(sign []byte) {
+func (j *Job) setSignature(sign [][]byte) {
 	j.Signature = sign
 }
 
@@ -185,10 +237,15 @@ func argsStringified(args []interface{}) string {
 }
 
 //! run in goroutine
-func (j *Job) Execute(exec *Exec) {
+func (j *Job) Execute(exec *Exec) *Exec {
+	if j.GetPrivate() == true {
+		if j.VerifySignature(exec.getPub()) == false {
+			exec.SetErr(ErrUnverifiedSignature)
+			return exec
+		}
+	}
 	glg.Info("Job: Executing job - " + j.GetID())
 	start := time.Now()
-	var wg sync.WaitGroup
 	done := make(chan struct{})
 	exec.SetStatus(RUNNING)
 	exec.SetTimestamp(time.Now().Unix())
@@ -223,7 +280,7 @@ func (j *Job) Execute(exec *Exec) {
 			time.Sleep(exec.GetBackoff())
 			exec.SetStatus(RETRYING)
 			exec.IncrRetriesCount()
-			glg.Error("Job: Retrying job - " + j.GetID())
+			glg.Warn("Job: Retrying job - " + j.GetID())
 			goto retry
 		}
 		exec.SetDuration(time.Duration(time.Now().Sub(start).Nanoseconds()))
@@ -233,13 +290,8 @@ func (j *Job) Execute(exec *Exec) {
 		exec.SetStatus(FINISHED)
 		done <- struct{}{}
 	}()
-	wg.Add(1)
-	go func() {
-		select {
-		case <-done:
-			j.AddExec(*exec)
-			wg.Done()
-		}
-	}()
-	wg.Wait()
+	select {
+	case <-done:
+		return exec
+	}
 }

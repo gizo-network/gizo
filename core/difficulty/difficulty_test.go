@@ -31,6 +31,16 @@ func TestDifficulty(t *testing.T) {
 	tree := merkletree.NewMerkleTree(nodes)
 	block := core.NewBlock(*tree, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetLatestHeight(), 10)
 	bc.AddBlock(block)
-	b := benchmark.NewBenchmarkEngine()
-	assert.NotNil(t, consensus.Difficulty(b.GetData(), *bc))
+	d10 := benchmark.NewBenchmark(0.0115764096, 10)
+	d11 := benchmark.NewBenchmark(0.13054728, 11)
+	d12 := benchmark.NewBenchmark(0.0740971, 12)
+	d13 := benchmark.NewBenchmark(0.28987127999999995, 13)
+	d14 := benchmark.NewBenchmark(1.36593388, 14)
+	d15 := benchmark.NewBenchmark(1.8645611, 15)
+	d16 := benchmark.NewBenchmark(3.82076494, 16)
+	d17 := benchmark.NewBenchmark(7.12966816, 17)
+	d18 := benchmark.NewBenchmark(28.470944839999998, 18)
+	d19 := benchmark.NewBenchmark(42.251310620000005, 19)
+	benchmarks := []benchmark.Benchmark{d10, d11, d12, d13, d14, d15, d16, d17, d18, d19}
+	assert.NotNil(t, consensus.Difficulty(benchmarks, *bc))
 }

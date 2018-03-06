@@ -94,7 +94,7 @@ func (m MerkleTree) VerifyTree() bool {
 	return bytes.Equal(t.GetRoot(), m.GetRoot())
 }
 
-// Search returns true if node with hash exists
+//SearchNode returns true if node with hash exists
 func (m MerkleTree) SearchNode(hash []byte) (*MerkleNode, error) {
 	glg.Info("MerkleTree: Searching for node " + hex.EncodeToString(hash))
 	if len(m.GetLeafNodes()) == 0 {
@@ -108,6 +108,7 @@ func (m MerkleTree) SearchNode(hash []byte) (*MerkleNode, error) {
 	return nil, ErrNodeDoesntExist
 }
 
+//SearchJob returns job from the tree
 func (m MerkleTree) SearchJob(ID string) (*job.Job, error) {
 	glg.Info("MerkleTree: Searching for job " + ID)
 	if len(m.GetLeafNodes()) == 0 {

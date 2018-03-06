@@ -10,6 +10,7 @@ import (
 	"github.com/kpango/glg"
 )
 
+//TODO: add environment variables
 type Exec struct {
 	Hash          []byte        `json:"hash"`
 	Timestamp     int64         `json:"timestamp"`
@@ -20,15 +21,16 @@ type Exec struct {
 	Result        interface{}   `json:"result"`
 	Status        string        `json:"status"`         //job status
 	Retries       int           `json:"retries"`        // number of max retries
-	RetriesCount  int           `json:"retries_count"`   //number of retries
+	RetriesCount  int           `json:"retries_count"`  //number of retries
 	Backoff       time.Duration `json:"backoff"`        //backoff time of retries (seconds)
 	ExecutionTime int64         `json:"execution_time"` // time scheduled to run (unix) - should sleep # of seconds before adding to job queue
 	Interval      int           `json:"interval"`       //periodic job exec (seconds)
 	By            []byte        `json:"by"`             //! ID of the worker node that ran this
 	TTL           time.Duration `json:"ttl"`            //! time limit of job running
+	pub           string        //! public key for private jobs
 }
 
-func NewExec(args []interface{}, retries, priority int, backoff time.Duration, execTime int64, interval int, ttl time.Duration) (*Exec, error) {
+func NewExec(args []interface{}, retries, priority int, backoff time.Duration, execTime int64, interval int, ttl time.Duration, pub string) (*Exec, error) {
 	if retries > MaxRetries {
 		return nil, ErrRetriesOutsideLimit
 	}
@@ -43,6 +45,7 @@ func NewExec(args []interface{}, retries, priority int, backoff time.Duration, e
 		Interval:      interval,
 		TTL:           ttl,
 		By:            []byte("0000"), //!FIXME: replace with real ID
+		pub:           pub,
 	}, nil
 }
 
@@ -97,7 +100,7 @@ func (j Exec) GetBackoff() time.Duration {
 }
 
 func (j *Exec) SetBackoff(b time.Duration) error {
-	if b > MaxRetryDelay {
+	if b > MaxRetryBackoff {
 		return ErrRetryDelayOutsideLimit
 	}
 	j.Backoff = b
@@ -215,4 +218,8 @@ func (j Exec) Serialize() []byte {
 		glg.Error(err)
 	}
 	return temp
+}
+
+func (j Exec) getPub() string {
+	return j.pub
 }
