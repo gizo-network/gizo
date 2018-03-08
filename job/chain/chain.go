@@ -89,7 +89,7 @@ func (c Chain) Result() []job.JobRequest {
 	return c.result
 }
 
-//Dispatch executes the batch
+//Dispatch executes the chain
 func (c *Chain) Dispatch() {
 	c.setStatus(job.RUNNING)
 	var items []queue.Item // used to hold results

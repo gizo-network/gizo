@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math/big"
 	"reflect"
@@ -26,6 +27,7 @@ import (
 
 var (
 	ErrUnverifiedSignature = errors.New("signature not verified")
+	ErrUnableToConvert     = errors.New("Unable to convert to string")
 )
 
 type Job struct {
@@ -136,7 +138,6 @@ func (j *Job) setHash() {
 			j.GetSignature()[1],
 			[]byte(string(j.GetSubmissionTime().Unix())),
 			[]byte(strconv.FormatBool(j.GetPrivate())),
-			// j.GetOwner(),
 		},
 		[]byte{},
 	)
@@ -154,7 +155,6 @@ func (j Job) Verify() bool {
 			j.GetSignature()[1],
 			[]byte(string(j.GetSubmissionTime().Unix())),
 			[]byte(strconv.FormatBool(j.GetPrivate())),
-			// j.GetOwner(),
 		},
 		[]byte{},
 	)
@@ -225,13 +225,42 @@ func DeserializeJob(b []byte) (*Job, error) {
 	return &temp, nil
 }
 
+func toString(x interface{}) (string, error) {
+	v := reflect.ValueOf(x)
+	switch v.Kind() {
+	case reflect.Bool:
+		return strconv.FormatBool(v.Bool()), nil
+	case reflect.Int, reflect.Int8, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(v.Int(), 10), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(v.Uint(), 10), nil
+	case reflect.Float32, reflect.Float64:
+		return strconv.FormatFloat(v.Float(), 'f', -1, 64), nil
+	case reflect.String:
+		return "\"" + v.String() + "\"", nil
+	case reflect.Slice:
+		stringifiy, err := json.Marshal(v.Interface())
+		return string(stringifiy), err
+	case reflect.Map:
+		stringifiy, err := json.Marshal(v.Interface())
+		return string(stringifiy), err
+	default:
+		fmt.Println(x)
+	}
+	return "", ErrUnableToConvert
+}
+
 func argsStringified(args []interface{}) string {
 	temp := "("
 	for i, val := range args {
+		stringified, err := toString(val)
+		if err != nil {
+			glg.Fatal(err)
+		}
 		if i == len(args)-1 {
-			temp += val.(string) + ""
+			temp += stringified + ""
 		} else {
-			temp += val.(string) + ","
+			temp += stringified + ","
 		}
 	}
 	return temp + ")"
@@ -272,10 +301,16 @@ func (j *Job) Execute(exec *Exec) *Exec {
 		env.Define("env", exec.GetEnvsMap())
 		var result interface{}
 		var err error
+		fmt.Println(argsStringified(exec.GetArgs()))
 		if len(exec.GetArgs()) == 0 {
 			result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
 		} else {
 			result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(exec.GetArgs()))
+		}
+
+		//FIXME: remove
+		if err != nil {
+			fmt.Println(err)
 		}
 
 		if r != 0 && err != nil {
