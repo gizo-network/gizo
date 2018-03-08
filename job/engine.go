@@ -269,10 +269,7 @@ func (j *Job) Execute(exec *Exec) *Exec {
 	retry:
 		env := anko_vm.NewEnv()
 		anko_core.LoadAllBuiltins(env) //!FIXME: limiit packages that are loaded in
-		//?FIXME: check if mattn replies so as to make a map (env) to store all environment variables like process.env in node.js
-		for _, val := range exec.GetEnvs() {
-			env.Define(val.GetKey(), val.GetValue())
-		}
+		env.Define("env", exec.GetEnvsMap())
 		var result interface{}
 		var err error
 		if len(exec.GetArgs()) == 0 {
