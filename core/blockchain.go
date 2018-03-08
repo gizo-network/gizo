@@ -83,6 +83,7 @@ func (bc *BlockChain) GetBlockInfo(hash []byte) (*BlockInfo, error) {
 	return nil, ErrBlockNotFound
 }
 
+//GetPrevHash returns the hash of the last block in the bc
 func (bc BlockChain) GetPrevHash() []byte {
 	return bc.GetLatestBlock().GetHeader().GetHash()
 }
