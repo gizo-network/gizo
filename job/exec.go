@@ -55,16 +55,13 @@ func (j Exec) GetEnvs() EnvironmentVariables {
 	return j.envs
 }
 
-// func (j Exec) GetEnvsString() string {
-// 	temp := "{"
-// 	for i, val := range j.GetEnvs() {
-// 		temp += "\"" + val.GetKey() + "\"" + ":" + "\"" + val.GetValue() + "\""
-// 		if i != len(j.GetEnvs())-1 {
-// 			temp += ","
-// 		}
-// 	}
-// 	return temp + "}"
-// }
+func (j Exec) GetEnvsMap() map[string]interface{} {
+	temp := make(map[string]interface{})
+	for _, val := range j.GetEnvs() {
+		temp[val.GetKey()] = val.GetValue()
+	}
+	return temp
+}
 
 func (j Exec) GetTTL() time.Duration {
 	return j.TTL
