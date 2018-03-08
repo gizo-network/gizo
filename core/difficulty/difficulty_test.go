@@ -1,23 +1,27 @@
-package consensus_test
+package difficulty_test
 
 import (
+	"encoding/hex"
+	"os"
 	"testing"
 
-	"github.com/joho/godotenv"
+	"github.com/gizo-network/gizo/crypt"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/gizo-network/gizo/benchmark"
-	"github.com/gizo-network/gizo/consensus"
 	"github.com/gizo-network/gizo/core"
+	"github.com/gizo-network/gizo/core/difficulty"
 	"github.com/gizo-network/gizo/core/merkletree"
 	"github.com/gizo-network/gizo/job"
 )
 
 func TestDifficulty(t *testing.T) {
-	godotenv.Load()
+	os.Setenv("ENV", "dev")
 	core.RemoveDataPath()
 	bc := core.CreateBlockChain()
-	j := job.NewJob("func test(){return 1+1}", "test")
+	priv, _ := crypt.GenKeys()
+	j := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -42,5 +46,5 @@ func TestDifficulty(t *testing.T) {
 	d18 := benchmark.NewBenchmark(28.470944839999998, 18)
 	d19 := benchmark.NewBenchmark(42.251310620000005, 19)
 	benchmarks := []benchmark.Benchmark{d10, d11, d12, d13, d14, d15, d16, d17, d18, d19}
-	assert.NotNil(t, consensus.Difficulty(benchmarks, *bc))
+	assert.NotNil(t, difficulty.Difficulty(benchmarks, *bc))
 }

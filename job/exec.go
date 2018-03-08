@@ -27,10 +27,11 @@ type Exec struct {
 	Interval      int           `json:"interval"`       //periodic job exec (seconds)
 	By            []byte        `json:"by"`             //! ID of the worker node that ran this
 	TTL           time.Duration `json:"ttl"`            //! time limit of job running
-	pub           string        //! public key for private jobs
+	envs          EnvironmentVariables
+	pub           string //! public key for private jobs
 }
 
-func NewExec(args []interface{}, retries, priority int, backoff time.Duration, execTime int64, interval int, ttl time.Duration, pub string) (*Exec, error) {
+func NewExec(args []interface{}, retries, priority int, backoff time.Duration, execTime int64, interval int, ttl time.Duration, pub string, envs EnvironmentVariables) (*Exec, error) {
 	if retries > MaxRetries {
 		return nil, ErrRetriesOutsideLimit
 	}
@@ -44,10 +45,26 @@ func NewExec(args []interface{}, retries, priority int, backoff time.Duration, e
 		ExecutionTime: execTime,
 		Interval:      interval,
 		TTL:           ttl,
-		By:            []byte("0000"), //!FIXME: replace with real ID
+		envs:          envs,
+		By:            []byte("0000"), //!FIXME: replace with real node ID
 		pub:           pub,
 	}, nil
 }
+
+func (j Exec) GetEnvs() EnvironmentVariables {
+	return j.envs
+}
+
+// func (j Exec) GetEnvsString() string {
+// 	temp := "{"
+// 	for i, val := range j.GetEnvs() {
+// 		temp += "\"" + val.GetKey() + "\"" + ":" + "\"" + val.GetValue() + "\""
+// 		if i != len(j.GetEnvs())-1 {
+// 			temp += ","
+// 		}
+// 	}
+// 	return temp + "}"
+// }
 
 func (j Exec) GetTTL() time.Duration {
 	return j.TTL
