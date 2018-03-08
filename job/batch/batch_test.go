@@ -1,10 +1,12 @@
 package batch_test
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/core/merkletree"
+	"github.com/gizo-network/gizo/crypt"
 	"github.com/gizo-network/gizo/job"
 	"github.com/gizo-network/gizo/job/batch"
 	"github.com/gizo-network/gizo/job/queue"
@@ -13,6 +15,7 @@ import (
 
 func TestBatch(t *testing.T) {
 	core.RemoveDataPath()
+	priv, _ := crypt.GenKeys()
 	pq := queue.NewJobPriorityQueue()
 	j := job.NewJob(`
 	func Factorial(n){
@@ -21,19 +24,19 @@ func TestBatch(t *testing.T) {
 	  return result
 	 }
 	 return 1
-	}`, "Factorial")
+	}`, "Factorial", false, hex.EncodeToString(priv))
 	j2 := job.NewJob(`
 		func Test(){
 			return "Testing"
 		}
-		`, "Test")
-	exec1, err := job.NewExec([]interface{}{"10"}, 5, job.NORMAL, 0, 0, 0, 0)
+		`, "Test", false, hex.EncodeToString(priv))
+	exec1, err := job.NewExec([]interface{}{"10"}, 5, job.NORMAL, 0, 0, 0, 0, "")
 	assert.NoError(t, err)
-	exec2, err := job.NewExec([]interface{}{"11"}, 5, job.NORMAL, 0, 0, 0, 0)
+	exec2, err := job.NewExec([]interface{}{"11"}, 5, job.NORMAL, 0, 0, 0, 0, "")
 	assert.NoError(t, err)
-	exec3, err := job.NewExec([]interface{}{"12"}, 5, job.NORMAL, 0, 0, 0, 0)
+	exec3, err := job.NewExec([]interface{}{"12"}, 5, job.NORMAL, 0, 0, 0, 0, "")
 	assert.NoError(t, err)
-	exec4, err := job.NewExec([]interface{}{""}, 5, job.NORMAL, 0, 0, 0, 0)
+	exec4, err := job.NewExec([]interface{}{""}, 5, job.NORMAL, 0, 0, 0, 0, "")
 	assert.NoError(t, err)
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j2, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})

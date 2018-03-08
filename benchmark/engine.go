@@ -1,9 +1,12 @@
 package benchmark
 
 import (
+	"encoding/hex"
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/gizo-network/gizo/crypt"
 
 	"github.com/kpango/glg"
 
@@ -44,7 +47,8 @@ func (b Engine) GetData() []Benchmark {
 //returns a block with mock data
 func (b Engine) block(difficulty uint8) *core.Block {
 	//random data
-	j := job.NewJob("func test(){return 1+1}", "test")
+	priv, _ := crypt.GenKeys()
+	j := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})

@@ -83,6 +83,10 @@ func (bc *BlockChain) GetBlockInfo(hash []byte) (*BlockInfo, error) {
 	return nil, ErrBlockNotFound
 }
 
+func (bc BlockChain) GetPrevHash() []byte {
+	return bc.GetLatestBlock().GetHeader().GetHash()
+}
+
 //GetBlocksWithinMinute returns all blocks in the db within the last minute
 func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	glg.Info("Core: Getting blocks within last minute")
@@ -284,8 +288,13 @@ func (bc *BlockChain) GetBlockHashes() [][]byte {
 //CreateBlockChain initializes a db, set's the tip to GenesisBlock and returns the blockchain
 func CreateBlockChain() *BlockChain {
 	glg.Info("Core: Creating blockchain database")
-	InitializeDataPath()                                                  //FIXME: change to prod var on deployment
-	dbFile := path.Join(IndexPathDev, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
+	InitializeDataPath()
+	var dbFile string
+	if os.Getenv("ENV") == "dev" {
+		dbFile = path.Join(IndexPathDev, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
+	} else {
+		dbFile = path.Join(IndexPathProd, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
+	}
 	if dbExists(dbFile) {
 		var tip []byte
 		glg.Warn("Core: Using existing blockchain")

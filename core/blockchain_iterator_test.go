@@ -1,14 +1,14 @@
 package core
 
 import (
+	"os"
 	"testing"
 
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNext(t *testing.T) {
-	godotenv.Load()
+	os.Setenv("ENV", "dev")
 	RemoveDataPath()
 	bc := CreateBlockChain()
 	bci := bc.iterator()
