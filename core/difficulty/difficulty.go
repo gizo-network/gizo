@@ -1,4 +1,4 @@
-package consensus
+package difficulty
 
 import (
 	"math/rand"

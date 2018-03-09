@@ -20,7 +20,8 @@ import (
 	"github.com/gizo-network/gizo/helpers"
 
 	"github.com/kpango/glg"
-	"github.com/mattn/anko/vm"
+	anko_core "github.com/mattn/anko/builtins"
+	anko_vm "github.com/mattn/anko/vm"
 )
 
 var (
@@ -266,7 +267,9 @@ func (j *Job) Execute(exec *Exec) *Exec {
 	go func() {
 		r := exec.GetRetries()
 	retry:
-		env := vm.NewEnv()
+		env := anko_vm.NewEnv()
+		anko_core.LoadAllBuiltins(env) //!FIXME: limiit packages that are loaded in
+		env.Define("env", exec.GetEnvsMap())
 		var result interface{}
 		var err error
 		if len(exec.GetArgs()) == 0 {

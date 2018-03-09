@@ -1,9 +1,12 @@
 package cache_test
 
 import (
+	"encoding/hex"
+	"os"
 	"testing"
 
-	"github.com/joho/godotenv"
+	"github.com/gizo-network/gizo/crypt"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/gizo-network/gizo/cache"
@@ -13,8 +16,9 @@ import (
 )
 
 func TestJobCache(t *testing.T) {
-	godotenv.Load()
+	os.Setenv("ENV", "dev")
 	core.RemoveDataPath()
+	priv, _ := crypt.GenKeys()
 	j1 := job.NewJob(`
 		func Factorial(n){
 		 if(n > 0){
@@ -22,7 +26,7 @@ func TestJobCache(t *testing.T) {
 		  return result
 		 }
 		 return 1
-		}`, "Factorial")
+		}`, "Factorial", false, hex.EncodeToString(priv))
 	j1.AddExec(job.Exec{})
 	j1.AddExec(job.Exec{})
 	j1.AddExec(job.Exec{})
@@ -34,7 +38,7 @@ func TestJobCache(t *testing.T) {
 			  return result
 			 }
 			 return 1
-			}`, "Factorial")
+			}`, "Factorial", false, hex.EncodeToString(priv))
 	j2.AddExec(job.Exec{})
 	j2.AddExec(job.Exec{})
 	j2.AddExec(job.Exec{})
@@ -46,7 +50,7 @@ func TestJobCache(t *testing.T) {
 				  return result
 				 }
 				 return 1
-				}`, "Factorial")
+				}`, "Factorial", false, hex.EncodeToString(priv))
 	j3.AddExec(job.Exec{})
 	j3.AddExec(job.Exec{})
 	j3.AddExec(job.Exec{})

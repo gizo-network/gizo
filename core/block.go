@@ -90,7 +90,12 @@ func (b Block) export() error {
 		return ErrUnableToExport
 	}
 	bBytes := b.Serialize()
-	err := ioutil.WriteFile(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
+	var err error
+	if os.Getenv("ENV") == "dev" {
+		err = ioutil.WriteFile(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
+	} else {
+		err = ioutil.WriteFile(path.Join(BlockPathProd, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
+	}
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -103,7 +108,13 @@ func (b *Block) Import(hash []byte) {
 	if b.IsEmpty() == false {
 		glg.Warn("Overwriting umempty block")
 	}
-	read, err := ioutil.ReadFile(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(hash))))
+	var read []byte
+	var err error
+	if os.Getenv("ENV") == "dev" {
+		read, err = ioutil.ReadFile(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(hash))))
+	} else {
+		read, err = ioutil.ReadFile(path.Join(BlockPathProd, fmt.Sprintf(BlockFile, hex.EncodeToString(hash))))
+	}
 	if err != nil {
 		glg.Fatal(err) //FIXME: handle block doesn't exist by asking peer
 	}
@@ -119,7 +130,13 @@ func (b *Block) Import(hash []byte) {
 
 //returns the file stats of a blockfile
 func (b Block) fileStats() os.FileInfo {
-	info, err := os.Stat(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))))
+	var info os.FileInfo
+	var err error
+	if os.Getenv("ENV") == "dev" {
+		info, err = os.Stat(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))))
+	} else {
+		info, err = os.Stat(path.Join(BlockPathProd, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))))
+	}
 	if os.IsNotExist(err) {
 		glg.Fatal("Block file doesn't exist")
 	}
@@ -160,7 +177,12 @@ func (b *Block) VerifyBlock() bool {
 //DeleteFile deletes block file on disk
 func (b Block) DeleteFile() {
 	glg.Info("Core: Deleting blockfile - " + hex.EncodeToString(b.GetHeader().GetHash()))
-	err := os.Remove(path.Join(BlockPathDev, b.fileStats().Name()))
+	var err error
+	if os.Getenv("ENV") == "dev" {
+		err = os.Remove(path.Join(BlockPathDev, b.fileStats().Name()))
+	} else {
+		err = os.Remove(path.Join(BlockPathProd, b.fileStats().Name()))
+	}
 	if err != nil {
 		glg.Fatal(err)
 	}
