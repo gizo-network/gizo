@@ -105,11 +105,9 @@ func (c Chord) Result() job.JobRequest {
 func (c *Chord) Dispatch() {
 	c.setStatus(job.RUNNING)
 	var items []queue.Item // used to hold results
-	res := make(chan queue.Item)
-	var jobIDs []string
+	resChan := make(chan queue.Item, 1)
 	for _, jr := range c.GetJobs() {
 		c.setStatus("Queueing execs of job - " + jr.GetID())
-		jobIDs = append(jobIDs, jr.GetID())
 		j, err := c.getBC().FindJob(jr.GetID())
 		if err != nil {
 			glg.Warn("Chain: Unable to find job - " + jr.GetID())
@@ -117,16 +115,17 @@ func (c *Chord) Dispatch() {
 				exec.SetErr("Unable to find job - " + jr.GetID())
 			}
 		} else {
-			c.getPQ().Push(*j, jr.GetExec()[0], res) //? queues first job
-			for i := 1; i < len(jr.GetExec()); i++ {
-				items = append(items, <-res) //! waits for it to finish before continuing
-				c.getPQ().Push(*j, jr.GetExec()[i], res)
+			for i := 0; i < len(jr.GetExec()); i++ {
+				c.getPQ().Push(*j, jr.GetExec()[i], resChan)
+				items = append(items, <-resChan) //! waits for it to finish before continuing
 			}
 		}
 	}
+	close(resChan)
 
 	var callbackResults []queue.Item
-	var callbackArgs []interface{} //holds result of execs
+	var callbackArgs []interface{}           //holds result of execs
+	callbackChan := make(chan queue.Item, 1) //causes program to pause
 	for _, item := range items {
 		callbackArgs = append(callbackArgs, item.GetExec().GetResult())
 	}
@@ -136,7 +135,7 @@ func (c *Chord) Dispatch() {
 		exec.SetArgs(callbackArgs)
 	}
 
-	j, err := c.getBC().FindJob(c.GetCallback().GetID())
+	cj, err := c.getBC().FindJob(c.GetCallback().GetID())
 	if err != nil {
 		glg.Warn("Chain: Unable to find job - " + c.GetCallback().GetID())
 		for _, exec := range c.GetCallback().GetExec() {
@@ -144,16 +143,18 @@ func (c *Chord) Dispatch() {
 		}
 	} else {
 		if len(c.GetCallback().GetExec()) > 1 {
-			c.getPQ().Push(*j, c.GetCallback().GetExec()[0], res)
+			c.getPQ().Push(*cj, c.GetCallback().GetExec()[0], callbackChan)
 			for i := 1; i < len(c.GetCallback().GetExec()); i++ {
-				callbackResults = append(callbackResults, <-res)
-				c.getPQ().Push(*j, c.GetCallback().GetExec()[i], res)
+				callbackResults = append(callbackResults, <-callbackChan)
+				c.getPQ().Push(*cj, c.GetCallback().GetExec()[i], callbackChan)
 			}
 		} else {
-			c.getPQ().Push(*j, c.GetCallback().GetExec()[0], res)
-			callbackResults = append(callbackResults, <-res)
+			c.getPQ().Push(*cj, c.GetCallback().GetExec()[0], callbackChan)
+			callbackResults = append(callbackResults, <-callbackChan)
 		}
 	}
+
+	close(callbackChan)
 
 	fmt.Println("callbackargs", callbackArgs)
 	fmt.Println("callbackResult", callbackResults[0].GetExec().GetResult())

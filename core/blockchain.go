@@ -221,6 +221,7 @@ func (bc *BlockChain) iterator() *BlockChainIterator {
 
 //FindJob returns the job from the blockchain
 func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
+	//FIXME: speed up
 	glg.Info("Core: Finding Job in the blockchain - " + id)
 	var tree merkletree.MerkleTree
 	bci := bc.iterator()
@@ -240,6 +241,7 @@ func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
 
 //FindMerkleNode returns the merklenode from the blockchain
 func (bc *BlockChain) FindMerkleNode(h []byte) (*merkletree.MerkleNode, error) {
+	//FIXME: speed up
 	glg.Info("Core: Finding merklenode - " + hex.EncodeToString(h))
 	var tree merkletree.MerkleTree
 	bci := bc.iterator()

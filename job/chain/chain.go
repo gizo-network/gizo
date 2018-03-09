@@ -92,7 +92,7 @@ func (c Chain) Result() []job.JobRequest {
 //Dispatch executes the chain
 func (c *Chain) Dispatch() {
 	c.setStatus(job.RUNNING)
-	var items []queue.Item // used to hold results
+	var results []queue.Item // used to hold results
 	res := make(chan queue.Item)
 	var jobIDs []string
 	for _, jr := range c.GetJobs() {
@@ -105,19 +105,19 @@ func (c *Chain) Dispatch() {
 				exec.SetErr("Unable to find job - " + jr.GetID())
 			}
 		} else {
-			c.getPQ().Push(*j, jr.GetExec()[0], res) //? queues first job
-			for i := 1; i < len(jr.GetExec()); i++ {
-				items = append(items, <-res)
-				c.getPQ().Push(*j, jr.GetExec()[i], res)
+			for i := 0; i < len(jr.GetExec()); i++ {
+				c.getPQ().Push(*j, jr.GetExec()[0], res) //? queues first job
+				results = append(results, <-res)
 			}
 		}
 	}
+	close(res)
 
 	var grouped []job.JobRequest
 	for _, jID := range jobIDs {
 		var req job.JobRequest
 		req.SetID(jID)
-		for _, item := range items {
+		for _, item := range results {
 			if item.GetID() == jID {
 				req.AppendExec(item.GetExec())
 			}

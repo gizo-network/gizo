@@ -19,7 +19,7 @@ func InitializeDataPath() {
 	}
 }
 
-//RemoveDataPath delete's .gizo folder
+//RemoveDataPath delete's .gizo / .gizo-dev folder
 func RemoveDataPath() {
 	if os.Getenv("ENV") == "dev" {
 		glg.Info("Core: Removing Dev Data Path")

@@ -237,7 +237,8 @@ func toString(x interface{}) (string, error) {
 	case reflect.Float32, reflect.Float64:
 		return strconv.FormatFloat(v.Float(), 'f', -1, 64), nil
 	case reflect.String:
-		return "\"" + v.String() + "\"", nil
+		return "\"" + x.(string) + "\"", nil
+		// return v.String(), nil
 	case reflect.Slice:
 		stringifiy, err := json.Marshal(v.Interface())
 		return string(stringifiy), err
