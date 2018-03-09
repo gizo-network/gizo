@@ -37,17 +37,15 @@ func (pq JobPriorityQueue) getPQ() *lane.PQueue {
 }
 
 func (pq JobPriorityQueue) watch() {
-	go func() {
-		for {
-			if pq.getPQ().Empty() == false {
-				//TODO: dispatch to next available worker node
-				item := pq.Pop()
-				exec := item.job.Execute(item.GetExec())
-				item.setExec(exec)
-				item.ResultsChan() <- item
-			}
+	for {
+		if pq.getPQ().Empty() == false {
+			//TODO: dispatch to next available worker node
+			item := pq.Pop()
+			exec := item.job.Execute(item.GetExec())
+			item.setExec(exec)
+			item.ResultsChan() <- item
 		}
-	}()
+	}
 }
 
 func NewJobPriorityQueue() *JobPriorityQueue {
@@ -55,6 +53,6 @@ func NewJobPriorityQueue() *JobPriorityQueue {
 	q := &JobPriorityQueue{
 		pq: pq,
 	}
-	q.watch()
+	go q.watch()
 	return q
 }
