@@ -2,7 +2,6 @@ package chord
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
@@ -20,17 +19,17 @@ var (
 
 //Chord Jobs executed one after the other and the results passed to a callback
 type Chord struct {
-	jobs     []job.JobRequest
+	jobs     []job.JobRequestMultiple
 	bc       *core.BlockChain
 	pq       *queue.JobPriorityQueue
-	callback job.JobRequest
-	result   job.JobRequest
+	callback job.JobRequestMultiple
+	result   job.JobRequestMultiple
 	length   int
 	status   string
 }
 
 //NewChord returns chord
-func NewChord(j []job.JobRequest, callback job.JobRequest, bc *core.BlockChain, pq *queue.JobPriorityQueue) (*Chord, error) {
+func NewChord(j []job.JobRequestMultiple, callback job.JobRequestMultiple, bc *core.BlockChain, pq *queue.JobPriorityQueue) (*Chord, error) {
 	//FIXME: count callback execs too
 	length := len(callback.GetExec())
 	for _, jr := range j {
@@ -50,20 +49,20 @@ func NewChord(j []job.JobRequest, callback job.JobRequest, bc *core.BlockChain, 
 	return c, nil
 }
 
-func (c Chord) GetCallback() job.JobRequest {
+func (c Chord) GetCallback() job.JobRequestMultiple {
 	return c.callback
 }
 
-func (c *Chord) setCallback(j job.JobRequest) {
+func (c *Chord) setCallback(j job.JobRequestMultiple) {
 	c.callback = j
 }
 
 //GetJobs returns jobs
-func (c Chord) GetJobs() []job.JobRequest {
+func (c Chord) GetJobs() []job.JobRequestMultiple {
 	return c.jobs
 }
 
-func (c *Chord) setJobs(j []job.JobRequest) {
+func (c *Chord) setJobs(j []job.JobRequestMultiple) {
 	c.jobs = j
 }
 
@@ -92,12 +91,12 @@ func (c Chord) getBC() *core.BlockChain {
 	return c.bc
 }
 
-func (c *Chord) setResults(res job.JobRequest) {
+func (c *Chord) setResults(res job.JobRequestMultiple) {
 	c.result = res
 }
 
 //Result returns result
-func (c Chord) Result() job.JobRequest {
+func (c Chord) Result() job.JobRequestMultiple {
 	return c.result
 }
 
@@ -110,7 +109,7 @@ func (c *Chord) Dispatch() {
 		c.setStatus("Queueing execs of job - " + jr.GetID())
 		j, err := c.getBC().FindJob(jr.GetID())
 		if err != nil {
-			glg.Warn("Chain: Unable to find job - " + jr.GetID())
+			glg.Warn("Chord: Unable to find job - " + jr.GetID())
 			for _, exec := range jr.GetExec() {
 				exec.SetErr("Unable to find job - " + jr.GetID())
 			}
@@ -137,7 +136,7 @@ func (c *Chord) Dispatch() {
 
 	cj, err := c.getBC().FindJob(c.GetCallback().GetID())
 	if err != nil {
-		glg.Warn("Chain: Unable to find job - " + c.GetCallback().GetID())
+		glg.Warn("Chord: Unable to find job - " + c.GetCallback().GetID())
 		for _, exec := range c.GetCallback().GetExec() {
 			exec.SetErr("Unable to find job - " + c.GetCallback().GetID())
 		}
@@ -156,10 +155,7 @@ func (c *Chord) Dispatch() {
 
 	close(callbackChan)
 
-	fmt.Println("callbackargs", callbackArgs)
-	fmt.Println("callbackResult", callbackResults[0].GetExec().GetResult())
-
-	var callback job.JobRequest
+	var callback job.JobRequestMultiple
 	callback.SetID(c.GetCallback().GetID())
 	for _, item := range callbackResults {
 		callback.AppendExec(item.GetExec())

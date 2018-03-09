@@ -19,16 +19,16 @@ var (
 
 //Batch - Jobs executed in parralele
 type Batch struct {
-	jobs   []job.JobRequest
+	jobs   []job.JobRequestMultiple
 	bc     *core.BlockChain
 	pq     *queue.JobPriorityQueue
-	result []job.JobRequest
+	result []job.JobRequestMultiple
 	length int
 	status string
 }
 
 //NewBatch returns batch
-func NewBatch(j []job.JobRequest, bc *core.BlockChain, pq *queue.JobPriorityQueue) (*Batch, error) {
+func NewBatch(j []job.JobRequestMultiple, bc *core.BlockChain, pq *queue.JobPriorityQueue) (*Batch, error) {
 	length := 0
 	for _, jr := range j {
 		length += len(jr.GetExec())
@@ -47,11 +47,11 @@ func NewBatch(j []job.JobRequest, bc *core.BlockChain, pq *queue.JobPriorityQueu
 }
 
 //GetJobs return jobs
-func (b Batch) GetJobs() []job.JobRequest {
+func (b Batch) GetJobs() []job.JobRequestMultiple {
 	return b.jobs
 }
 
-func (b *Batch) setJobs(j []job.JobRequest) {
+func (b *Batch) setJobs(j []job.JobRequestMultiple) {
 	b.jobs = j
 }
 
@@ -80,12 +80,12 @@ func (b Batch) getLength() int {
 	return b.length
 }
 
-func (b *Batch) setResults(res []job.JobRequest) {
+func (b *Batch) setResults(res []job.JobRequestMultiple) {
 	b.result = res
 }
 
 //Result returns result
-func (b Batch) Result() []job.JobRequest {
+func (b Batch) Result() []job.JobRequestMultiple {
 	return b.result
 }
 
@@ -124,9 +124,9 @@ func (b *Batch) Dispatch() {
 		items = append(items, item)
 	}
 
-	var grouped []job.JobRequest
+	var grouped []job.JobRequestMultiple
 	for _, jID := range jobIDs {
-		var req job.JobRequest
+		var req job.JobRequestMultiple
 		req.SetID(jID)
 		for _, item := range items {
 			if item.GetID() == jID {
