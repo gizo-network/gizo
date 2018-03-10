@@ -1,44 +1,37 @@
 package chord
 
 import (
-	"errors"
-	"fmt"
+	"sync"
 
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
 	"github.com/gizo-network/gizo/job/queue"
+	"github.com/gizo-network/gizo/job/queue/qItem"
 	"github.com/kpango/glg"
-)
-
-const (
-	MaxExecs = 10 // max number of jobs allowed in the chain
-)
-
-var (
-	ErrJobsLenRange = errors.New("Number of jobs is more than allowed")
 )
 
 //Chord Jobs executed one after the other and the results passed to a callback
 type Chord struct {
-	jobs     []job.JobRequest
+	jobs     []job.JobRequestMultiple
 	bc       *core.BlockChain
 	pq       *queue.JobPriorityQueue
-	callback job.JobRequest
-	result   job.JobRequest
+	callback job.JobRequestMultiple
+	result   job.JobRequestMultiple
 	length   int
 	status   string
+	cancel   chan struct{}
 }
 
 //NewChord returns chord
-func NewChord(j []job.JobRequest, callback job.JobRequest, bc *core.BlockChain, pq *queue.JobPriorityQueue) (*Chord, error) {
+func NewChord(j []job.JobRequestMultiple, callback job.JobRequestMultiple, bc *core.BlockChain, pq *queue.JobPriorityQueue) (*Chord, error) {
 	//FIXME: count callback execs too
 	length := len(callback.GetExec())
 	for _, jr := range j {
 		length += len(jr.GetExec())
 	}
 
-	if length > MaxExecs {
-		return nil, ErrJobsLenRange
+	if length > job.MaxExecs {
+		return nil, job.ErrJobsLenRange
 	}
 	c := &Chord{
 		jobs:     j,
@@ -46,24 +39,33 @@ func NewChord(j []job.JobRequest, callback job.JobRequest, bc *core.BlockChain, 
 		pq:       pq,
 		callback: callback,
 		length:   length,
+		cancel:   make(chan struct{}),
 	}
 	return c, nil
 }
 
-func (c Chord) GetCallback() job.JobRequest {
+func (c *Chord) Cancel() {
+	c.cancel <- struct{}{}
+}
+
+func (c Chord) GetCancelChan() chan struct{} {
+	return c.cancel
+}
+
+func (c Chord) GetCallback() job.JobRequestMultiple {
 	return c.callback
 }
 
-func (c *Chord) setCallback(j job.JobRequest) {
+func (c *Chord) setCallback(j job.JobRequestMultiple) {
 	c.callback = j
 }
 
 //GetJobs returns jobs
-func (c Chord) GetJobs() []job.JobRequest {
+func (c Chord) GetJobs() []job.JobRequestMultiple {
 	return c.jobs
 }
 
-func (c *Chord) setJobs(j []job.JobRequest) {
+func (c *Chord) setJobs(j []job.JobRequestMultiple) {
 	c.jobs = j
 }
 
@@ -92,40 +94,96 @@ func (c Chord) getBC() *core.BlockChain {
 	return c.bc
 }
 
-func (c *Chord) setResults(res job.JobRequest) {
+func (c *Chord) setResults(res job.JobRequestMultiple) {
 	c.result = res
 }
 
 //Result returns result
-func (c Chord) Result() job.JobRequest {
+func (c Chord) Result() job.JobRequestMultiple {
 	return c.result
 }
 
 //Dispatch executes the chord
 func (c *Chord) Dispatch() {
 	c.setStatus(job.RUNNING)
-	var items []queue.Item // used to hold results
-	resChan := make(chan queue.Item, 1)
+	var items []qItem.Item // used to hold results
+	resChan := make(chan qItem.Item)
+	cancelled := false
+	closeCancel := make(chan struct{})
+	var wg sync.WaitGroup
+	//! watch cancel channel
+	wg.Add(1)
+	go func() {
+		select {
+		case <-c.cancel:
+			cancelled = true
+			glg.Warn("Chord: Cancelling jobs")
+			//! for jobs
+			for _, jr := range c.GetJobs() {
+				for _, exec := range jr.GetExec() {
+					if exec.GetStatus() == job.RUNNING || exec.GetStatus() == job.RETRYING {
+						exec.Cancel()
+					}
+					if exec.GetResult() == nil {
+						exec.SetStatus(job.CANCELLED)
+					}
+				}
+			}
+
+			//! for callback
+			for _, exec := range c.GetCallback().GetExec() {
+				if exec.GetStatus() == job.RUNNING || exec.GetStatus() == job.RETRYING {
+					exec.Cancel()
+				}
+				if exec.GetResult() != nil {
+					exec.SetStatus(job.FINISHED)
+				} else {
+					exec.SetStatus(job.CANCELLED)
+				}
+			}
+			break
+		case <-closeCancel:
+			break
+		}
+		wg.Done()
+	}()
 	for _, jr := range c.GetJobs() {
 		c.setStatus("Queueing execs of job - " + jr.GetID())
 		j, err := c.getBC().FindJob(jr.GetID())
 		if err != nil {
-			glg.Warn("Chain: Unable to find job - " + jr.GetID())
+			glg.Warn("Chord: Unable to find job - " + jr.GetID())
 			for _, exec := range jr.GetExec() {
 				exec.SetErr("Unable to find job - " + jr.GetID())
 			}
 		} else {
 			for i := 0; i < len(jr.GetExec()); i++ {
-				c.getPQ().Push(*j, jr.GetExec()[i], resChan)
-				items = append(items, <-resChan) //! waits for it to finish before continuing
+				if cancelled == true {
+					items = append(items, qItem.Item{
+						Job: job.Job{
+							ID:             j.GetID(),
+							Hash:           j.GetHash(),
+							Name:           j.GetName(),
+							Task:           j.GetTask(),
+							Signature:      j.GetSignature(),
+							SubmissionTime: j.GetSubmissionTime(),
+							Private:        j.GetPrivate(),
+						},
+						Exec:    jr.GetExec()[i],
+						Results: resChan,
+						Cancel:  c.GetCancelChan(),
+					})
+				} else {
+					c.getPQ().Push(*j, jr.GetExec()[i], resChan, c.GetCancelChan()) //? queues first job
+					items = append(items, <-resChan)
+				}
 			}
 		}
 	}
 	close(resChan)
 
-	var callbackResults []queue.Item
-	var callbackArgs []interface{}           //holds result of execs
-	callbackChan := make(chan queue.Item, 1) //causes program to pause
+	var callbackResults []qItem.Item
+	var callbackArgs []interface{}        //holds result of execs
+	callbackChan := make(chan qItem.Item) //causes program to pause
 	for _, item := range items {
 		callbackArgs = append(callbackArgs, item.GetExec().GetResult())
 	}
@@ -137,34 +195,48 @@ func (c *Chord) Dispatch() {
 
 	cj, err := c.getBC().FindJob(c.GetCallback().GetID())
 	if err != nil {
-		glg.Warn("Chain: Unable to find job - " + c.GetCallback().GetID())
+		glg.Warn("Chord: Unable to find job - " + c.GetCallback().GetID())
 		for _, exec := range c.GetCallback().GetExec() {
 			exec.SetErr("Unable to find job - " + c.GetCallback().GetID())
 		}
 	} else {
-		if len(c.GetCallback().GetExec()) > 1 {
-			c.getPQ().Push(*cj, c.GetCallback().GetExec()[0], callbackChan)
-			for i := 1; i < len(c.GetCallback().GetExec()); i++ {
+		for _, exec := range c.GetCallback().GetExec() {
+			if cancelled == true {
+				callbackResults = append(callbackResults, qItem.Item{
+					Job: job.Job{
+						ID:             cj.GetID(),
+						Hash:           cj.GetHash(),
+						Name:           cj.GetName(),
+						Task:           cj.GetTask(),
+						Signature:      cj.GetSignature(),
+						SubmissionTime: cj.GetSubmissionTime(),
+						Private:        cj.GetPrivate(),
+					},
+					Exec:    exec,
+					Results: callbackChan,
+					Cancel:  c.GetCancelChan(),
+				})
+			} else {
+				c.getPQ().Push(*cj, exec, callbackChan, c.GetCancelChan())
 				callbackResults = append(callbackResults, <-callbackChan)
-				c.getPQ().Push(*cj, c.GetCallback().GetExec()[i], callbackChan)
 			}
-		} else {
-			c.getPQ().Push(*cj, c.GetCallback().GetExec()[0], callbackChan)
-			callbackResults = append(callbackResults, <-callbackChan)
 		}
 	}
 
 	close(callbackChan)
 
-	fmt.Println("callbackargs", callbackArgs)
-	fmt.Println("callbackResult", callbackResults[0].GetExec().GetResult())
-
-	var callback job.JobRequest
+	var callback job.JobRequestMultiple
 	callback.SetID(c.GetCallback().GetID())
 	for _, item := range callbackResults {
 		callback.AppendExec(item.GetExec())
 	}
 
+	if cancelled == false {
+		closeCancel <- struct{}{}
+		c.setStatus(job.FINISHED)
+	} else {
+		c.setStatus(job.CANCELLED)
+	}
+	wg.Wait()
 	c.setResults(callback)
-	c.setStatus(job.FINISHED)
 }

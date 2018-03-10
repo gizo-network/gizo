@@ -15,5 +15,5 @@ import:
   version: ^1.0.0
 - package: github.com/joho/godotenv
   version: ^1.2.0
-- package: gopkg.in/oleiade/lane.v1
+- package: github.com/Lobarr/lane
   version: ^1.0.0
