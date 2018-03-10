@@ -1,21 +1,14 @@
 package chain
 
 import (
-	"errors"
+	"sync"
 
 	"github.com/kpango/glg"
 
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
 	"github.com/gizo-network/gizo/job/queue"
-)
-
-const (
-	MaxExecs = 10 // max number of jobs allowed in the chain
-)
-
-var (
-	ErrJobsLenRange = errors.New("Number of jobs is more than allowed")
+	"github.com/gizo-network/gizo/job/queue/qItem"
 )
 
 //Chain - Jobs executed one after the other
@@ -26,6 +19,7 @@ type Chain struct {
 	result []job.JobRequestMultiple
 	length int
 	status string
+	cancel chan struct{}
 }
 
 //NewChain returns chain
@@ -34,16 +28,25 @@ func NewChain(j []job.JobRequestMultiple, bc *core.BlockChain, pq *queue.JobPrio
 	for _, jr := range j {
 		length += len(jr.GetExec())
 	}
-	if length > MaxExecs {
-		return nil, ErrJobsLenRange
+	if length > job.MaxExecs {
+		return nil, job.ErrJobsLenRange
 	}
 	c := &Chain{
 		jobs:   j,
 		bc:     bc,
 		pq:     pq,
 		length: length,
+		cancel: make(chan struct{}),
 	}
 	return c, nil
+}
+
+func (c *Chain) Cancel() {
+	c.cancel <- struct{}{}
+}
+
+func (c Chain) GetCancelChan() chan struct{} {
+	return c.cancel
 }
 
 //GetJobs returns jobs
@@ -92,8 +95,34 @@ func (c Chain) Result() []job.JobRequestMultiple {
 //Dispatch executes the chain
 func (c *Chain) Dispatch() {
 	c.setStatus(job.RUNNING)
-	var results []queue.Item // used to hold results
-	res := make(chan queue.Item)
+	var results []qItem.Item // used to hold results
+	res := make(chan qItem.Item)
+	cancelled := false
+	closeCancel := make(chan struct{})
+	var wg sync.WaitGroup
+	//! watch cancel channel
+	wg.Add(1)
+	go func() {
+		select {
+		case <-c.cancel:
+			cancelled = true
+			glg.Warn("Chain: Cancelling jobs")
+			for _, jr := range c.GetJobs() {
+				for _, exec := range jr.GetExec() {
+					if exec.GetStatus() == job.RUNNING || exec.GetStatus() == job.RETRYING {
+						exec.Cancel()
+					}
+					if exec.GetResult() == nil {
+						exec.SetStatus(job.CANCELLED)
+					}
+				}
+			}
+			break
+		case <-closeCancel:
+			break
+		}
+		wg.Done()
+	}()
 	var jobIDs []string
 	for _, jr := range c.GetJobs() {
 		c.setStatus("Queueing execs of job - " + jr.GetID())
@@ -106,8 +135,25 @@ func (c *Chain) Dispatch() {
 			}
 		} else {
 			for i := 0; i < len(jr.GetExec()); i++ {
-				c.getPQ().Push(*j, jr.GetExec()[0], res) //? queues first job
-				results = append(results, <-res)
+				if cancelled == true {
+					results = append(results, qItem.Item{
+						Job: job.Job{
+							ID:             j.GetID(),
+							Hash:           j.GetHash(),
+							Name:           j.GetName(),
+							Task:           j.GetTask(),
+							Signature:      j.GetSignature(),
+							SubmissionTime: j.GetSubmissionTime(),
+							Private:        j.GetPrivate(),
+						},
+						Exec:    jr.GetExec()[i],
+						Results: res,
+						Cancel:  c.GetCancelChan(),
+					})
+				} else {
+					c.getPQ().Push(*j, jr.GetExec()[i], res, c.GetCancelChan()) //? queues first job
+					results = append(results, <-res)
+				}
 			}
 		}
 	}
@@ -124,6 +170,13 @@ func (c *Chain) Dispatch() {
 		}
 		grouped = append(grouped, req)
 	}
+
+	if cancelled == false {
+		closeCancel <- struct{}{}
+		c.setStatus(job.FINISHED)
+	} else {
+		c.setStatus(job.CANCELLED)
+	}
+	wg.Wait()
 	c.setResults(grouped)
-	c.setStatus(job.FINISHED)
 }

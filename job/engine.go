@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"math/big"
 	"reflect"
@@ -245,8 +244,6 @@ func toString(x interface{}) (string, error) {
 	case reflect.Map:
 		stringifiy, err := json.Marshal(v.Interface())
 		return string(stringifiy), err
-	default:
-		fmt.Println(x)
 	}
 	return "", ErrUnableToConvert
 }
@@ -280,6 +277,15 @@ func (j *Job) Execute(exec *Exec) *Exec {
 	done := make(chan struct{})
 	exec.SetStatus(RUNNING)
 	exec.SetTimestamp(time.Now().Unix())
+	//! watch for cancellation
+	go func() {
+		select {
+		case <-exec.GetCancelChan():
+			glg.Warn("Job: Cancelling running job" + j.GetID())
+			done <- struct{}{}
+		}
+	}()
+	//! watch for timeout
 	go func() {
 		var ttl time.Duration
 		if exec.GetTTL() != 0 {
@@ -294,6 +300,7 @@ func (j *Job) Execute(exec *Exec) *Exec {
 			done <- struct{}{}
 		}
 	}()
+	//! execute job
 	go func() {
 		r := exec.GetRetries()
 	retry:
@@ -302,16 +309,10 @@ func (j *Job) Execute(exec *Exec) *Exec {
 		env.Define("env", exec.GetEnvsMap())
 		var result interface{}
 		var err error
-		fmt.Println(argsStringified(exec.GetArgs()))
 		if len(exec.GetArgs()) == 0 {
 			result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
 		} else {
 			result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(exec.GetArgs()))
-		}
-
-		//FIXME: remove
-		if err != nil {
-			fmt.Println(err)
 		}
 
 		if r != 0 && err != nil {

@@ -1,34 +1,39 @@
-package queue
+package qItem
 
 import "github.com/gizo-network/gizo/job"
 
 type Item struct {
-	job     job.Job
-	exec    *job.Exec
-	results chan<- Item
+	Job     job.Job
+	Exec    *job.Exec
+	Results chan<- Item
+	Cancel  chan<- struct{}
+}
+
+func (i Item) GetCancel() chan<- struct{} {
+	return i.Cancel
 }
 
 //sets exec
-func (i *Item) setExec(ex *job.Exec) {
-	i.exec = ex
+func (i *Item) SetExec(ex *job.Exec) {
+	i.Exec = ex
 }
 
 //GetExec returns exec
 func (i Item) GetExec() *job.Exec {
-	return i.exec
+	return i.Exec
 }
 
 //GetID returns id
 func (i Item) GetID() string {
-	return i.job.GetID()
+	return i.Job.GetID()
 }
 
 //GetJob returns job
 func (i Item) GetJob() job.Job {
-	return i.job
+	return i.Job
 }
 
 //ResultsChan return result chan
 func (i Item) ResultsChan() chan<- Item {
-	return i.results
+	return i.Results
 }

@@ -31,13 +31,14 @@ func TestChain(t *testing.T) {
 			return "Testing"
 		}
 		`, "Test", false, hex.EncodeToString(priv))
-	exec1, err := job.NewExec([]interface{}{"10"}, 5, job.NORMAL, 0, 0, 0, 0, "")
+	envs := job.NewEnvVariables(*job.NewEnv("Env", "Anko"), *job.NewEnv("By", "Lobarr"))
+	exec1, err := job.NewExec([]interface{}{10}, 5, job.NORMAL, 0, 0, 0, 0, "", envs)
 	assert.NoError(t, err)
-	exec2, err := job.NewExec([]interface{}{"11"}, 5, job.NORMAL, 0, 0, 0, 0, "")
+	exec2, err := job.NewExec([]interface{}{11}, 5, job.NORMAL, 0, 0, 0, 0, "", envs)
 	assert.NoError(t, err)
-	exec3, err := job.NewExec([]interface{}{"12"}, 5, job.NORMAL, 0, 0, 0, 0, "")
+	exec3, err := job.NewExec([]interface{}{12}, 5, job.NORMAL, 0, 0, 0, 0, "", envs)
 	assert.NoError(t, err)
-	exec4, err := job.NewExec([]interface{}{""}, 5, job.NORMAL, 0, 0, 0, 0, "")
+	exec4, err := job.NewExec([]interface{}{}, 5, job.NORMAL, 0, 0, 0, 0, "", envs)
 	assert.NoError(t, err)
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j2, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})

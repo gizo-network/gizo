@@ -29,6 +29,7 @@ type Exec struct {
 	TTL           time.Duration `json:"ttl"`            //! time limit of job running
 	envs          EnvironmentVariables
 	pub           string //! public key for private jobs
+	cancel        chan struct{}
 }
 
 func NewExec(args []interface{}, retries, priority int, backoff time.Duration, execTime int64, interval int, ttl time.Duration, pub string, envs EnvironmentVariables) (*Exec, error) {
@@ -48,42 +49,51 @@ func NewExec(args []interface{}, retries, priority int, backoff time.Duration, e
 		envs:          envs,
 		By:            []byte("0000"), //!FIXME: replace with real node ID
 		pub:           pub,
+		cancel:        make(chan struct{}),
 	}, nil
 }
 
-func (j Exec) GetEnvs() EnvironmentVariables {
-	return j.envs
+func (e *Exec) Cancel() {
+	e.cancel <- struct{}{}
 }
 
-func (j Exec) GetEnvsMap() map[string]interface{} {
+func (e Exec) GetCancelChan() chan struct{} {
+	return e.cancel
+}
+
+func (e Exec) GetEnvs() EnvironmentVariables {
+	return e.envs
+}
+
+func (e Exec) GetEnvsMap() map[string]interface{} {
 	temp := make(map[string]interface{})
-	for _, val := range j.GetEnvs() {
+	for _, val := range e.GetEnvs() {
 		temp[val.GetKey()] = val.GetValue()
 	}
 	return temp
 }
 
-func (j Exec) GetTTL() time.Duration {
-	return j.TTL
+func (e Exec) GetTTL() time.Duration {
+	return e.TTL
 }
 
-func (j *Exec) SetTTL(ttl time.Duration) {
-	j.TTL = ttl
+func (e *Exec) SetTTL(ttl time.Duration) {
+	e.TTL = ttl
 }
 
-func (j Exec) GetInterval() int {
-	return j.Interval
+func (e Exec) GetInterval() int {
+	return e.Interval
 }
 
-func (j *Exec) SetInterval(i int) {
-	j.Interval = i
+func (e *Exec) SetInterval(i int) {
+	e.Interval = i
 }
 
-func (j Exec) GetPriority() int {
-	return j.Priority
+func (e Exec) GetPriority() int {
+	return e.Priority
 }
 
-func (j *Exec) SetPriority(p int) error {
+func (e *Exec) SetPriority(p int) error {
 	switch p {
 	case HIGH:
 	case MEDIUM:
@@ -96,144 +106,144 @@ func (j *Exec) SetPriority(p int) error {
 	return nil
 }
 
-func (j Exec) GetExecutionTime() int64 {
-	return j.ExecutionTime
+func (e Exec) GetExecutionTime() int64 {
+	return e.ExecutionTime
 }
 
 //? takes unix time
-func (j *Exec) SetExecutionTime(e int64) error {
-	if time.Unix(e, 0).Before(time.Now()) {
+func (e *Exec) SetExecutionTime(t int64) error {
+	if time.Unix(t, 0).Before(time.Now()) {
 		return ErrExecutionTimeBehind
 	}
-	j.ExecutionTime = e
+	e.ExecutionTime = t
 	return nil
 }
 
-func (j Exec) GetBackoff() time.Duration {
-	return j.Backoff
+func (e Exec) GetBackoff() time.Duration {
+	return e.Backoff
 }
 
-func (j *Exec) SetBackoff(b time.Duration) error {
+func (e *Exec) SetBackoff(b time.Duration) error {
 	if b > MaxRetryBackoff {
 		return ErrRetryDelayOutsideLimit
 	}
-	j.Backoff = b
+	e.Backoff = b
 	return nil
 }
 
-func (j Exec) GetRetriesCount() int {
-	return j.RetriesCount
+func (e Exec) GetRetriesCount() int {
+	return e.RetriesCount
 }
 
-func (j *Exec) IncrRetriesCount() {
-	j.RetriesCount++
+func (e *Exec) IncrRetriesCount() {
+	e.RetriesCount++
 }
 
-func (j Exec) GetRetries() int {
-	return j.Retries
+func (e Exec) GetRetries() int {
+	return e.Retries
 }
 
-func (j *Exec) SetRetries(r int) error {
+func (e *Exec) SetRetries(r int) error {
 	if r > MaxRetries {
 		return ErrRetriesOutsideLimit
 	}
-	j.Retries = r
+	e.Retries = r
 	return nil
 }
 
-func (j Exec) GetStatus() string {
-	return j.Status
+func (e Exec) GetStatus() string {
+	return e.Status
 }
 
-func (j *Exec) SetStatus(s string) {
-	j.Status = s
+func (e *Exec) SetStatus(s string) {
+	e.Status = s
 }
 
-func (j Exec) GetArgs() []interface{} {
-	return j.Args
+func (e Exec) GetArgs() []interface{} {
+	return e.Args
 }
 
-func (j *Exec) SetArgs(a []interface{}) {
-	j.Args = a
+func (e *Exec) SetArgs(a []interface{}) {
+	e.Args = a
 }
 
-func (j Exec) GetHash() []byte {
-	return j.Hash
+func (e Exec) GetHash() []byte {
+	return e.Hash
 }
 
-func (j *Exec) setHash() {
-	e, err := json.Marshal(j.GetErr())
+func (e *Exec) setHash() {
+	stringified, err := json.Marshal(e.GetErr())
 	if err != nil {
 		glg.Error(err)
 	}
-	result, err := json.Marshal(j.GetResult())
+	result, err := json.Marshal(e.GetResult())
 	if err != nil {
 		glg.Error(err)
 	}
 
 	header := bytes.Join(
 		[][]byte{
-			[]byte(strconv.FormatInt(j.GetTimestamp(), 10)),
-			[]byte(strconv.FormatInt(int64(j.GetDuration()), 10)),
-			e,
+			[]byte(strconv.FormatInt(e.GetTimestamp(), 10)),
+			[]byte(strconv.FormatInt(int64(e.GetDuration()), 10)),
+			stringified,
 			result,
-			j.GetBy(),
+			e.GetBy(),
 		},
 		[]byte{},
 	)
 
 	hash := sha256.Sum256(header)
-	j.Hash = hash[:]
+	e.Hash = hash[:]
 }
 
-func (j Exec) GetTimestamp() int64 {
-	return j.Timestamp
+func (e Exec) GetTimestamp() int64 {
+	return e.Timestamp
 }
 
-func (j *Exec) SetTimestamp(t int64) {
-	j.Timestamp = t
+func (e *Exec) SetTimestamp(t int64) {
+	e.Timestamp = t
 }
 
-func (j Exec) GetDuration() time.Duration {
-	return j.Duration
+func (e Exec) GetDuration() time.Duration {
+	return e.Duration
 }
 
-func (j *Exec) SetDuration(t time.Duration) {
-	j.Duration = t
+func (e *Exec) SetDuration(t time.Duration) {
+	e.Duration = t
 }
 
-func (j Exec) GetErr() interface{} {
-	return j.Err
+func (e Exec) GetErr() interface{} {
+	return e.Err
 }
 
-func (j *Exec) SetErr(e interface{}) {
-	j.Err = e
+func (e *Exec) SetErr(err interface{}) {
+	e.Err = err
 }
 
-func (j Exec) GetResult() interface{} {
-	return j.Result
+func (e Exec) GetResult() interface{} {
+	return e.Result
 }
 
-func (j *Exec) SetResult(r interface{}) {
-	j.Result = r
+func (e *Exec) SetResult(r interface{}) {
+	e.Result = r
 }
 
-func (j Exec) GetBy() []byte {
-	return j.By
+func (e Exec) GetBy() []byte {
+	return e.By
 }
 
-func (j *Exec) SetBy(by []byte) {
-	j.By = by
+func (e *Exec) SetBy(by []byte) {
+	e.By = by
 }
 
-func (j Exec) Serialize() []byte {
-	temp, err := json.Marshal(j)
+func (e Exec) Serialize() []byte {
+	temp, err := json.Marshal(e)
 	if err != nil {
 		glg.Error(err)
 	}
 	return temp
 }
 
-func (j Exec) getPub() string {
-	return j.pub
+func (e Exec) getPub() string {
+	return e.pub
 }
