@@ -1,9 +1,12 @@
 package queue
 
 import (
+	"time"
+
+	lane "github.com/Lobarr/lane"
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
-	lane "gopkg.in/oleiade/lane.v1"
+	"github.com/gizo-network/gizo/job/queue/qItem"
 )
 
 type JobPriorityQueue struct {
@@ -11,9 +14,9 @@ type JobPriorityQueue struct {
 	bc *core.BlockChain
 }
 
-func (pq JobPriorityQueue) Push(j job.Job, exec *job.Exec, results chan<- Item) {
-	pq.getPQ().Push(Item{
-		job: job.Job{
+func (pq JobPriorityQueue) Push(j job.Job, exec *job.Exec, results chan<- qItem.Item, cancel chan struct{}) {
+	pq.getPQ().Push(qItem.Item{
+		Job: job.Job{
 			ID:             j.GetID(),
 			Hash:           j.GetHash(),
 			Name:           j.GetName(),
@@ -22,28 +25,39 @@ func (pq JobPriorityQueue) Push(j job.Job, exec *job.Exec, results chan<- Item) 
 			SubmissionTime: j.GetSubmissionTime(),
 			Private:        j.GetPrivate(),
 		},
-		exec:    exec,
-		results: results,
+		Exec:    exec,
+		Results: results,
+		Cancel:  cancel,
 	}, exec.GetPriority())
 }
 
-func (pq JobPriorityQueue) Pop() Item {
-	item, _ := pq.getPQ().Pop()
-	return item.(Item)
+func (pq JobPriorityQueue) Pop() qItem.Item {
+	i, _ := pq.getPQ().Pop()
+	return i.(qItem.Item)
+}
+
+func (pq JobPriorityQueue) Remove(hash []byte) {
+	pq.pq.Remove(hash)
 }
 
 func (pq JobPriorityQueue) getPQ() *lane.PQueue {
 	return pq.pq
+
 }
 
 func (pq JobPriorityQueue) watch() {
 	for {
 		if pq.getPQ().Empty() == false {
 			//TODO: dispatch to next available worker node
-			item := pq.Pop()
-			exec := item.job.Execute(item.GetExec())
-			item.setExec(exec)
-			item.ResultsChan() <- item
+			i := pq.Pop()
+			if i.GetExec().GetStatus() == job.CANCELLED {
+				i.ResultsChan() <- i
+			} else {
+				exec := i.Job.Execute(i.GetExec())
+				time.Sleep(time.Second * 1) //!FIXME: remove
+				i.SetExec(exec)
+				i.ResultsChan() <- i
+			}
 		}
 	}
 }
