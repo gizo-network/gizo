@@ -1,7 +1,9 @@
 package solo
 
 import (
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
@@ -116,6 +118,10 @@ func (s *Solo) Dispatch() {
 				Cancel:  s.GetCancelChan(),
 			}
 		} else {
+			if s.GetJob().GetExec().GetExecutionTime() != 0 {
+				glg.Warn("Chord: Queuing in " + strconv.FormatFloat(time.Unix(s.GetJob().GetExec().GetExecutionTime(), 0).Sub(time.Now()).Seconds(), 'f', -1, 64) + " nanoseconds")
+				time.Sleep(time.Nanosecond * time.Duration(time.Unix(s.GetJob().GetExec().GetExecutionTime(), 0).Sub(time.Now()).Nanoseconds()))
+			}
 			s.getPQ().Push(*j, s.GetJob().GetExec(), res, s.GetCancelChan())
 			result = <-res
 		}

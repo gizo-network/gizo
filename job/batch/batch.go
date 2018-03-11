@@ -1,7 +1,9 @@
 package batch
 
 import (
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
@@ -126,6 +128,7 @@ func (b *Batch) Dispatch() {
 
 	results := make(chan qItem.Item, b.getLength())
 	var jobIDs []string
+	var sleepWG sync.WaitGroup
 	for _, jr := range b.GetJobs() {
 		b.setStatus("Queueing execs of job - " + jr.GetID())
 		jobIDs = append(jobIDs, jr.GetID())
@@ -137,10 +140,19 @@ func (b *Batch) Dispatch() {
 			}
 		} else {
 			for _, exec := range jr.GetExec() {
-				b.getPQ().Push(*j, exec, results, b.GetCancelChan())
+				sleepWG.Add(1)
+				go func(ex *job.Exec) {
+					if ex.GetExecutionTime() != 0 {
+						glg.Warn("Batch: Queuing in " + strconv.FormatFloat(time.Unix(ex.GetExecutionTime(), 0).Sub(time.Now()).Seconds(), 'f', -1, 64) + " nanoseconds")
+						time.Sleep(time.Nanosecond * time.Duration(time.Unix(ex.GetExecutionTime(), 0).Sub(time.Now()).Nanoseconds()))
+					}
+					b.getPQ().Push(*j, ex, results, b.GetCancelChan())
+					sleepWG.Done()
+				}(exec)
 			}
 		}
 	}
+	sleepWG.Wait()
 
 	//! wait for all jobs to be done
 	for {

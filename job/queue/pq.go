@@ -1,8 +1,6 @@
 package queue
 
 import (
-	"time"
-
 	lane "github.com/Lobarr/lane"
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
@@ -54,7 +52,6 @@ func (pq JobPriorityQueue) watch() {
 				i.ResultsChan() <- i
 			} else {
 				exec := i.Job.Execute(i.GetExec())
-				time.Sleep(time.Second * 1) //!FIXME: remove
 				i.SetExec(exec)
 				i.ResultsChan() <- i
 			}
