@@ -10,7 +10,7 @@ import (
 func TestNext(t *testing.T) {
 	os.Setenv("ENV", "dev")
 	RemoveDataPath()
-	bc := CreateBlockChain()
+	bc := CreateBlockChain("test")
 	bci := bc.iterator()
 	assert.NotNil(t, bci.Next())
 }

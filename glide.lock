@@ -1,5 +1,5 @@
-hash: 7fd3bc6567ef0d97ed6cb72fe31528578ed32239f3c5274609ba8a8f6bd521cb
-updated: 2018-03-13T12:11:40.236557642-04:00
+hash: c36849c046c29cc81edc025ccd85c9dd940699b3502c176139e2aec4b989c2d5
+updated: 2018-03-13T15:50:00.590702569-04:00
 imports:
 - name: github.com/allegro/bigcache
   version: aa76879d59fa5d93c43680238227dbf7a53f5c28
@@ -11,6 +11,8 @@ imports:
   version: 17e75f6184bc9e727756cd0d82e0af58b1fc7191
 - name: github.com/dimiro1/banner
   version: c2f858997d49ffd03f84818bef3c25c2fcc67e16
+- name: github.com/GlenDC/go-external-ip
+  version: 139229dcdddd5ad18f5c4912fcb905a4079e2a36
 - name: github.com/jinzhu/now
   version: d939ba741945c047cac69c329c5fb0d6b4a06520
 - name: github.com/joho/godotenv
@@ -52,6 +54,8 @@ imports:
   - builtins/time
   - parser
   - vm
+- name: github.com/mattn/go-isatty
+  version: 6ca4dbf54d38eea1a992b3c722a76a5d1c4cb25c
 - name: github.com/satori/go.uuid
   version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/stretchr/testify

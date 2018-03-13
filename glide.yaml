@@ -21,3 +21,4 @@ import:
   version: ^1.0.0
 - package: github.com/labstack/echo
   version: ^3.3.0
+- package: github.com/GlenDC/go-external-ip

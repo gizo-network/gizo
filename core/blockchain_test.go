@@ -14,7 +14,7 @@ import (
 func TestNewBlockChain(t *testing.T) {
 	os.Setenv("ENV", "dev")
 	RemoveDataPath()
-	bc := CreateBlockChain()
+	bc := CreateBlockChain("test")
 	assert.NotNil(t, bc)
 }
 func TestAddBlock(t *testing.T) {
@@ -33,7 +33,7 @@ func TestAddBlock(t *testing.T) {
 
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 	tree := merkletree.NewMerkleTree(nodes)
-	bc := CreateBlockChain()
+	bc := CreateBlockChain("test")
 	block := NewBlock(*tree, bc.GetPrevHash(), 1, 10)
 	err := bc.AddBlock(block)
 	assert.NoError(t, err)
@@ -56,7 +56,7 @@ func TestVerify(t *testing.T) {
 
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 	tree := merkletree.NewMerkleTree(nodes)
-	bc := CreateBlockChain()
+	bc := CreateBlockChain("test")
 	block := NewBlock(*tree, bc.GetPrevHash(), bc.GetNextHeight(), 10)
 	bc.AddBlock(block)
 	assert.True(t, bc.Verify())
@@ -78,7 +78,7 @@ func TestGetBlockInfo(t *testing.T) {
 
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 	tree := merkletree.NewMerkleTree(nodes)
-	bc := CreateBlockChain()
+	bc := CreateBlockChain("test")
 	block := NewBlock(*tree, bc.GetPrevHash(), bc.GetNextHeight(), 10)
 	bc.AddBlock(block)
 	blockinfo, err := bc.GetBlockInfo(block.GetHeader().GetHash())
@@ -102,7 +102,7 @@ func TestGetBlocksWithinMinute(t *testing.T) {
 
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 	tree := merkletree.NewMerkleTree(nodes)
-	bc := CreateBlockChain()
+	bc := CreateBlockChain("test")
 	block := NewBlock(*tree, bc.GetPrevHash(), bc.GetNextHeight(), 10)
 	bc.AddBlock(block)
 	assert.NotNil(t, bc.GetBlocksWithinMinute())
@@ -124,7 +124,7 @@ func TestGetLatestHeight(t *testing.T) {
 
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 	tree := merkletree.NewMerkleTree(nodes)
-	bc := CreateBlockChain()
+	bc := CreateBlockChain("test")
 	block := NewBlock(*tree, bc.GetPrevHash(), bc.GetNextHeight(), 10)
 	bc.AddBlock(block)
 	assert.NotNil(t, bc.GetLatestHeight())
@@ -146,7 +146,7 @@ func TestFindJob(t *testing.T) {
 
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 	tree := merkletree.NewMerkleTree(nodes)
-	bc := CreateBlockChain()
+	bc := CreateBlockChain("test")
 	block := NewBlock(*tree, bc.GetPrevHash(), bc.GetNextHeight(), 10)
 	bc.AddBlock(block)
 	f, err := bc.FindJob(node5.GetJob().GetID())
@@ -170,7 +170,7 @@ func TestGetBlockHashes(t *testing.T) {
 
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 	tree := merkletree.NewMerkleTree(nodes)
-	bc := CreateBlockChain()
+	bc := CreateBlockChain("test")
 	block := NewBlock(*tree, bc.GetPrevHash(), bc.GetNextHeight(), 10)
 	bc.AddBlock(block)
 	assert.NotNil(t, bc.GetBlockHashes())
@@ -179,6 +179,6 @@ func TestGetBlockHashes(t *testing.T) {
 func TestCreateBlockChain(t *testing.T) {
 	os.Setenv("ENV", "dev")
 	RemoveDataPath()
-	bc := CreateBlockChain()
+	bc := CreateBlockChain("test")
 	assert.NotNil(t, bc)
 }
