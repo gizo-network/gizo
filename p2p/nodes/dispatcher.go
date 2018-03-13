@@ -3,12 +3,15 @@ package nodes
 import (
 	"encoding/hex"
 	"net"
+	"net/http"
 	"os"
 	"path"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/gizo-network/gizo/helpers"
+	melody "gopkg.in/olahol/melody.v1"
 
 	"github.com/boltdb/bolt"
 
@@ -19,38 +22,45 @@ import (
 	"github.com/gizo-network/gizo/cache"
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/crypt"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/rpc/v2"
 )
 
 const (
-	MaxWorkers     = 128
-	DefaultWSPort  = 9998
-	DefaultRPCPort = 9999
+	MaxWorkers  = 128
+	DefaultPort = 9999
 )
 
 type Dispatcher struct {
-	ip      net.IP
-	pub     []byte             //public key of the node
+	IP      net.IP
+	Port    uint               // port
+	Pub     []byte             //public key of the node
 	priv    []byte             //private key of the node
-	workers [MaxWorkers]Worker //worker nodes in it's area
-	rpc     uint               // rpc port
-	ws      uint               // ws port
 	uptime  int64              //time since node has been up
+	workers [MaxWorkers]Worker //worker nodes in it's area
 	bench   benchmark.Engine   // benchmark of node
-	jc      *cache.JobCache    //job cache
-	bc      *core.BlockChain   //blockchain
-	db      *bolt.DB           //holds topology table
+	ws      *melody.Melody
+	rpc     *rpc.Server
+	router  *mux.Router
+	jc      *cache.JobCache  //job cache
+	bc      *core.BlockChain //blockchain
+	db      *bolt.DB         //holds topology table
+}
+
+func (d Dispatcher) NodeTypeDispatcher() bool {
+	return true
 }
 
 func (d Dispatcher) GetIP() net.IP {
-	return d.ip
+	return d.IP
 }
 
 func (d Dispatcher) GetPubByte() []byte {
-	return d.pub
+	return d.Pub
 }
 
 func (d Dispatcher) GetPubString() string {
-	return hex.EncodeToString(d.pub)
+	return hex.EncodeToString(d.Pub)
 }
 
 func (d Dispatcher) GetPrivByte() []byte {
@@ -65,12 +75,8 @@ func (d Dispatcher) GetWorkers() [MaxWorkers]Worker {
 	return d.workers
 }
 
-func (d Dispatcher) GetRPCPort() int {
-	return int(d.rpc)
-}
-
-func (d Dispatcher) GetWSPort() int {
-	return int(d.ws)
+func (d Dispatcher) GetPort() int {
+	return int(d.Port)
 }
 
 func (d Dispatcher) GetUptme() int64 {
@@ -89,14 +95,43 @@ func (d Dispatcher) GetBenchmarks() []benchmark.Benchmark {
 	return d.bench.GetData()
 }
 
-func NewDispatcher(rpc, ws int) *Dispatcher {
-	core.InitializeDataPath()
-	if reflect.ValueOf(rpc).IsNil() {
-		rpc = DefaultRPCPort
-	}
+func (d Dispatcher) GetWS() *melody.Melody {
+	return d.ws
+}
 
-	if reflect.ValueOf(ws).IsNil() {
-		ws = DefaultWSPort
+func (d *Dispatcher) setWS(m *melody.Melody) {
+	d.ws = m
+}
+
+func (d Dispatcher) GetRPC() *rpc.Server {
+	return d.rpc
+}
+
+func (d Dispatcher) setRPC(s *rpc.Server) {
+	d.rpc = s
+}
+
+func (d Dispatcher) StartWS() {
+	m := melody.New()
+	d.router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		m.HandleRequest(w, r)
+	}).Methods("POST")
+}
+
+func (d Dispatcher) HandleWS(w http.ResponseWriter, r *http.Request) {
+	d.ws.HandleRequest(w, r)
+}
+
+func (d Dispatcher) Start() {
+	d.router.HandleFunc("/ws", d.HandleWS()).Methods("POST")
+	d.router.HandleFunc("/rpc", d.rpc).Methods("POST")
+	http.ListenAndServe("localhost" + strconv.FormatInt(d.GetPort(), 10))
+}
+
+func NewDispatcher(port int) *Dispatcher {
+	core.InitializeDataPath()
+	if reflect.ValueOf(port).IsNil() {
+		port = DefaultPort
 	}
 
 	var bench benchmark.Engine
@@ -132,16 +167,18 @@ func NewDispatcher(rpc, ws int) *Dispatcher {
 			glg.Fatal(err)
 		}
 		return &Dispatcher{
-			ip:     ip,
-			pub:    pub,
+			IP:     ip,
+			Pub:    pub,
 			priv:   priv,
-			rpc:    uint(rpc),
-			ws:     uint(ws),
+			Port:   uint(port),
 			uptime: time.Now().Unix(),
 			bench:  bench,
 			jc:     jc,
 			bc:     bc,
 			db:     db,
+			router: mux.NewRouter(),
+			ws:     melody.New(),
+			rpc:    rpc.NewServer(),
 		}
 	}
 
@@ -172,17 +209,18 @@ func NewDispatcher(rpc, ws int) *Dispatcher {
 		}
 		return nil
 	})
-
 	return &Dispatcher{
-		ip:     ip,
-		pub:    pub,
+		IP:     ip,
+		Pub:    pub,
 		priv:   priv,
-		rpc:    uint(rpc),
-		ws:     uint(ws),
+		Port:   uint(port),
 		uptime: time.Now().Unix(),
 		bench:  bench,
 		jc:     jc,
 		bc:     bc,
 		db:     db,
+		router: mux.NewRouter(),
+		ws:     melody.New(),
+		rpc:    rpc.NewServer(),
 	}
 }
