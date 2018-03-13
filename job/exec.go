@@ -36,21 +36,23 @@ func NewExec(args []interface{}, retries, priority int, backoff time.Duration, e
 	if retries > MaxRetries {
 		return nil, ErrRetriesOutsideLimit
 	}
-	return &Exec{
+
+	ex := &Exec{
 		Args:          args,
 		Retries:       retries,
-		RetriesCount:  0,
+		RetriesCount:  0, //initialized to 0
 		Priority:      priority,
 		Status:        STARTED,
 		Backoff:       backoff,
-		ExecutionTime: execTime,
 		Interval:      interval,
+		ExecutionTime: execTime,
 		TTL:           ttl,
 		envs:          envs,
 		By:            []byte("0000"), //!FIXME: replace with real node ID
 		pub:           pub,
 		cancel:        make(chan struct{}),
-	}, nil
+	}
+	return ex, nil
 }
 
 func (e *Exec) Cancel() {
@@ -99,7 +101,6 @@ func (e *Exec) SetPriority(p int) error {
 	case MEDIUM:
 	case LOW:
 	case NORMAL:
-
 	default:
 		return ErrInvalidPriority
 	}
@@ -112,7 +113,7 @@ func (e Exec) GetExecutionTime() int64 {
 
 //? takes unix time
 func (e *Exec) SetExecutionTime(t int64) error {
-	if time.Unix(t, 0).Before(time.Now()) {
+	if time.Now().Unix() > t {
 		return ErrExecutionTimeBehind
 	}
 	e.ExecutionTime = t
