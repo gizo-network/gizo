@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"strconv"
 )
 
 type nodeInterface interface {
@@ -48,6 +49,11 @@ func ParseDispatcher(raw string) (*Dispatcher, error) {
 		return nil, err
 	}
 
+	portParsed, err := strconv.ParseInt(port, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
 	ip := net.ParseIP(host)
 	if ip == nil {
 		return nil, ErrInvalidIP
@@ -60,7 +66,7 @@ func ParseDispatcher(raw string) (*Dispatcher, error) {
 
 	return &Dispatcher{
 		IP:   net.ParseIP(host),
-		Port: port,
+		Port: uint(portParsed),
 		Pub:  pub,
 	}, nil
 }

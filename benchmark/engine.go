@@ -50,15 +50,15 @@ func (b Engine) GetScore() float64 {
 }
 
 func (b *Engine) addBenchmark(benchmark Benchmark) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	// b.mu.Lock()
+	// defer b.mu.Unlock()
 	b.Data = append(b.Data, benchmark)
 }
 
 //GetData returns an array of benchmarks
 func (b Engine) GetData() []Benchmark {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	// b.mu.Lock()
+	// defer b.mu.Unlock()
 	return b.Data
 }
 

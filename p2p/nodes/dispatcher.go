@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -106,21 +105,17 @@ func (d Dispatcher) setRPC(s *rpc.Server) {
 	d.rpc = s
 }
 
-func (d Dispatcher) HandleWS(w http.ResponseWriter, r *http.Request) {
-	d.ws.HandleRequest(w, r)
-}
-
 func (d Dispatcher) Start() {
-	d.router.HandleFunc("/ws", d.HandleWS()).Methods("POST")
-	d.router.HandleFunc("/rpc", d.rpc).Methods("POST")
-	http.ListenAndServe("localhost"+strconv.FormatInt(d.GetPort(), 10), d.router)
+	d.router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		d.ws.HandleRequest(w, r)
+	}).Methods("POST")
+	d.router.Handle("/rpc", d.rpc).Methods("POST")
+	http.ListenAndServe("localhost"+strconv.FormatInt(int64(d.GetPort()), 10), d.router)
 }
 
 func NewDispatcher(port int) *Dispatcher {
+	glg.Info("Creating new Dispatcher Node")
 	core.InitializeDataPath()
-	if reflect.ValueOf(port).IsNil() {
-		port = DefaultPort
-	}
 
 	var bench benchmark.Engine
 	var priv, pub []byte
@@ -172,7 +167,7 @@ func NewDispatcher(port int) *Dispatcher {
 
 	priv, pub = crypt.GenKeys()
 	bench = benchmark.NewEngine()
-
+	glg.Warn("Benchmarking done...")
 	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
 	if err != nil {
 		glg.Fatal(err)
@@ -197,6 +192,10 @@ func NewDispatcher(port int) *Dispatcher {
 		}
 		return nil
 	})
+
+	if err != nil {
+		glg.Fatal(err)
+	}
 	return &Dispatcher{
 		IP:     ip,
 		Pub:    pub,

@@ -3,19 +3,18 @@ package nodes
 import (
 	"encoding/hex"
 	"net"
-	"net/rpc"
 	"os"
 	"path"
 	"reflect"
 	"time"
 
+	"github.com/gizo-network/gizo/crypt"
+
 	externalip "github.com/GlenDC/go-external-ip"
 	"github.com/boltdb/bolt"
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/helpers"
-	"github.com/gorilla/mux"
 	"github.com/kpango/glg"
-	melody "gopkg.in/olahol/melody.v1"
 )
 
 type Worker struct {
@@ -102,13 +101,37 @@ func NewWorker(port int) *Worker {
 			priv:   priv,
 			Port:   uint(port),
 			uptime: time.Now().Unix(),
-			bench:  bench,
-			jc:     jc,
-			bc:     bc,
-			db:     db,
-			router: mux.NewRouter(),
-			ws:     melody.New(),
-			rpc:    rpc.NewServer(),
 		}
+	}
+	priv, pub = crypt.GenKeys()
+	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
+	if err != nil {
+		glg.Fatal(err)
+	}
+
+	err = db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucket([]byte(NodeBucket))
+		if err != nil {
+			glg.Fatal(err)
+		}
+
+		if err = b.Put([]byte("priv"), priv); err != nil {
+			glg.Fatal(err)
+		}
+
+		if err = b.Put([]byte("pub"), pub); err != nil {
+			glg.Fatal(err)
+		}
+		return nil
+	})
+	if err != nil {
+		glg.Fatal(err)
+	}
+	return &Worker{
+		IP:     ip,
+		Pub:    pub,
+		priv:   priv,
+		Port:   uint(port),
+		uptime: time.Now().Unix(),
 	}
 }
