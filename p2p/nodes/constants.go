@@ -5,4 +5,6 @@ const (
 	NodeBucket       = "node"
 	DispatcherScheme = "dispatcher-gizo"
 	WorkerScheme     = "worker-gizo"
+	MaxWorkers       = 128
+	DefaultPort      = 9999
 )

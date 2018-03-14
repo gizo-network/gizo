@@ -26,11 +26,6 @@ import (
 	"github.com/gorilla/rpc/v2"
 )
 
-const (
-	MaxWorkers  = 128
-	DefaultPort = 9999
-)
-
 type Dispatcher struct {
 	IP      net.IP
 	Port    uint               // port
@@ -111,13 +106,6 @@ func (d Dispatcher) setRPC(s *rpc.Server) {
 	d.rpc = s
 }
 
-func (d Dispatcher) StartWS() {
-	m := melody.New()
-	d.router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		m.HandleRequest(w, r)
-	}).Methods("POST")
-}
-
 func (d Dispatcher) HandleWS(w http.ResponseWriter, r *http.Request) {
 	d.ws.HandleRequest(w, r)
 }
@@ -125,7 +113,7 @@ func (d Dispatcher) HandleWS(w http.ResponseWriter, r *http.Request) {
 func (d Dispatcher) Start() {
 	d.router.HandleFunc("/ws", d.HandleWS()).Methods("POST")
 	d.router.HandleFunc("/rpc", d.rpc).Methods("POST")
-	http.ListenAndServe("localhost" + strconv.FormatInt(d.GetPort(), 10))
+	http.ListenAndServe("localhost"+strconv.FormatInt(d.GetPort(), 10), d.router)
 }
 
 func NewDispatcher(port int) *Dispatcher {
