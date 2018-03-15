@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -106,21 +105,17 @@ func (d Dispatcher) setRPC(s *rpc.Server) {
 	d.rpc = s
 }
 
-func (d Dispatcher) HandleWS(w http.ResponseWriter, r *http.Request) {
-	d.ws.HandleRequest(w, r)
-}
-
 func (d Dispatcher) Start() {
-	d.router.HandleFunc("/ws", d.HandleWS()).Methods("POST")
-	d.router.HandleFunc("/rpc", d.rpc).Methods("POST")
-	http.ListenAndServe("localhost"+strconv.FormatInt(d.GetPort(), 10), d.router)
+	d.router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		d.ws.HandleRequest(w, r)
+	}).Methods("POST")
+	d.router.Handle("/rpc", d.rpc).Methods("POST")
+	http.ListenAndServe("localhost"+strconv.FormatInt(int64(d.GetPort()), 10), d.router)
 }
 
 func NewDispatcher(port int) *Dispatcher {
+	glg.Info("Creating Dispatcher Node")
 	core.InitializeDataPath()
-	if reflect.ValueOf(port).IsNil() {
-		port = DefaultPort
-	}
 
 	var bench benchmark.Engine
 	var priv, pub []byte
