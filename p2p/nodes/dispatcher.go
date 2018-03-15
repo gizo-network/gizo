@@ -119,8 +119,6 @@ func NewDispatcher(port int) *Dispatcher {
 
 	var bench benchmark.Engine
 	var priv, pub []byte
-	bc := core.CreateBlockChain(hex.EncodeToString(pub))
-	jc := cache.NewJobCache(bc)
 	ip, err := externalip.DefaultConsensus(nil, nil).ExternalIP()
 	if err != nil {
 		glg.Fatal(err)
@@ -149,6 +147,8 @@ func NewDispatcher(port int) *Dispatcher {
 		if err != nil {
 			glg.Fatal(err)
 		}
+		bc := core.CreateBlockChain(hex.EncodeToString(pub))
+		jc := cache.NewJobCache(bc)
 		return &Dispatcher{
 			IP:     ip,
 			Pub:    pub,
@@ -196,6 +196,8 @@ func NewDispatcher(port int) *Dispatcher {
 	if err != nil {
 		glg.Fatal(err)
 	}
+	bc := core.CreateBlockChain(hex.EncodeToString(pub))
+	jc := cache.NewJobCache(bc)
 	return &Dispatcher{
 		IP:     ip,
 		Pub:    pub,
