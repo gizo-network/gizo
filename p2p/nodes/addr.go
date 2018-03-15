@@ -49,6 +49,11 @@ func ParseDispatcher(raw string) (*Dispatcher, error) {
 		return nil, err
 	}
 
+	portParsed, err := strconv.ParseInt(port, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
 	ip := net.ParseIP(host)
 	if ip == nil {
 		return nil, ErrInvalidIP
@@ -59,14 +64,9 @@ func ParseDispatcher(raw string) (*Dispatcher, error) {
 		return nil, err
 	}
 
-	p, err := strconv.Atoi(port)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Dispatcher{
 		IP:   net.ParseIP(host),
-		Port: uint(p),
+		Port: uint(portParsed),
 		Pub:  pub,
 	}, nil
 }

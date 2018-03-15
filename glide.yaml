@@ -26,5 +26,10 @@ import:
   version: ^1.1.0
 - package: github.com/gorilla/mux
   version: ^1.6.1
+<<<<<<< HEAD
 - package: github.com/daviddengcn/go-colortext
   version: ^1.0.0
+=======
+- package: github.com/gorilla/websocket
+  version: ^1.2.0
+>>>>>>> 72a7caf84d7bf803837d1be6505cb03e436b3244

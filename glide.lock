@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 hash: f1026945b187b5e07100263d1ab006dd66488e4519ef29e694e0b644e918c264
 updated: 2018-03-14T23:08:28.785802064-04:00
+=======
+hash: b16460726187dd5d02e1432f2f5ccd3e11cad876cca4aa5e866cba812eaf9f41
+updated: 2018-03-13T22:17:30.287939272-04:00
+>>>>>>> 72a7caf84d7bf803837d1be6505cb03e436b3244
 imports:
 - name: github.com/allegro/bigcache
   version: aa76879d59fa5d93c43680238227dbf7a53f5c28
@@ -22,7 +27,11 @@ imports:
   subpackages:
   - v2
 - name: github.com/gorilla/websocket
+<<<<<<< HEAD
   version: eb925808374e5ca90c83401a40d711dc08c0c0f6
+=======
+  version: ea4d1f681babbce9545c9c5f3d5194a789c89f5b
+>>>>>>> 72a7caf84d7bf803837d1be6505cb03e436b3244
 - name: github.com/jinzhu/now
   version: d939ba741945c047cac69c329c5fb0d6b4a06520
 - name: github.com/joho/godotenv
@@ -62,6 +71,11 @@ imports:
   - builtins/time
   - parser
   - vm
+<<<<<<< HEAD
+=======
+- name: github.com/mattn/go-isatty
+  version: 6ca4dbf54d38eea1a992b3c722a76a5d1c4cb25c
+>>>>>>> 72a7caf84d7bf803837d1be6505cb03e436b3244
 - name: github.com/satori/go.uuid
   version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/spf13/cobra
@@ -71,7 +85,11 @@ imports:
   subpackages:
   - assert
 - name: golang.org/x/sys
+<<<<<<< HEAD
   version: 89ac7f292d17a339edab4de8efcba5d8672ff661
+=======
+  version: 8c0ece68c28377f4c326d85b94f8df0dace46f80
+>>>>>>> 72a7caf84d7bf803837d1be6505cb03e436b3244
   subpackages:
   - unix
 - name: gopkg.in/olahol/melody.v1

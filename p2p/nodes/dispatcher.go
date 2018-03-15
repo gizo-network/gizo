@@ -167,7 +167,7 @@ func NewDispatcher(port int) *Dispatcher {
 
 	priv, pub = crypt.GenKeys()
 	bench = benchmark.NewEngine()
-
+	glg.Warn("Benchmarking done...")
 	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
 	if err != nil {
 		glg.Fatal(err)
@@ -192,6 +192,10 @@ func NewDispatcher(port int) *Dispatcher {
 		}
 		return nil
 	})
+
+	if err != nil {
+		glg.Fatal(err)
+	}
 	return &Dispatcher{
 		IP:     ip,
 		Pub:    pub,
