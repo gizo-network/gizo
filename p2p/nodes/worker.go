@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gizo-network/gizo/crypt"
+	melody "gopkg.in/olahol/melody.v1"
 
 	externalip "github.com/GlenDC/go-external-ip"
 	"github.com/boltdb/bolt"
@@ -24,6 +25,7 @@ type Worker struct {
 	Dispatcher string
 	priv       []byte //private key of the node
 	uptime     int64  //time since node has been up
+	ws         *melody.Melody
 }
 
 func (w Worker) NodeTypeDispatcher() bool {
@@ -60,6 +62,10 @@ func (w Worker) GetUptme() int64 {
 
 func (w Worker) GetUptimeString() string {
 	return time.Unix(w.uptime, 0).Sub(time.Now()).String()
+}
+
+func (w Worker) Start() {
+
 }
 
 func NewWorker(port int) *Worker {
@@ -101,6 +107,7 @@ func NewWorker(port int) *Worker {
 			priv:   priv,
 			Port:   uint(port),
 			uptime: time.Now().Unix(),
+			ws:     melody.New(),
 		}
 	}
 	priv, pub = crypt.GenKeys()
@@ -133,5 +140,6 @@ func NewWorker(port int) *Worker {
 		priv:   priv,
 		Port:   uint(port),
 		uptime: time.Now().Unix(),
+		ws:     melody.New(),
 	}
 }

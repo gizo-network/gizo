@@ -295,9 +295,9 @@ func CreateBlockChain(nodeID string) *BlockChain {
 	InitializeDataPath()
 	var dbFile string
 	if os.Getenv("ENV") == "dev" {
-		dbFile = path.Join(IndexPathDev, fmt.Sprintf(IndexDB, nodeID)) //FIXME: integrate node id
+		dbFile = path.Join(IndexPathDev, fmt.Sprintf(IndexDB, nodeID[len(nodeID)/2:])) //half the length of the node id
 	} else {
-		dbFile = path.Join(IndexPathProd, fmt.Sprintf(IndexDB, nodeID)) //FIXME: integrate node id
+		dbFile = path.Join(IndexPathProd, fmt.Sprintf(IndexDB, nodeID[len(nodeID)/2:])) //half the length of the node id
 	}
 	if helpers.FileExists(dbFile) {
 		var tip []byte

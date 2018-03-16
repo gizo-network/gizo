@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"encoding/hex"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -26,19 +27,19 @@ import (
 )
 
 type Dispatcher struct {
-	IP      net.IP
-	Port    uint               // port
-	Pub     []byte             //public key of the node
-	priv    []byte             //private key of the node
-	uptime  int64              //time since node has been up
-	workers [MaxWorkers]Worker //worker nodes in it's area
-	bench   benchmark.Engine   // benchmark of node
-	ws      *melody.Melody
-	rpc     *rpc.Server
-	router  *mux.Router
-	jc      *cache.JobCache  //job cache
-	bc      *core.BlockChain //blockchain
-	db      *bolt.DB         //holds topology table
+	IP     net.IP
+	Port   uint   // port
+	Pub    []byte //public key of the node
+	priv   []byte //private key of the node
+	uptime int64  //time since node has been up
+	// workers [MaxWorkers]melo //worker nodes in it's area
+	bench  benchmark.Engine // benchmark of node
+	ws     *melody.Melody
+	rpc    *rpc.Server
+	router *mux.Router
+	jc     *cache.JobCache  //job cache
+	bc     *core.BlockChain //blockchain
+	db     *bolt.DB         //holds topology table
 }
 
 func (d Dispatcher) NodeTypeDispatcher() bool {
@@ -65,9 +66,9 @@ func (d Dispatcher) GetPrivString() string {
 	return hex.EncodeToString(d.priv)
 }
 
-func (d Dispatcher) GetWorkers() [MaxWorkers]Worker {
-	return d.workers
-}
+// func (d Dispatcher) GetWorkers() [MaxWorkers]Worker {
+// 	return d.workers
+// }
 
 func (d Dispatcher) GetPort() int {
 	return int(d.Port)
@@ -105,12 +106,23 @@ func (d Dispatcher) setRPC(s *rpc.Server) {
 	d.rpc = s
 }
 
+func (d Dispatcher) peerTalk() {
+	d.ws.HandleConnect(func(s *melody.Session) {
+		fmt.Println("Dispatcher: new worker connected")
+	})
+}
+
 func (d Dispatcher) Start() {
 	d.router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		d.ws.HandleRequest(w, r)
 	}).Methods("POST")
+	d.peerTalk()
+	// //!test
+	// d.router.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
+	// 	fmt.Fprintf(w, "Welcome to the dispatcher node")
+	// })
 	d.router.Handle("/rpc", d.rpc).Methods("POST")
-	http.ListenAndServe("localhost"+strconv.FormatInt(int64(d.GetPort()), 10), d.router)
+	fmt.Println(http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), d.router))
 }
 
 func NewDispatcher(port int) *Dispatcher {
@@ -123,6 +135,8 @@ func NewDispatcher(port int) *Dispatcher {
 	if err != nil {
 		glg.Fatal(err)
 	}
+
+	fmt.Println(ip.String())
 
 	var dbFile string
 	if os.Getenv("ENV") == "dev" {
@@ -167,7 +181,6 @@ func NewDispatcher(port int) *Dispatcher {
 
 	priv, pub = crypt.GenKeys()
 	bench = benchmark.NewEngine()
-	glg.Warn("Benchmarking done...")
 	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
 	if err != nil {
 		glg.Fatal(err)
