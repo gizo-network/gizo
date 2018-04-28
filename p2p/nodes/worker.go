@@ -5,16 +5,15 @@ import (
 	"net"
 	"os"
 	"path"
-	"reflect"
 	"time"
 
 	"github.com/gizo-network/gizo/crypt"
-	melody "gopkg.in/olahol/melody.v1"
 
 	externalip "github.com/GlenDC/go-external-ip"
 	"github.com/boltdb/bolt"
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/helpers"
+	"github.com/gorilla/websocket"
 	"github.com/kpango/glg"
 )
 
@@ -25,7 +24,7 @@ type Worker struct {
 	Dispatcher string
 	priv       []byte //private key of the node
 	uptime     int64  //time since node has been up
-	ws         *melody.Melody
+	conn       *websocket.Conn
 }
 
 func (w Worker) NodeTypeDispatcher() bool {
@@ -70,9 +69,6 @@ func (w Worker) Start() {
 
 func NewWorker(port int) *Worker {
 	core.InitializeDataPath()
-	if reflect.ValueOf(port).IsNil() {
-		port = DefaultPort
-	}
 	var priv, pub []byte
 	ip, err := externalip.DefaultConsensus(nil, nil).ExternalIP()
 	if err != nil {
@@ -87,7 +83,7 @@ func NewWorker(port int) *Worker {
 	}
 
 	if helpers.FileExists(dbFile) {
-		glg.Warn("Dispatcher: using existing keypair and benchmark")
+		glg.Warn("Worker: using existing keypair and benchmark")
 		db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
 		if err != nil {
 			glg.Fatal(err)
@@ -101,13 +97,18 @@ func NewWorker(port int) *Worker {
 		if err != nil {
 			glg.Fatal(err)
 		}
+		//FIXME: remove static ws
+		conn, _, err := websocket.DefaultDialer.Dial("ws://127.0.0.1:9999/ws", nil)
+		if err != nil {
+			glg.Fatal(err)
+		}
 		return &Worker{
 			IP:     ip,
 			Pub:    pub,
 			priv:   priv,
 			Port:   uint(port),
 			uptime: time.Now().Unix(),
-			ws:     melody.New(),
+			conn:   conn,
 		}
 	}
 	priv, pub = crypt.GenKeys()
@@ -134,12 +135,16 @@ func NewWorker(port int) *Worker {
 	if err != nil {
 		glg.Fatal(err)
 	}
+	conn, _, err := websocket.DefaultDialer.Dial("ws://127.0.0.1:9999/ws", nil)
+	if err != nil {
+		glg.Fatal(err)
+	}
 	return &Worker{
 		IP:     ip,
 		Pub:    pub,
 		priv:   priv,
 		Port:   uint(port),
 		uptime: time.Now().Unix(),
-		ws:     melody.New(),
+		conn:   conn,
 	}
 }

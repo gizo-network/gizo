@@ -108,16 +108,20 @@ func (d Dispatcher) setRPC(s *rpc.Server) {
 
 func (d Dispatcher) peerTalk() {
 	d.ws.HandleConnect(func(s *melody.Session) {
+		fmt.Println(s.Keys)
 		fmt.Println("Dispatcher: new worker connected")
+	})
+	d.ws.HandleDisconnect(func(s *melody.Session) {
+		fmt.Println("Dispatcher: worker disconnected")
 	})
 }
 
 func (d Dispatcher) Start() {
 	d.router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		d.ws.HandleRequest(w, r)
-	}).Methods("POST")
+	})
 	d.peerTalk()
-	// //!test
+	//!test
 	// d.router.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 	// 	fmt.Fprintf(w, "Welcome to the dispatcher node")
 	// })
