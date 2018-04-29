@@ -64,7 +64,7 @@ func TestJobCache(t *testing.T) {
 	tree1 := merkletree.NewMerkleTree([]*merkletree.MerkleNode{node1, node3})
 	tree2 := merkletree.NewMerkleTree([]*merkletree.MerkleNode{node2, node1})
 	tree3 := merkletree.NewMerkleTree([]*merkletree.MerkleNode{node3, node2})
-	bc := core.CreateBlockChain()
+	bc := core.CreateBlockChain("test")
 	blk1 := core.NewBlock(*tree1, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetNextHeight(), 10)
 	bc.AddBlock(blk1)
 	blk2 := core.NewBlock(*tree2, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetNextHeight(), 10)

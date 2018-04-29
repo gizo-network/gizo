@@ -2,7 +2,9 @@ package benchmark
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
@@ -17,31 +19,43 @@ import (
 
 //Engine hold's an array of benchmarks and a score of the node
 type Engine struct {
-	data  []Benchmark
-	score float64
-	mu    *sync.Mutex
+	Data  []Benchmark
+	Score float64
+}
+
+func (b Engine) Serialize() []byte {
+	temp, err := json.Marshal(b)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	return temp
+}
+
+func DeserializeBenchmarkEngine(b []byte) Engine {
+	var temp Engine
+	err := json.Unmarshal(b, &temp)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	return temp
 }
 
 func (b *Engine) setScore(s float64) {
-	b.score = s
+	b.Score = s
 }
 
 //GetScore returns the score
 func (b Engine) GetScore() float64 {
-	return b.score
+	return b.Score
 }
 
 func (b *Engine) addBenchmark(benchmark Benchmark) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.data = append(b.data, benchmark)
+	b.Data = append(b.Data, benchmark)
 }
 
 //GetData returns an array of benchmarks
 func (b Engine) GetData() []Benchmark {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.data
+	return b.Data
 }
 
 //returns a block with mock data
@@ -74,47 +88,60 @@ func (b Engine) block(difficulty uint8) *core.Block {
 func (b *Engine) run() {
 	glg.Warn("Benchmarking node")
 	done := false
-	var wg sync.WaitGroup
+	close := make(chan struct{})
 	difficulty := 10 //! difficulty starts at 10
-	for done == false {
-		for i := 0; i < 3; i++ {
-			wg.Add(1)
-			go func(myDifficulty int) {
-				var avg []float64
-				var mu sync.Mutex
-				var mineWG sync.WaitGroup
-				for j := 0; j < 5; j++ {
-					mineWG.Add(1)
-					go func() {
-						start := time.Now()
-						block := b.block(uint8(myDifficulty))
-						end := time.Now()
-						block.DeleteFile()
-						diff := end.Sub(start).Seconds()
-						mu.Lock()
-						avg = append(avg, diff)
-						mu.Unlock()
-						mineWG.Done()
-					}()
-				}
-				mineWG.Wait()
-				var avgSum float64
-				for _, val := range avg {
-					avgSum += val
-				}
-				average := avgSum / float64(len(avg))
-				if average > float64(time.Minute) {
-					done = true
-				} else {
-					benchmark := NewBenchmark(average, uint8(myDifficulty))
-					b.addBenchmark(benchmark)
-				}
-				wg.Done()
-			}(difficulty)
-			difficulty++
+	go func() {
+		var wg sync.WaitGroup
+		for done == false {
+			for i := 0; i < 3; i++ {
+				wg.Add(1)
+				go func(myDifficulty int) {
+					var avg []float64
+					var mu sync.Mutex
+					var mineWG sync.WaitGroup
+					glg.Warn("Benchmark: starting difficulty " + strconv.Itoa(myDifficulty))
+					for j := 0; j < 5; j++ {
+						mineWG.Add(1)
+						go func() {
+							start := time.Now()
+							block := b.block(uint8(myDifficulty))
+							end := time.Now()
+							block.DeleteFile()
+							diff := end.Sub(start).Seconds()
+							mu.Lock()
+							avg = append(avg, diff)
+							mu.Unlock()
+							mineWG.Done()
+						}()
+					}
+					mineWG.Wait()
+					var avgSum float64
+					for _, val := range avg {
+						avgSum += val
+					}
+					average := avgSum / float64(len(avg))
+					if average > float64(60) { // a minute
+						done = true
+						close <- struct{}{}
+					} else {
+						if done == true {
+							wg.Done()
+							return
+						}
+						benchmark := NewBenchmark(average, uint8(myDifficulty))
+						b.addBenchmark(benchmark)
+					}
+					glg.Warn("Benchmark: finshed difficulty " + strconv.Itoa(myDifficulty))
+					wg.Done()
+				}(difficulty)
+				difficulty++
+			}
+			wg.Wait()
 		}
-		wg.Wait()
-	}
+	}()
+
+	<-close //wait for close signal
+
 	score := float64(b.GetData()[len(b.GetData())-1].GetDifficulty()) - 10 //! 10 is subtracted to allow the score start from 1 since difficulty starts at 10
 	scoreDecimal := 1 - b.GetData()[len(b.GetData())-1].GetAvgTime()/100   // determine decimal part of score
 	b.setScore(score + scoreDecimal)

@@ -1,16 +1,30 @@
 package qItem
 
-import "github.com/gizo-network/gizo/job"
+import (
+	"encoding/json"
+
+	"github.com/gizo-network/gizo/job"
+	"github.com/kpango/glg"
+)
 
 type Item struct {
-	Job     job.Job
-	Exec    *job.Exec
-	Results chan<- Item
-	Cancel  chan<- struct{}
+	Job     job.Job   `json:"job"`
+	Exec    *job.Exec `json:"exec"`
+	results chan<- Item
+	cancel  chan<- struct{}
+}
+
+func NewItem(j job.Job, exec *job.Exec, results chan<- Item, cancel chan<- struct{}) Item {
+	return Item{
+		Job:     j,
+		Exec:    exec,
+		results: results,
+		cancel:  cancel,
+	}
 }
 
 func (i Item) GetCancel() chan<- struct{} {
-	return i.Cancel
+	return i.cancel
 }
 
 //sets exec
@@ -35,5 +49,22 @@ func (i Item) GetJob() job.Job {
 
 //ResultsChan return result chan
 func (i Item) ResultsChan() chan<- Item {
-	return i.Results
+	return i.results
+}
+
+func (i Item) Serialize() []byte {
+	bytes, err := json.Marshal(i)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	return bytes
+}
+
+func DeserializeItem(b []byte) Item {
+	var temp Item
+	err := json.Unmarshal(b, &temp)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	return temp
 }
