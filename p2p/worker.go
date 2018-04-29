@@ -3,11 +3,13 @@ package p2p
 import (
 	"encoding/hex"
 	"net"
+	"net/http"
 	"time"
 
 	externalip "github.com/GlenDC/go-external-ip"
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/crypt"
+	"github.com/gizo-network/gizo/job/queue/qItem"
 	"github.com/gorilla/websocket"
 	"github.com/kpango/glg"
 )
@@ -67,7 +69,7 @@ func (w Worker) GetUptimeString() string {
 }
 
 func (w *Worker) Start() {
-	w.conn.WriteMessage(websocket.BinaryMessage, HelloMessage(w.GetPubByte()).Serialize())
+	w.conn.WriteMessage(websocket.BinaryMessage, HelloMessage(w.GetPubByte()))
 	for {
 		_, message, err := w.conn.ReadMessage()
 		if err != nil {
@@ -77,6 +79,18 @@ func (w *Worker) Start() {
 		switch m.GetMessage() {
 		case HELLO:
 			w.SetDispatcher(hex.EncodeToString(m.GetPayload()))
+			glg.Info("P2P: connected to dispatcher")
+			break
+		case JOB:
+			glg.Info("P2P: job received")
+			if m.VerifySignature(w.GetDispatcher()) {
+				j := qItem.DeserializeItem(m.GetPayload())
+				exec := j.Job.Execute(j.GetExec())
+				j.SetExec(exec)
+				w.conn.WriteMessage(websocket.BinaryMessage, ResultMessage(j.GetExec().Serialize(), w.GetPrivByte()))
+			} else {
+				w.conn.WriteMessage(websocket.BinaryMessage, InvalidSignature())
+			}
 			break
 		default:
 			w.Disconnect()
@@ -133,6 +147,7 @@ func NewWorker(port int) *Worker {
 	// 	if err != nil {
 	// 		glg.Fatal(err)
 	// 	}
+	// conn.EnableWriteCompression(true)
 	// 	return &Worker{
 	// 		IP:     ip,
 	// 		Pub:    pub,
@@ -166,10 +181,16 @@ func NewWorker(port int) *Worker {
 	// if err != nil {
 	// 	glg.Fatal(err)
 	// }
-	conn, _, err := websocket.DefaultDialer.Dial("ws://127.0.0.1:9999/w", nil)
+	dailer := websocket.Dialer{
+		Proxy:           http.ProxyFromEnvironment,
+		ReadBufferSize:  10 * 1024,
+		WriteBufferSize: 10 * 1024,
+	}
+	conn, _, err := dailer.Dial("ws://127.0.0.1:9999/w", nil)
 	if err != nil {
 		glg.Fatal(err)
 	}
+	conn.EnableWriteCompression(true)
 
 	return &Worker{
 		IP:     ip,

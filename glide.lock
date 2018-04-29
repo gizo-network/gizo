@@ -1,5 +1,5 @@
 hash: e521f5b2a8e9db279520b55002a47f09058718993f7c5fb8f11256e60f766b5b
-updated: 2018-04-27T20:14:07.099524567-04:00
+updated: 2018-04-29T09:31:58.140814038-04:00
 imports:
 - name: github.com/allegro/bigcache
   version: f31987a23e44c5121ef8c8b2f2ea2e8ffa37b068
@@ -30,7 +30,7 @@ imports:
 - name: github.com/kpango/glg
   version: fcb2a2966be7d6e3e94e72b1ab155a21c20b64c5
 - name: github.com/Lobarr/lane
-  version: 91f837124926cd8f9a3fc8e2bb11f909e3932c34
+  version: 6afd8a931195b273b5d7bf085edd6aee8d9d6496
 - name: github.com/mattn/anko
   version: d5441ca3f0c7e071a9ede864f9db2cc652690f42
   subpackages:
@@ -62,6 +62,8 @@ imports:
   - builtins/time
   - parser
   - vm
+- name: github.com/mattn/go-isatty
+  version: 6ca4dbf54d38eea1a992b3c722a76a5d1c4cb25c
 - name: github.com/satori/go.uuid
   version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/spf13/cobra

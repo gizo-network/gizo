@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -11,7 +12,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gizo-network/gizo/job"
+
 	"github.com/gizo-network/gizo/helpers"
+	"github.com/gizo-network/gizo/job/queue"
 	melody "gopkg.in/olahol/melody.v1"
 
 	"github.com/boltdb/bolt"
@@ -28,21 +32,36 @@ import (
 )
 
 type Dispatcher struct {
-	IP          net.IP
-	Port        uint                       // port
-	Pub         []byte                     //public key of the node
-	priv        []byte                     //private key of the node
-	uptime      int64                      //time since node has been up
-	workerNodes map[*melody.Session]string //worker nodes in it's area
-	bench       benchmark.Engine           // benchmark of node
-	wWS         *melody.Melody             // workers ws server
-	dWS         *melody.Melody             // dispatchers ws server
-	rpc         *rpc.Server
-	router      *mux.Router
-	jc          *cache.JobCache  //job cache
-	bc          *core.BlockChain //blockchain
-	db          *bolt.DB         //holds topology table
-	mu          *sync.Mutex
+	IP       net.IP
+	Port     uint   //port
+	Pub      []byte //public key of the node
+	priv     []byte //private key of the node
+	uptime   int64  //time since node has been up
+	jobPQ    *queue.JobPriorityQueue
+	workers  map[*melody.Session]*WorkerInfo //worker nodes in dispatcher's area
+	workerPQ *WorkerPriorityQueue
+	bench    benchmark.Engine //benchmark of node
+	wWS      *melody.Melody   //workers ws server
+	dWS      *melody.Melody   //dispatchers ws server
+	rpc      *rpc.Server
+	router   *mux.Router
+	jc       *cache.JobCache  //job cache
+	bc       *core.BlockChain //blockchain
+	db       *bolt.DB         //holds topology table
+	mu       *sync.Mutex
+}
+
+func (d Dispatcher) GetWorkerPQ() *WorkerPriorityQueue {
+	return d.workerPQ
+}
+
+func (d Dispatcher) GetAssignedWorker(hash []byte) *melody.Session {
+	for key, val := range d.GetWorkers() {
+		if bytes.Compare(val.GetJob().GetJob().GetHash(), hash) == 0 {
+			return key
+		}
+	}
+	return nil
 }
 
 func (d Dispatcher) NodeTypeDispatcher() bool {
@@ -69,8 +88,12 @@ func (d Dispatcher) GetPrivString() string {
 	return hex.EncodeToString(d.priv)
 }
 
-func (d Dispatcher) GetWorkers() map[*melody.Session]string {
-	return d.workerNodes
+func (d Dispatcher) GetJobPQ() *queue.JobPriorityQueue {
+	return d.jobPQ
+}
+
+func (d Dispatcher) GetWorkers() map[*melody.Session]*WorkerInfo {
+	return d.workers
 }
 
 func (d Dispatcher) GetPort() int {
@@ -118,21 +141,44 @@ func (d Dispatcher) setRPC(s *rpc.Server) {
 }
 
 func (d Dispatcher) Broadcast(m PeerMessage) {
-	for s, _ := range d.workerNodes {
+	for s, _ := range d.workers {
 		s.Write(m.Serialize())
 	}
 }
 
 func (d Dispatcher) WorkerExists(s *melody.Session) bool {
-	_, ok := d.workerNodes[s]
+	_, ok := d.workers[s]
 	return ok
+}
+
+func (d Dispatcher) deployJobs() {
+	for {
+		if d.GetWorkerPQ().getPQ().Empty() == false {
+			if d.GetJobPQ().GetPQ().Empty() == false {
+				w := d.GetWorkerPQ().Pop()
+				j := d.GetJobPQ().Pop()
+				if j.GetExec().GetStatus() != job.CANCELLED {
+					j.GetExec().SetBy(d.GetWorkers()[w].GetPub())
+					d.GetWorkers()[w].Assign(&j)
+					glg.Info("P2P: dispatched job")
+					w.Write(JobMessage(j.Serialize(), d.GetPrivByte()))
+				} else {
+					j.ResultsChan() <- j
+				}
+			}
+		}
+	}
 }
 
 func (d Dispatcher) wPeerTalk() {
 	d.wWS.HandleDisconnect(func(s *melody.Session) {
 		d.mu.Lock()
 		glg.Info("Dispatcher: worker disconnected")
-		delete(d.workerNodes, s)
+		if d.GetWorkers()[s].GetJob() != nil {
+			d.GetJobPQ().PushItem(*d.GetWorkers()[s].GetJob(), job.HIGH)
+		}
+		d.GetJobPQ()
+		delete(d.GetWorkers(), s)
 		d.mu.Unlock()
 	})
 	d.wWS.HandleMessageBinary(func(s *melody.Session, message []byte) {
@@ -140,24 +186,40 @@ func (d Dispatcher) wPeerTalk() {
 		switch m.GetMessage() {
 		case HELLO:
 			d.mu.Lock()
-			if len(d.workerNodes) < MaxWorkers {
+			if len(d.GetWorkers()) < MaxWorkers {
 				glg.Info("Dispatcher: worker connected")
-				d.workerNodes[s] = hex.EncodeToString(m.GetPayload())
-				s.Write(HelloMessage(d.GetPubByte()).Serialize())
+				d.GetWorkers()[s] = NewWorkerInfo(hex.EncodeToString(m.GetPayload()))
+				s.Write(HelloMessage(d.GetPubByte()))
+				d.workerPQ.Push(s, 0)
 			} else {
-				s.Write(ConnFull().Serialize())
+				s.Write(ConnFullMessage())
 			}
-			fmt.Println(d.workerNodes)
+			d.mu.Unlock()
+			break
+		case RESULT:
+			d.mu.Lock()
+			if m.VerifySignature(d.GetWorkers()[s].GetPub()) {
+				exec := job.DeserializeExec(m.GetPayload())
+				d.GetWorkers()[s].GetJob().SetExec(&exec)
+				d.GetWorkers()[s].GetJob().ResultsChan() <- *d.GetWorkers()[s].GetJob()
+				d.GetWorkers()[s].SetJob(nil)
+				d.GetWorkerPQ().Push(s, 0)
+			} else {
+				d.GetJobPQ().PushItem(*d.GetWorkers()[s].GetJob(), job.HIGH)
+			}
 			d.mu.Unlock()
 			break
 		default:
-			s.Write(InvalidMessage().Serialize())
+			s.Write(InvalidMessage())
 			break
 		}
 	})
 }
 
 func (d Dispatcher) Start() {
+	go d.deployJobs()
+	d.dWS.Upgrader.ReadBufferSize = 10 * 1024
+	d.dWS.Upgrader.WriteBufferSize = 10 * 1024
 	d.router.HandleFunc("/d", func(w http.ResponseWriter, r *http.Request) {
 		d.dWS.HandleRequest(w, r)
 	})
@@ -208,21 +270,23 @@ func NewDispatcher(port int) *Dispatcher {
 		bc := core.CreateBlockChain(hex.EncodeToString(pub))
 		jc := cache.NewJobCache(bc)
 		return &Dispatcher{
-			IP:          ip,
-			Pub:         pub,
-			priv:        priv,
-			Port:        uint(port),
-			uptime:      time.Now().Unix(),
-			bench:       bench,
-			workerNodes: make(map[*melody.Session]string),
-			jc:          jc,
-			bc:          bc,
-			db:          db,
-			router:      mux.NewRouter(),
-			wWS:         melody.New(),
-			dWS:         melody.New(),
-			rpc:         rpc.NewServer(),
-			mu:          new(sync.Mutex),
+			IP:       ip,
+			Pub:      pub,
+			priv:     priv,
+			Port:     uint(port),
+			uptime:   time.Now().Unix(),
+			bench:    bench,
+			jobPQ:    queue.NewJobPriorityQueue(),
+			workers:  make(map[*melody.Session]*WorkerInfo),
+			workerPQ: NewWorkerPriorityQueue(),
+			jc:       jc,
+			bc:       bc,
+			db:       db,
+			router:   mux.NewRouter(),
+			wWS:      melody.New(),
+			dWS:      melody.New(),
+			rpc:      rpc.NewServer(),
+			mu:       new(sync.Mutex),
 		}
 	}
 
@@ -259,20 +323,21 @@ func NewDispatcher(port int) *Dispatcher {
 	bc := core.CreateBlockChain(hex.EncodeToString(pub))
 	jc := cache.NewJobCache(bc)
 	return &Dispatcher{
-		IP:          ip,
-		Pub:         pub,
-		priv:        priv,
-		Port:        uint(port),
-		uptime:      time.Now().Unix(),
-		bench:       bench,
-		workerNodes: make(map[*melody.Session]string),
-		jc:          jc,
-		bc:          bc,
-		db:          db,
-		router:      mux.NewRouter(),
-		wWS:         melody.New(),
-		dWS:         melody.New(),
-		rpc:         rpc.NewServer(),
-		mu:          new(sync.Mutex),
+		IP:       ip,
+		Pub:      pub,
+		priv:     priv,
+		Port:     uint(port),
+		uptime:   time.Now().Unix(),
+		bench:    bench,
+		workers:  make(map[*melody.Session]*WorkerInfo),
+		workerPQ: NewWorkerPriorityQueue(),
+		jc:       jc,
+		bc:       bc,
+		db:       db,
+		router:   mux.NewRouter(),
+		wWS:      melody.New(),
+		dWS:      melody.New(),
+		rpc:      rpc.NewServer(),
+		mu:       new(sync.Mutex),
 	}
 }

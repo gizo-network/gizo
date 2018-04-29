@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha256"
@@ -51,7 +52,13 @@ func (m *PeerMessage) setSignature(sig [][]byte) {
 }
 
 func (m *PeerMessage) sign(priv []byte) {
-	hash := sha256.Sum256(m.GetPayload())
+	hash := sha256.Sum256(bytes.Join(
+		[][]byte{
+			[]byte(m.GetMessage()),
+			m.GetPayload(),
+		},
+		[]byte{},
+	))
 	privateKey, _ := x509.ParseECPrivateKey(priv)
 	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash[:])
 	if err != nil {
@@ -73,7 +80,13 @@ func (m *PeerMessage) VerifySignature(pub string) bool {
 	s.SetBytes(m.GetSignature()[1])
 
 	publicKey, _ := x509.ParsePKIXPublicKey(pubBytes)
-	hash := sha256.Sum256(m.GetPayload())
+	hash := sha256.Sum256(bytes.Join(
+		[][]byte{
+			[]byte(m.GetMessage()),
+			m.GetPayload(),
+		},
+		[]byte{},
+	))
 	switch pubConv := publicKey.(type) {
 	case *ecdsa.PublicKey:
 		return ecdsa.Verify(pubConv, hash[:], &r, &s)
