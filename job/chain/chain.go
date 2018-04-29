@@ -1,7 +1,9 @@
 package chain
 
 import (
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/kpango/glg"
 
@@ -151,6 +153,10 @@ func (c *Chain) Dispatch() {
 						Cancel:  c.GetCancelChan(),
 					})
 				} else {
+					if jr.GetExec()[i].GetExecutionTime() != 0 {
+						glg.Warn("Chain: Queuing in " + strconv.FormatFloat(time.Unix(jr.GetExec()[i].GetExecutionTime(), 0).Sub(time.Now()).Seconds(), 'f', -1, 64) + " nanoseconds")
+						time.Sleep(time.Nanosecond * time.Duration(time.Unix(jr.GetExec()[i].GetExecutionTime(), 0).Sub(time.Now()).Nanoseconds()))
+					}
 					c.getPQ().Push(*j, jr.GetExec()[i], res, c.GetCancelChan()) //? queues first job
 					results = append(results, <-res)
 				}

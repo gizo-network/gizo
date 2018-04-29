@@ -2,8 +2,8 @@ package job
 
 //EnvironmentVariables stores key and value of env variables
 type EnvironmentVariable struct {
-	Key   string
-	Value string
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 func NewEnv(key, value string) *EnvironmentVariable {

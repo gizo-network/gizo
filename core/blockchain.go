@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gizo-network/gizo/helpers"
 	"github.com/gizo-network/gizo/job"
 
 	"github.com/gizo-network/gizo/core/merkletree"
@@ -289,16 +290,16 @@ func (bc *BlockChain) GetBlockHashes() [][]byte {
 }
 
 //CreateBlockChain initializes a db, set's the tip to GenesisBlock and returns the blockchain
-func CreateBlockChain() *BlockChain {
+func CreateBlockChain(nodeID string) *BlockChain {
 	glg.Info("Core: Creating blockchain database")
 	InitializeDataPath()
 	var dbFile string
 	if os.Getenv("ENV") == "dev" {
-		dbFile = path.Join(IndexPathDev, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
+		dbFile = path.Join(IndexPathDev, fmt.Sprintf(IndexDB, nodeID[len(nodeID)/2:])) //half the length of the node id
 	} else {
-		dbFile = path.Join(IndexPathProd, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
+		dbFile = path.Join(IndexPathProd, fmt.Sprintf(IndexDB, nodeID[len(nodeID)/2:])) //half the length of the node id
 	}
-	if dbExists(dbFile) {
+	if helpers.FileExists(dbFile) {
 		var tip []byte
 		glg.Warn("Core: Using existing blockchain")
 		db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
@@ -357,11 +358,4 @@ func CreateBlockChain() *BlockChain {
 		mu:  &sync.RWMutex{},
 	}
 	return bc
-}
-
-func dbExists(file string) bool {
-	if _, err := os.Stat(file); os.IsNotExist(err) {
-		return false
-	}
-	return true
 }

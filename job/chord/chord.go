@@ -1,7 +1,9 @@
 package chord
 
 import (
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
@@ -173,6 +175,11 @@ func (c *Chord) Dispatch() {
 						Cancel:  c.GetCancelChan(),
 					})
 				} else {
+					if jr.GetExec()[i].GetExecutionTime() != 0 {
+						glg.Warn("Chord: Queuing in " + strconv.FormatFloat(time.Unix(jr.GetExec()[i].GetExecutionTime(), 0).Sub(time.Now()).Seconds(), 'f', -1, 64) + " nanoseconds")
+						time.Sleep(time.Nanosecond * time.Duration(time.Unix(jr.GetExec()[i].GetExecutionTime(), 0).Sub(time.Now()).Nanoseconds()))
+
+					}
 					c.getPQ().Push(*j, jr.GetExec()[i], resChan, c.GetCancelChan()) //? queues first job
 					items = append(items, <-resChan)
 				}
@@ -217,6 +224,10 @@ func (c *Chord) Dispatch() {
 					Cancel:  c.GetCancelChan(),
 				})
 			} else {
+				if exec.GetExecutionTime() != 0 {
+					glg.Warn("Chord: Queuing in " + strconv.FormatFloat(time.Unix(exec.GetExecutionTime(), 0).Sub(time.Now()).Seconds(), 'f', -1, 64) + " nanoseconds")
+					time.Sleep(time.Nanosecond * time.Duration(time.Unix(exec.GetExecutionTime(), 0).Sub(time.Now()).Nanoseconds()))
+				}
 				c.getPQ().Push(*cj, exec, callbackChan, c.GetCancelChan())
 				callbackResults = append(callbackResults, <-callbackChan)
 			}
