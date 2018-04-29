@@ -1,4 +1,4 @@
-package nodes
+package p2p
 
 import (
 	"encoding/hex"
