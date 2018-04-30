@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gizo-network/gizo/cache"
+
 	"github.com/kpango/glg"
 
 	"github.com/gizo-network/gizo/core"
@@ -18,6 +20,7 @@ type Chain struct {
 	jobs   []job.JobRequestMultiple
 	bc     *core.BlockChain
 	pq     *queue.JobPriorityQueue
+	jc     *cache.JobCache
 	result []job.JobRequestMultiple
 	length int
 	status string
@@ -25,7 +28,7 @@ type Chain struct {
 }
 
 //NewChain returns chain
-func NewChain(j []job.JobRequestMultiple, bc *core.BlockChain, pq *queue.JobPriorityQueue) (*Chain, error) {
+func NewChain(j []job.JobRequestMultiple, bc *core.BlockChain, pq *queue.JobPriorityQueue, jc *cache.JobCache) (*Chain, error) {
 	length := 0
 	for _, jr := range j {
 		length += len(jr.GetExec())
@@ -37,6 +40,7 @@ func NewChain(j []job.JobRequestMultiple, bc *core.BlockChain, pq *queue.JobPrio
 		jobs:   j,
 		bc:     bc,
 		pq:     pq,
+		jc:     jc,
 		length: length,
 		cancel: make(chan struct{}),
 	}
@@ -85,6 +89,10 @@ func (c Chain) getBC() *core.BlockChain {
 	return c.bc
 }
 
+func (c Chain) getJC() *cache.JobCache {
+	return c.jc
+}
+
 func (c *Chain) setResults(res []job.JobRequestMultiple) {
 	c.result = res
 }
@@ -129,7 +137,12 @@ func (c *Chain) Dispatch() {
 	for _, jr := range c.GetJobs() {
 		c.setStatus("Queueing execs of job - " + jr.GetID())
 		jobIDs = append(jobIDs, jr.GetID())
-		j, err := c.getBC().FindJob(jr.GetID())
+		var j *job.Job
+		var err error
+		j, err = c.getJC().Get(jr.GetID())
+		if j == nil {
+			j, err = c.getBC().FindJob(jr.GetID())
+		}
 		if err != nil {
 			glg.Warn("Chain: Unable to find job - " + jr.GetID())
 			for _, exec := range jr.GetExec() {
@@ -138,20 +151,15 @@ func (c *Chain) Dispatch() {
 		} else {
 			for i := 0; i < len(jr.GetExec()); i++ {
 				if cancelled == true {
-					results = append(results, qItem.Item{
-						Job: job.Job{
-							ID:             j.GetID(),
-							Hash:           j.GetHash(),
-							Name:           j.GetName(),
-							Task:           j.GetTask(),
-							Signature:      j.GetSignature(),
-							SubmissionTime: j.GetSubmissionTime(),
-							Private:        j.GetPrivate(),
-						},
-						Exec:    jr.GetExec()[i],
-						Results: res,
-						Cancel:  c.GetCancelChan(),
-					})
+					results = append(results, qItem.NewItem(job.Job{
+						ID:             j.GetID(),
+						Hash:           j.GetHash(),
+						Name:           j.GetName(),
+						Task:           j.GetTask(),
+						Signature:      j.GetSignature(),
+						SubmissionTime: j.GetSubmissionTime(),
+						Private:        j.GetPrivate(),
+					}, jr.GetExec()[i], res, c.GetCancelChan()))
 				} else {
 					if jr.GetExec()[i].GetExecutionTime() != 0 {
 						glg.Warn("Chain: Queuing in " + strconv.FormatFloat(time.Unix(jr.GetExec()[i].GetExecutionTime(), 0).Sub(time.Now()).Seconds(), 'f', -1, 64) + " nanoseconds")

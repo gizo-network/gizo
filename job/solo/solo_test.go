@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/gizo-network/gizo/cache"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/gizo-network/gizo/core"
@@ -35,7 +37,7 @@ func TestSolo(t *testing.T) {
 	bc := core.CreateBlockChain("test")
 	block := core.NewBlock(*tree, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetLatestHeight()+1, 10)
 	bc.AddBlock(block)
-	s := solo.NewSolo(*job.NewJobRequestSingle(j.GetID(), exec1), bc, pq)
+	s := solo.NewSolo(*job.NewJobRequestSingle(j.GetID(), exec1), bc, pq, cache.NewJobCacheNoWatch(bc))
 	s.Dispatch()
 	assert.NotNil(t, s.Result())
 }

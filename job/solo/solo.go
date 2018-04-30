@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gizo-network/gizo/cache"
+
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
 	"github.com/gizo-network/gizo/job/queue"
@@ -17,16 +19,18 @@ type Solo struct {
 	jr     job.JobRequestSingle
 	bc     *core.BlockChain
 	pq     *queue.JobPriorityQueue
+	jc     *cache.JobCache
 	result job.JobRequestSingle
 	status string
 	cancel chan struct{}
 }
 
-func NewSolo(jr job.JobRequestSingle, bc *core.BlockChain, pq *queue.JobPriorityQueue) *Solo {
+func NewSolo(jr job.JobRequestSingle, bc *core.BlockChain, pq *queue.JobPriorityQueue, jc *cache.JobCache) *Solo {
 	return &Solo{
 		jr: jr,
 		bc: bc,
 		pq: pq,
+		jc: jc,
 	}
 }
 
@@ -56,6 +60,10 @@ func (s *Solo) setBC(bc *core.BlockChain) {
 
 func (s Solo) getPQ() *queue.JobPriorityQueue {
 	return s.pq
+}
+
+func (s Solo) getJC() *cache.JobCache {
+	return s.jc
 }
 
 func (s Solo) getBC() *core.BlockChain {
@@ -97,26 +105,26 @@ func (s *Solo) Dispatch() {
 		wg.Done()
 	}()
 	s.setStatus("Queueing execs of job - " + s.GetJob().GetID())
-	j, err := s.getBC().FindJob(s.GetJob().GetID())
+	var j *job.Job
+	var err error
+	j, err = s.getJC().Get(s.GetJob().GetID()) //check job cache first
+	if j == nil {
+		j, err = s.getBC().FindJob(s.GetJob().GetID())
+	}
 	if err != nil {
 		glg.Warn("Batch: Unable to find job - " + s.GetJob().GetID())
 		s.GetJob().GetExec().SetErr("Batch: Unable to find job - " + s.GetJob().GetID())
 	} else {
 		if cancelled == true {
-			result = qItem.Item{
-				Job: job.Job{
-					ID:             j.GetID(),
-					Hash:           j.GetHash(),
-					Name:           j.GetName(),
-					Task:           j.GetTask(),
-					Signature:      j.GetSignature(),
-					SubmissionTime: j.GetSubmissionTime(),
-					Private:        j.GetPrivate(),
-				},
-				Exec:    s.GetJob().GetExec(),
-				Results: res,
-				Cancel:  s.GetCancelChan(),
-			}
+			result = qItem.NewItem(job.Job{
+				ID:             j.GetID(),
+				Hash:           j.GetHash(),
+				Name:           j.GetName(),
+				Task:           j.GetTask(),
+				Signature:      j.GetSignature(),
+				SubmissionTime: j.GetSubmissionTime(),
+				Private:        j.GetPrivate(),
+			}, s.GetJob().GetExec(), res, s.GetCancelChan())
 		} else {
 			if s.GetJob().GetExec().GetExecutionTime() != 0 {
 				glg.Warn("Chord: Queuing in " + strconv.FormatFloat(time.Unix(s.GetJob().GetExec().GetExecutionTime(), 0).Sub(time.Now()).Seconds(), 'f', -1, 64) + " nanoseconds")

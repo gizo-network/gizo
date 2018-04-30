@@ -113,6 +113,13 @@ func NewJobCache(bc *core.BlockChain) *JobCache {
 	return &jc
 }
 
+func NewJobCacheNoWatch(bc *core.BlockChain) *JobCache {
+	c, _ := bigcache.NewBigCache(bigcache.DefaultConfig(time.Minute))
+	jc := JobCache{c, bc}
+	jc.fill()
+	return &jc
+}
+
 // merge returns an array of job in order of number of execs in the job from max to min
 func merge(left, right []job.Job) []job.Job {
 	size, i, j := len(left)+len(right), 0, 0

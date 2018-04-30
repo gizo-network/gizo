@@ -1,11 +1,15 @@
 package p2p
 
-const HELLO = "HELLO"
-const INVALIDMESSAGE = "INVALIDMESSAGE" // invalid message
-const CONNFULL = "CONNFULL"             // max workers reached
-const JOB = "JOB"
-const INVALIDSIGNATURE = "JOB"
-const RESULT = "RESULT"
+const (
+	HELLO            = "HELLO"
+	INVALIDMESSAGE   = "INVALIDMESSAGE" // invalid message
+	CONNFULL         = "CONNFULL"       // max workers reached
+	JOB              = "JOB"
+	INVALIDSIGNATURE = "JOB"
+	RESULT           = "RESULT"
+	SHUT             = "SHUT"
+	SHUTACK          = "SHUTACK"
+)
 
 func HelloMessage(payload []byte) []byte {
 	return NewPeerMessage(HELLO, payload, nil).Serialize()
@@ -29,4 +33,12 @@ func InvalidSignature() []byte {
 
 func ResultMessage(payload []byte, priv []byte) []byte {
 	return NewPeerMessage(RESULT, payload, priv).Serialize()
+}
+
+func ShutMessage(priv []byte) []byte {
+	return NewPeerMessage(SHUT, nil, priv).Serialize()
+}
+
+func ShutAckMessage(priv []byte) []byte {
+	return NewPeerMessage(SHUTACK, nil, priv).Serialize()
 }

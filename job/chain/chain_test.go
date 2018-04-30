@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/gizo-network/gizo/cache"
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/core/merkletree"
 	"github.com/gizo-network/gizo/crypt"
@@ -49,7 +50,7 @@ func TestChain(t *testing.T) {
 	bc.AddBlock(block)
 	jr := job.NewJobRequestMultiple(j.GetID(), exec1, exec2, exec3)
 	jr2 := job.NewJobRequestMultiple(j2.GetID(), exec4, exec4, exec4, exec4, exec4)
-	chain, err := chain.NewChain([]job.JobRequestMultiple{*jr, *jr2}, bc, pq)
+	chain, err := chain.NewChain([]job.JobRequestMultiple{*jr, *jr2}, bc, pq, cache.NewJobCacheNoWatch(bc))
 	assert.NoError(t, err)
 	chain.Dispatch()
 	assert.NotNil(t, chain.Result())

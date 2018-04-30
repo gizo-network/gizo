@@ -1,5 +1,5 @@
 hash: e521f5b2a8e9db279520b55002a47f09058718993f7c5fb8f11256e60f766b5b
-updated: 2018-04-29T09:31:58.140814038-04:00
+updated: 2018-04-30T18:44:55.416107025-04:00
 imports:
 - name: github.com/allegro/bigcache
   version: f31987a23e44c5121ef8c8b2f2ea2e8ffa37b068
@@ -73,7 +73,7 @@ imports:
   subpackages:
   - assert
 - name: golang.org/x/sys
-  version: cbbc999da32df943dac6cd71eb3ee39e1d7838b9
+  version: 4adea008a5e5f820b6028611ae0b6b3fbcec534b
   subpackages:
   - unix
 - name: gopkg.in/olahol/melody.v1

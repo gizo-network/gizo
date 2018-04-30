@@ -18,13 +18,16 @@ func (pq WorkerPriorityQueue) Pop() *melody.Session {
 	return i.(*melody.Session)
 }
 
-func (pq WorkerPriorityQueue) Remove(hash []byte) {
-	pq.getPQ().RemoveHash(hash)
+func (pq WorkerPriorityQueue) Remove(s *melody.Session) {
+	pq.getPQ().RemoveSession(s)
 }
 
 func (pq WorkerPriorityQueue) getPQ() *lane.PQueue {
 	return pq.pq
+}
 
+func (pq WorkerPriorityQueue) Exist(s *melody.Session) bool {
+	return pq.pq.InQueueSession(s)
 }
 
 // func (pq WorkerPriorityQueue) watch() {
