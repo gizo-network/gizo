@@ -22,7 +22,6 @@ import (
 
 	"github.com/kpango/glg"
 
-	externalip "github.com/GlenDC/go-external-ip"
 	"github.com/gizo-network/gizo/benchmark"
 	"github.com/gizo-network/gizo/cache"
 	"github.com/gizo-network/gizo/core"
@@ -96,6 +95,18 @@ func (d Dispatcher) GetWorkers() map[*melody.Session]*WorkerInfo {
 	return d.workers
 }
 
+func (d Dispatcher) GetWorker(s *melody.Session) *WorkerInfo {
+	return d.GetWorkers()[s]
+}
+
+func (d *Dispatcher) SetWorker(s *melody.Session, w *WorkerInfo) {
+	d.GetWorkers()[s] = w
+}
+
+func (d Dispatcher) GetBC() *core.BlockChain {
+	return d.bc
+}
+
 func (d Dispatcher) GetPort() int {
 	return int(d.Port)
 }
@@ -114,6 +125,10 @@ func (d Dispatcher) GetBench() benchmark.Engine {
 
 func (d Dispatcher) GetBenchmarks() []benchmark.Benchmark {
 	return d.bench.GetData()
+}
+
+func (d Dispatcher) GetJC() *cache.JobCache {
+	return d.jc
 }
 
 func (d Dispatcher) GetWWS() *melody.Melody {
@@ -155,16 +170,22 @@ func (d Dispatcher) deployJobs() {
 	for {
 		if d.GetWorkerPQ().getPQ().Empty() == false {
 			if d.GetJobPQ().GetPQ().Empty() == false {
+				d.mu.Lock()
 				w := d.GetWorkerPQ().Pop()
-				j := d.GetJobPQ().Pop()
-				if j.GetExec().GetStatus() != job.CANCELLED {
-					j.GetExec().SetBy(d.GetWorkers()[w].GetPub())
-					d.GetWorkers()[w].Assign(&j)
-					glg.Info("P2P: dispatched job")
-					w.Write(JobMessage(j.Serialize(), d.GetPrivByte()))
+				if !d.GetWorker(w).GetShut() {
+					j := d.GetJobPQ().Pop()
+					if j.GetExec().GetStatus() != job.CANCELLED {
+						j.GetExec().SetBy(d.GetWorker(w).GetPub())
+						d.GetWorker(w).Assign(&j)
+						glg.Info("P2P: dispatched job")
+						w.Write(JobMessage(j.Serialize(), d.GetPrivByte()))
+					} else {
+						j.ResultsChan() <- j
+					}
 				} else {
-					j.ResultsChan() <- j
+					delete(d.GetWorkers(), w)
 				}
+				d.mu.Unlock()
 			}
 		}
 	}
@@ -174,11 +195,10 @@ func (d Dispatcher) wPeerTalk() {
 	d.wWS.HandleDisconnect(func(s *melody.Session) {
 		d.mu.Lock()
 		glg.Info("Dispatcher: worker disconnected")
-		if d.GetWorkers()[s].GetJob() != nil {
-			d.GetJobPQ().PushItem(*d.GetWorkers()[s].GetJob(), job.HIGH)
+		if d.GetWorker(s).GetJob() != nil {
+			d.GetJobPQ().PushItem(*d.GetWorker(s).GetJob(), job.HIGH)
 		}
-		d.GetJobPQ()
-		delete(d.GetWorkers(), s)
+		d.GetWorker(s).SetShut(true)
 		d.mu.Unlock()
 	})
 	d.wWS.HandleMessageBinary(func(s *melody.Session, message []byte) {
@@ -188,9 +208,9 @@ func (d Dispatcher) wPeerTalk() {
 			d.mu.Lock()
 			if len(d.GetWorkers()) < MaxWorkers {
 				glg.Info("Dispatcher: worker connected")
-				d.GetWorkers()[s] = NewWorkerInfo(hex.EncodeToString(m.GetPayload()))
+				d.SetWorker(s, NewWorkerInfo(hex.EncodeToString(m.GetPayload())))
 				s.Write(HelloMessage(d.GetPubByte()))
-				d.workerPQ.Push(s, 0)
+				d.GetWorkerPQ().Push(s, 0)
 			} else {
 				s.Write(ConnFullMessage())
 			}
@@ -198,15 +218,25 @@ func (d Dispatcher) wPeerTalk() {
 			break
 		case RESULT:
 			d.mu.Lock()
-			if m.VerifySignature(d.GetWorkers()[s].GetPub()) {
+			if m.VerifySignature(d.GetWorker(s).GetPub()) {
+				glg.Info("P2P: received result")
 				exec := job.DeserializeExec(m.GetPayload())
-				d.GetWorkers()[s].GetJob().SetExec(&exec)
-				d.GetWorkers()[s].GetJob().ResultsChan() <- *d.GetWorkers()[s].GetJob()
-				d.GetWorkers()[s].SetJob(nil)
-				d.GetWorkerPQ().Push(s, 0)
+				d.GetWorker(s).GetJob().SetExec(&exec)
+				d.GetWorker(s).GetJob().ResultsChan() <- *d.GetWorker(s).GetJob()
+				d.GetWorker(s).SetJob(nil)
 			} else {
-				d.GetJobPQ().PushItem(*d.GetWorkers()[s].GetJob(), job.HIGH)
+				d.GetJobPQ().PushItem(*d.GetWorker(s).GetJob(), job.HIGH)
 			}
+			if !d.GetWorker(s).GetShut() {
+				d.GetWorkerPQ().Push(s, 0)
+			}
+			d.mu.Unlock()
+			break
+		case SHUT:
+			d.mu.Lock()
+			fmt.Println("shut detected")
+			d.GetWorker(s).SetShut(true)
+			s.Write(ShutAckMessage(d.GetPrivByte()))
 			d.mu.Unlock()
 			break
 		default:
@@ -218,8 +248,16 @@ func (d Dispatcher) wPeerTalk() {
 
 func (d Dispatcher) Start() {
 	go d.deployJobs()
-	d.dWS.Upgrader.ReadBufferSize = 10 * 1024
-	d.dWS.Upgrader.WriteBufferSize = 10 * 1024
+	d.wWS.Upgrader.ReadBufferSize = 100000
+	d.wWS.Upgrader.WriteBufferSize = 100000
+	d.wWS.Config.MessageBufferSize = 100000
+	d.wWS.Config.MaxMessageSize = 100000
+	d.wWS.Upgrader.EnableCompression = true
+	d.dWS.Upgrader.ReadBufferSize = 100000
+	d.dWS.Upgrader.WriteBufferSize = 100000
+	d.dWS.Config.MessageBufferSize = 100000
+	d.dWS.Config.MaxMessageSize = 100000
+	d.dWS.Upgrader.EnableCompression = true
 	d.router.HandleFunc("/d", func(w http.ResponseWriter, r *http.Request) {
 		d.dWS.HandleRequest(w, r)
 	})
@@ -237,10 +275,10 @@ func NewDispatcher(port int) *Dispatcher {
 
 	var bench benchmark.Engine
 	var priv, pub []byte
-	ip, err := externalip.DefaultConsensus(nil, nil).ExternalIP()
-	if err != nil {
-		glg.Fatal(err)
-	}
+	// ip, err := externalip.DefaultConsensus(nil, nil).ExternalIP()
+	// if err != nil {
+	// 	glg.Fatal(err)
+	// }
 
 	// fmt.Println(ip.String())
 
@@ -270,7 +308,7 @@ func NewDispatcher(port int) *Dispatcher {
 		bc := core.CreateBlockChain(hex.EncodeToString(pub))
 		jc := cache.NewJobCache(bc)
 		return &Dispatcher{
-			IP:       ip,
+			// IP:       ip,
 			Pub:      pub,
 			priv:     priv,
 			Port:     uint(port),
@@ -323,7 +361,7 @@ func NewDispatcher(port int) *Dispatcher {
 	bc := core.CreateBlockChain(hex.EncodeToString(pub))
 	jc := cache.NewJobCache(bc)
 	return &Dispatcher{
-		IP:       ip,
+		// IP:       ip,
 		Pub:      pub,
 		priv:     priv,
 		Port:     uint(port),

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/gizo-network/gizo/cache"
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/core/merkletree"
 	"github.com/gizo-network/gizo/crypt"
@@ -48,7 +49,7 @@ func TestBatch(t *testing.T) {
 	bc.AddBlock(block)
 	jr := job.NewJobRequestMultiple(j.GetID(), exec1, exec2, exec3)
 	jr2 := job.NewJobRequestMultiple(j2.GetID(), exec4, exec4, exec4, exec4, exec4)
-	batch, err := batch.NewBatch([]job.JobRequestMultiple{*jr, *jr2}, bc, pq)
+	batch, err := batch.NewBatch([]job.JobRequestMultiple{*jr, *jr2}, bc, pq, cache.NewJobCacheNoWatch(bc))
 	assert.NoError(t, err)
 	batch.Dispatch()
 	assert.NotNil(t, batch.Result())
