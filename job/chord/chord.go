@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gizo-network/gizo/cache"
+
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
 	"github.com/gizo-network/gizo/job/queue"
@@ -17,6 +19,7 @@ type Chord struct {
 	jobs     []job.JobRequestMultiple
 	bc       *core.BlockChain
 	pq       *queue.JobPriorityQueue
+	jc       *cache.JobCache
 	callback job.JobRequestMultiple
 	result   job.JobRequestMultiple
 	length   int
@@ -25,7 +28,7 @@ type Chord struct {
 }
 
 //NewChord returns chord
-func NewChord(j []job.JobRequestMultiple, callback job.JobRequestMultiple, bc *core.BlockChain, pq *queue.JobPriorityQueue) (*Chord, error) {
+func NewChord(j []job.JobRequestMultiple, callback job.JobRequestMultiple, bc *core.BlockChain, pq *queue.JobPriorityQueue, jc *cache.JobCache) (*Chord, error) {
 	//FIXME: count callback execs too
 	length := len(callback.GetExec())
 	for _, jr := range j {
@@ -39,6 +42,7 @@ func NewChord(j []job.JobRequestMultiple, callback job.JobRequestMultiple, bc *c
 		jobs:     j,
 		bc:       bc,
 		pq:       pq,
+		jc:       jc,
 		callback: callback,
 		length:   length,
 		cancel:   make(chan struct{}),
@@ -96,6 +100,10 @@ func (c Chord) getBC() *core.BlockChain {
 	return c.bc
 }
 
+func (c Chord) getJC() *cache.JobCache {
+	return c.jc
+}
+
 func (c *Chord) setResults(res job.JobRequestMultiple) {
 	c.result = res
 }
@@ -151,7 +159,12 @@ func (c *Chord) Dispatch() {
 	}()
 	for _, jr := range c.GetJobs() {
 		c.setStatus("Queueing execs of job - " + jr.GetID())
-		j, err := c.getBC().FindJob(jr.GetID())
+		var j *job.Job
+		var err error
+		j, err = c.getJC().Get(jr.GetID())
+		if j == nil {
+			j, err = c.getBC().FindJob(jr.GetID())
+		}
 		if err != nil {
 			glg.Warn("Chord: Unable to find job - " + jr.GetID())
 			for _, exec := range jr.GetExec() {
@@ -160,20 +173,15 @@ func (c *Chord) Dispatch() {
 		} else {
 			for i := 0; i < len(jr.GetExec()); i++ {
 				if cancelled == true {
-					items = append(items, qItem.Item{
-						Job: job.Job{
-							ID:             j.GetID(),
-							Hash:           j.GetHash(),
-							Name:           j.GetName(),
-							Task:           j.GetTask(),
-							Signature:      j.GetSignature(),
-							SubmissionTime: j.GetSubmissionTime(),
-							Private:        j.GetPrivate(),
-						},
-						Exec:    jr.GetExec()[i],
-						Results: resChan,
-						Cancel:  c.GetCancelChan(),
-					})
+					items = append(items, qItem.NewItem(job.Job{
+						ID:             j.GetID(),
+						Hash:           j.GetHash(),
+						Name:           j.GetName(),
+						Task:           j.GetTask(),
+						Signature:      j.GetSignature(),
+						SubmissionTime: j.GetSubmissionTime(),
+						Private:        j.GetPrivate(),
+					}, jr.GetExec()[i], resChan, c.GetCancelChan()))
 				} else {
 					if jr.GetExec()[i].GetExecutionTime() != 0 {
 						glg.Warn("Chord: Queuing in " + strconv.FormatFloat(time.Unix(jr.GetExec()[i].GetExecutionTime(), 0).Sub(time.Now()).Seconds(), 'f', -1, 64) + " nanoseconds")
@@ -209,20 +217,15 @@ func (c *Chord) Dispatch() {
 	} else {
 		for _, exec := range c.GetCallback().GetExec() {
 			if cancelled == true {
-				callbackResults = append(callbackResults, qItem.Item{
-					Job: job.Job{
-						ID:             cj.GetID(),
-						Hash:           cj.GetHash(),
-						Name:           cj.GetName(),
-						Task:           cj.GetTask(),
-						Signature:      cj.GetSignature(),
-						SubmissionTime: cj.GetSubmissionTime(),
-						Private:        cj.GetPrivate(),
-					},
-					Exec:    exec,
-					Results: callbackChan,
-					Cancel:  c.GetCancelChan(),
-				})
+				callbackResults = append(callbackResults, qItem.NewItem(job.Job{
+					ID:             cj.GetID(),
+					Hash:           cj.GetHash(),
+					Name:           cj.GetName(),
+					Task:           cj.GetTask(),
+					Signature:      cj.GetSignature(),
+					SubmissionTime: cj.GetSubmissionTime(),
+					Private:        cj.GetPrivate(),
+				}, exec, callbackChan, c.GetCancelChan()))
 			} else {
 				if exec.GetExecutionTime() != 0 {
 					glg.Warn("Chord: Queuing in " + strconv.FormatFloat(time.Unix(exec.GetExecutionTime(), 0).Sub(time.Now()).Seconds(), 'f', -1, 64) + " nanoseconds")
