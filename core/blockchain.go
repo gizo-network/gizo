@@ -203,6 +203,8 @@ func (bc *BlockChain) AddBlock(block *Block) error {
 				glg.Fatal(err)
 			}
 			bc.setTip(block.GetHeader().GetHash())
+		} else {
+			fmt.Println("height is less")
 		}
 		return nil
 	})
@@ -233,8 +235,8 @@ func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
 		}
 		tree.SetLeafNodes(block.GetNodes())
 		found, err := tree.SearchJob(id)
-		if err != nil {
-			glg.Fatal(err)
+		if found == nil && err != nil {
+			continue
 		}
 		return found, nil
 	}
@@ -320,7 +322,7 @@ func CreateBlockChain(nodeID string) *BlockChain {
 			mu:  &sync.RWMutex{},
 		}
 	}
-	genesis := GenesisBlock()
+	genesis := GenesisBlock(nodeID)
 	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
 	if err != nil {
 		glg.Fatal(err)

@@ -62,7 +62,7 @@ func (b *Block) setHeight(h uint64) {
 }
 
 //NewBlock returns a new block
-func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficulty uint8) *Block {
+func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficulty uint8, by string) *Block {
 	block := &Block{
 		Header: BlockHeader{
 			Timestamp:     time.Now().Unix(),
@@ -72,6 +72,7 @@ func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficult
 		},
 		Jobs:   tree.GetLeafNodes(),
 		Height: height,
+		By:     by,
 	}
 	pow := NewPOW(block)
 	pow.run() //! mines block

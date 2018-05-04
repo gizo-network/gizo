@@ -3,7 +3,6 @@ package p2p
 import (
 	"encoding/hex"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,7 +17,7 @@ import (
 )
 
 type Worker struct {
-	IP         net.IP
+	// IP         net.IP
 	Port       uint   // port
 	Pub        []byte //public key of the node
 	Dispatcher string
@@ -28,6 +27,7 @@ type Worker struct {
 	interrupt  chan os.Signal
 	shutdown   chan struct{}
 	busy       bool
+	state      string
 }
 
 func (w Worker) GetBusy() bool {
@@ -42,8 +42,16 @@ func (w Worker) NodeTypeDispatcher() bool {
 	return false
 }
 
-func (w Worker) GetIP() net.IP {
-	return w.IP
+// func (w Worker) GetIP() net.IP {
+// 	return w.IP
+// }
+
+func (w Worker) GetState() string {
+	return w.state
+}
+
+func (w *Worker) SetState(s string) {
+	w.state = s
 }
 
 func (w Worker) GetPubByte() []byte {
@@ -83,21 +91,30 @@ func (w Worker) GetUptimeString() string {
 }
 
 func (w *Worker) Start() {
+	err := w.Connect("ws://localhost:9999/w")
+	if err != nil {
+		glg.Fatal(err)
+	}
 	go w.WatchInterrupt()
 	w.conn.WriteMessage(websocket.BinaryMessage, HelloMessage(w.GetPubByte()))
 	for {
 		_, message, err := w.conn.ReadMessage()
 		if err != nil {
+			//TODO: handle dispatcher unexpected disconnect
 			glg.Fatal(err) //FIXME: error occurs here after job received and processed
 		}
 		m := DeserializePeerMessage(message)
 		switch m.GetMessage() {
 		case HELLO:
 			w.SetDispatcher(hex.EncodeToString(m.GetPayload()))
+			w.SetState(INIT)
 			glg.Info("P2P: connected to dispatcher")
 			break
 		case JOB:
 			glg.Info("P2P: job received")
+			if w.GetState() != LIVE {
+				w.SetState(LIVE)
+			}
 			w.SetBusy(true)
 			if m.VerifySignature(w.GetDispatcher()) {
 				j := qItem.DeserializeItem(m.GetPayload())
@@ -111,6 +128,9 @@ func (w *Worker) Start() {
 			}
 			w.SetBusy(false)
 			break
+		case SHUT:
+			//TODO: handle dispatcher shut
+			break
 		case SHUTACK:
 			for {
 				if w.GetBusy() {
@@ -120,6 +140,7 @@ func (w *Worker) Start() {
 				}
 			} // wait until worker not busy
 			w.Disconnect()
+			w.SetState(DOWN)
 			glg.Info("Worker: graceful shutdown")
 			os.Exit(0)
 		default:
@@ -134,10 +155,16 @@ func (w Worker) Disconnect() {
 }
 
 func (w *Worker) Connect(url string) error {
-	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
-	if err != nil {
-		return err
+	dailer := websocket.Dialer{
+		Proxy:           http.ProxyFromEnvironment,
+		ReadBufferSize:  10000,
+		WriteBufferSize: 10000,
 	}
+	conn, _, err := dailer.Dial(url, nil)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	conn.EnableWriteCompression(true)
 	w.conn = conn
 	return nil
 }
@@ -159,10 +186,6 @@ func (w Worker) WatchInterrupt() {
 func NewWorker(port int) *Worker {
 	core.InitializeDataPath()
 	var priv, pub []byte
-	// ip, err := externalip.DefaultConsensus(nil, nil).ExternalIP()
-	// if err != nil {
-	// 	glg.Fatal(err)
-	// }
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
@@ -227,23 +250,13 @@ func NewWorker(port int) *Worker {
 	// if err != nil {
 	// 	glg.Fatal(err)
 	// }
-	dailer := websocket.Dialer{
-		Proxy:           http.ProxyFromEnvironment,
-		ReadBufferSize:  10000,
-		WriteBufferSize: 10000,
-	}
-	conn, _, err := dailer.Dial("ws://127.0.0.1:9999/w", nil)
-	if err != nil {
-		glg.Fatal(err)
-	}
-	conn.EnableWriteCompression(true)
 	return &Worker{
 		// IP:        ip,
 		Pub:       pub,
 		priv:      priv,
 		Port:      uint(port),
 		uptime:    time.Now().Unix(),
-		conn:      conn,
 		interrupt: interrupt,
+		state:     DOWN,
 	}
 }

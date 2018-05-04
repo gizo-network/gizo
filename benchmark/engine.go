@@ -81,7 +81,7 @@ func (b Engine) block(difficulty uint8) *core.Block {
 	node16 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 
 	tree := merkletree.NewMerkleTree([]*merkletree.MerkleNode{node9, node10, node11, node12, node13, node14, node15, node16, node1, node2, node3, node4, node5, node6, node7, node8})
-	return core.NewBlock(*tree, []byte("TestingPreviousHash"), uint64(rand.Int()), difficulty)
+	return core.NewBlock(*tree, []byte("TestingPreviousHash"), uint64(rand.Int()), difficulty, "benchmark-engine")
 }
 
 // Run spins up the benchmark engine

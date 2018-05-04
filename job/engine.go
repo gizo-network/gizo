@@ -264,8 +264,8 @@ func argsStringified(args []interface{}) string {
 	return temp + ")"
 }
 
-//! run in goroutine
 func (j *Job) Execute(exec *Exec) *Exec {
+	//TODO: kill goroutines running within this function when it exits
 	if j.GetPrivate() == true {
 		if j.VerifySignature(exec.getPub()) == false {
 			exec.SetErr(ErrUnverifiedSignature)
