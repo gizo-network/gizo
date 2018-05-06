@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Lobarr/lane"
+	upnp "github.com/NebulousLabs/go-upnp"
 
 	"github.com/gizo-network/gizo/core/difficulty"
 	"github.com/gizo-network/gizo/core/merkletree"
@@ -42,7 +43,7 @@ var (
 )
 
 type Dispatcher struct {
-	IP        net.IP
+	IP        string
 	Port      uint   //port
 	Pub       []byte //public key of the node
 	priv      []byte //private key of the node
@@ -127,7 +128,7 @@ func (d Dispatcher) NodeTypeDispatcher() bool {
 	return true
 }
 
-func (d Dispatcher) GetIP() net.IP {
+func (d Dispatcher) GetIP() string {
 	return d.IP
 }
 
@@ -331,6 +332,8 @@ func (d Dispatcher) WatchInterrupt() {
 }
 
 func (d Dispatcher) Start() {
+	fmt.Println(d.GetPrivString())
+	fmt.Println(d.GetPubString())
 	go d.deployJobs()
 	go d.watchWriteQ()
 	d.wWS.Upgrader.ReadBufferSize = 100000
@@ -351,6 +354,9 @@ func (d Dispatcher) Start() {
 	})
 	d.wPeerTalk()
 	d.router.Handle("/rpc", d.rpc).Methods("POST")
+	d.router.HandleFunc("/v1", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("running"))
+	})
 
 	// certManager := autocert.Manager{
 	// 	Prompt: autocert.AcceptTOS,
@@ -367,7 +373,21 @@ func (d Dispatcher) Start() {
 
 	// go http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), certManager.HTTPHandler(nil))
 	// server.ListenAndServeTLS("", "")
+	discover, err := upnp.Discover()
+	if err != nil {
+		glg.Fatal(err)
+	}
 
+	ip, err := discover.ExternalIP()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Your external IP is:", ip)
+
+	err = discover.Forward(uint16(d.GetPort()), "gizo dispatcher node")
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println(http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), d.router))
 }
 
