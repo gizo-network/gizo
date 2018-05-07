@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 
 	"github.com/kpango/glg"
@@ -59,6 +60,8 @@ func (m *PeerMessage) sign(priv []byte) {
 		},
 		[]byte{},
 	))
+	fmt.Println("hash ", hex.EncodeToString(hash[:]))
+	fmt.Println("hash ", hash[:])
 	privateKey, _ := x509.ParseECPrivateKey(priv)
 	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash[:])
 	if err != nil {

@@ -1,11 +1,14 @@
 package p2p
 
+import "errors"
+
 const (
 	NodeDB           = "nodeinfo.db"
 	NodeBucket       = "node"
 	DispatcherScheme = "gizo" //FIXME: use better one
 	MaxWorkers       = 128
 	DefaultPort      = 9999
+	CentrumURL       = "821734d3.ngrok.io"
 )
 
 // node states
@@ -19,4 +22,8 @@ const (
 	LIVE = "LIVE"
 	// dispatcher - when an adjacency is created and topology table, neighbour table and blockchain have been sync
 	FULL = "FULL"
+)
+
+var (
+	ErrNoDispatchers = errors.New("Centrum: no dispatchers available")
 )

@@ -17,17 +17,25 @@ import (
 )
 
 type Worker struct {
-	// IP         net.IP
 	Port       uint   // port
 	Pub        []byte //public key of the node
 	Dispatcher string
-	priv       []byte //private key of the node
-	uptime     int64  //time since node has been up
+	shortlist  []string // array of dispatchers received from centrum
+	priv       []byte   //private key of the node
+	uptime     int64    //time since node has been up
 	conn       *websocket.Conn
 	interrupt  chan os.Signal
 	shutdown   chan struct{}
 	busy       bool
 	state      string
+}
+
+func (w Worker) GetShortlist() []string {
+	return w.shortlist
+}
+
+func (w *Worker) SetShortlist(s []string) {
+	w.shortlist = s
 }
 
 func (w Worker) GetBusy() bool {
@@ -41,10 +49,6 @@ func (w *Worker) SetBusy(b bool) {
 func (w Worker) NodeTypeDispatcher() bool {
 	return false
 }
-
-// func (w Worker) GetIP() net.IP {
-// 	return w.IP
-// }
 
 func (w Worker) GetState() string {
 	return w.state
@@ -91,10 +95,8 @@ func (w Worker) GetUptimeString() string {
 }
 
 func (w *Worker) Start() {
-	err := w.Connect("ws://localhost:9999/w")
-	if err != nil {
-		glg.Fatal(err)
-	}
+	w.GetDispatchers()
+	w.Connect()
 	go w.WatchInterrupt()
 	w.conn.WriteMessage(websocket.BinaryMessage, HelloMessage(w.GetPubByte()))
 	for {
@@ -154,7 +156,21 @@ func (w Worker) Disconnect() {
 	w.conn.Close()
 }
 
-func (w *Worker) Connect(url string) error {
+func (w *Worker) Connect() {
+	for i, dispatcher := range w.GetShortlist() {
+		addr, err := ParseAddr(dispatcher)
+		if err == nil {
+			url := fmt.Sprintf("ws://%v:%v/w", addr["ip"], addr["port"])
+			if err = w.Dial(url); err == nil {
+				return
+			}
+		}
+		w.SetShortlist(append(w.GetShortlist()[:i], w.GetShortlist()[i+1:]...))
+	}
+	w.GetDispatchers()
+}
+
+func (w *Worker) Dial(url string) error {
 	dailer := websocket.Dialer{
 		Proxy:           http.ProxyFromEnvironment,
 		ReadBufferSize:  10000,
@@ -181,6 +197,17 @@ func (w Worker) WatchInterrupt() {
 			os.Exit(1)
 		}
 	}
+}
+
+func (w *Worker) GetDispatchers() {
+	c := NewCentrum()
+	res := c.GetDispatchers()
+	shortlist, ok := res["dispatchers"]
+	if !ok {
+		glg.Warn(ErrNoDispatchers)
+		os.Exit(0)
+	}
+	w.SetShortlist(shortlist.([]string))
 }
 
 func NewWorker(port int) *Worker {
@@ -217,14 +244,15 @@ func NewWorker(port int) *Worker {
 	// 		glg.Fatal(err)
 	// 	}
 	// conn.EnableWriteCompression(true)
-	// 	return &Worker{
-	// 		IP:     ip,
-	// 		Pub:    pub,
-	// 		priv:   priv,
-	// 		Port:   uint(port),
-	// 		uptime: time.Now().Unix(),
-	// 		conn:   conn,
-	// 	}
+	// return &Worker{
+	// 	Pub:       pub,
+	// 	priv:      priv,
+	// 	Port:      uint(port),
+	// 	uptime:    time.Now().Unix(),
+	// 	interrupt: interrupt,
+	// 	state:     DOWN,
+	// 	shortlist: shortlist.([]string),
+	// }
 	// }
 	priv, pub = crypt.GenKeys()
 	// db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
@@ -251,7 +279,6 @@ func NewWorker(port int) *Worker {
 	// 	glg.Fatal(err)
 	// }
 	return &Worker{
-		// IP:        ip,
 		Pub:       pub,
 		priv:      priv,
 		Port:      uint(port),

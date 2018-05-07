@@ -132,6 +132,10 @@ func (d Dispatcher) GetIP() string {
 	return d.IP
 }
 
+func (d *Dispatcher) SetIP(ip string) {
+	d.IP = ip
+}
+
 func (d Dispatcher) GetPubByte() []byte {
 	return d.Pub
 }
@@ -332,8 +336,6 @@ func (d Dispatcher) WatchInterrupt() {
 }
 
 func (d Dispatcher) Start() {
-	fmt.Println(d.GetPrivString())
-	fmt.Println(d.GetPubString())
 	go d.deployJobs()
 	go d.watchWriteQ()
 	d.wWS.Upgrader.ReadBufferSize = 100000
@@ -382,8 +384,7 @@ func (d Dispatcher) Start() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Your external IP is:", ip)
-
+	d.SetIP(ip)
 	err = discover.Forward(uint16(d.GetPort()), "gizo dispatcher node")
 	if err != nil {
 		log.Fatal(err)
