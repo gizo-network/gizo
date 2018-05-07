@@ -33,7 +33,7 @@ func TestDifficulty(t *testing.T) {
 
 	nodes := []*merkletree.MerkleNode{node1, node2, node3, node4, node5, node6, node7, node8}
 	tree := merkletree.NewMerkleTree(nodes)
-	block := core.NewBlock(*tree, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetLatestHeight(), 10)
+	block := core.NewBlock(*tree, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetLatestHeight(), 10, "test")
 	bc.AddBlock(block)
 	d10 := benchmark.NewBenchmark(0.0115764096, 10)
 	d11 := benchmark.NewBenchmark(0.13054728, 11)

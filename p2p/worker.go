@@ -3,7 +3,6 @@ package p2p
 import (
 	"encoding/hex"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,16 +17,25 @@ import (
 )
 
 type Worker struct {
-	IP         net.IP
 	Port       uint   // port
 	Pub        []byte //public key of the node
 	Dispatcher string
-	priv       []byte //private key of the node
-	uptime     int64  //time since node has been up
+	shortlist  []string // array of dispatchers received from centrum
+	priv       []byte   //private key of the node
+	uptime     int64    //time since node has been up
 	conn       *websocket.Conn
 	interrupt  chan os.Signal
 	shutdown   chan struct{}
 	busy       bool
+	state      string
+}
+
+func (w Worker) GetShortlist() []string {
+	return w.shortlist
+}
+
+func (w *Worker) SetShortlist(s []string) {
+	w.shortlist = s
 }
 
 func (w Worker) GetBusy() bool {
@@ -42,8 +50,12 @@ func (w Worker) NodeTypeDispatcher() bool {
 	return false
 }
 
-func (w Worker) GetIP() net.IP {
-	return w.IP
+func (w Worker) GetState() string {
+	return w.state
+}
+
+func (w *Worker) SetState(s string) {
+	w.state = s
 }
 
 func (w Worker) GetPubByte() []byte {
@@ -83,21 +95,28 @@ func (w Worker) GetUptimeString() string {
 }
 
 func (w *Worker) Start() {
+	w.GetDispatchers()
+	w.Connect()
 	go w.WatchInterrupt()
 	w.conn.WriteMessage(websocket.BinaryMessage, HelloMessage(w.GetPubByte()))
 	for {
 		_, message, err := w.conn.ReadMessage()
 		if err != nil {
+			//TODO: handle dispatcher unexpected disconnect
 			glg.Fatal(err) //FIXME: error occurs here after job received and processed
 		}
 		m := DeserializePeerMessage(message)
 		switch m.GetMessage() {
 		case HELLO:
 			w.SetDispatcher(hex.EncodeToString(m.GetPayload()))
+			w.SetState(INIT)
 			glg.Info("P2P: connected to dispatcher")
 			break
 		case JOB:
 			glg.Info("P2P: job received")
+			if w.GetState() != LIVE {
+				w.SetState(LIVE)
+			}
 			w.SetBusy(true)
 			if m.VerifySignature(w.GetDispatcher()) {
 				j := qItem.DeserializeItem(m.GetPayload())
@@ -111,6 +130,9 @@ func (w *Worker) Start() {
 			}
 			w.SetBusy(false)
 			break
+		case SHUT:
+			//TODO: handle dispatcher shut
+			break
 		case SHUTACK:
 			for {
 				if w.GetBusy() {
@@ -120,6 +142,7 @@ func (w *Worker) Start() {
 				}
 			} // wait until worker not busy
 			w.Disconnect()
+			w.SetState(DOWN)
 			glg.Info("Worker: graceful shutdown")
 			os.Exit(0)
 		default:
@@ -133,11 +156,31 @@ func (w Worker) Disconnect() {
 	w.conn.Close()
 }
 
-func (w *Worker) Connect(url string) error {
-	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
-	if err != nil {
-		return err
+func (w *Worker) Connect() {
+	for i, dispatcher := range w.GetShortlist() {
+		addr, err := ParseAddr(dispatcher)
+		if err == nil {
+			url := fmt.Sprintf("ws://%v:%v/w", addr["ip"], addr["port"])
+			if err = w.Dial(url); err == nil {
+				return
+			}
+		}
+		w.SetShortlist(append(w.GetShortlist()[:i], w.GetShortlist()[i+1:]...))
 	}
+	w.GetDispatchers()
+}
+
+func (w *Worker) Dial(url string) error {
+	dailer := websocket.Dialer{
+		Proxy:           http.ProxyFromEnvironment,
+		ReadBufferSize:  10000,
+		WriteBufferSize: 10000,
+	}
+	conn, _, err := dailer.Dial(url, nil)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	conn.EnableWriteCompression(true)
 	w.conn = conn
 	return nil
 }
@@ -156,13 +199,20 @@ func (w Worker) WatchInterrupt() {
 	}
 }
 
+func (w *Worker) GetDispatchers() {
+	c := NewCentrum()
+	res := c.GetDispatchers()
+	shortlist, ok := res["dispatchers"]
+	if !ok {
+		glg.Warn(ErrNoDispatchers)
+		os.Exit(0)
+	}
+	w.SetShortlist(shortlist.([]string))
+}
+
 func NewWorker(port int) *Worker {
 	core.InitializeDataPath()
 	var priv, pub []byte
-	// ip, err := externalip.DefaultConsensus(nil, nil).ExternalIP()
-	// if err != nil {
-	// 	glg.Fatal(err)
-	// }
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
@@ -194,14 +244,15 @@ func NewWorker(port int) *Worker {
 	// 		glg.Fatal(err)
 	// 	}
 	// conn.EnableWriteCompression(true)
-	// 	return &Worker{
-	// 		IP:     ip,
-	// 		Pub:    pub,
-	// 		priv:   priv,
-	// 		Port:   uint(port),
-	// 		uptime: time.Now().Unix(),
-	// 		conn:   conn,
-	// 	}
+	// return &Worker{
+	// 	Pub:       pub,
+	// 	priv:      priv,
+	// 	Port:      uint(port),
+	// 	uptime:    time.Now().Unix(),
+	// 	interrupt: interrupt,
+	// 	state:     DOWN,
+	// 	shortlist: shortlist.([]string),
+	// }
 	// }
 	priv, pub = crypt.GenKeys()
 	// db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
@@ -227,23 +278,12 @@ func NewWorker(port int) *Worker {
 	// if err != nil {
 	// 	glg.Fatal(err)
 	// }
-	dailer := websocket.Dialer{
-		Proxy:           http.ProxyFromEnvironment,
-		ReadBufferSize:  10000,
-		WriteBufferSize: 10000,
-	}
-	conn, _, err := dailer.Dial("ws://127.0.0.1:9999/w", nil)
-	if err != nil {
-		glg.Fatal(err)
-	}
-	conn.EnableWriteCompression(true)
 	return &Worker{
-		// IP:        ip,
 		Pub:       pub,
 		priv:      priv,
 		Port:      uint(port),
 		uptime:    time.Now().Unix(),
-		conn:      conn,
 		interrupt: interrupt,
+		state:     DOWN,
 	}
 }

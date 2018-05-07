@@ -3,14 +3,22 @@ package p2p
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"net"
+	"log"
 	"net/http"
 	"os"
 	"path"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
+
+	"github.com/Lobarr/lane"
+	upnp "github.com/NebulousLabs/go-upnp"
+
+	"github.com/gizo-network/gizo/core/difficulty"
+	"github.com/gizo-network/gizo/core/merkletree"
 
 	"github.com/gizo-network/gizo/job"
 
@@ -30,24 +38,77 @@ import (
 	"github.com/gorilla/rpc/v2"
 )
 
+var (
+	ErrJobsFull = errors.New("Jobs array full")
+)
+
 type Dispatcher struct {
-	IP       net.IP
-	Port     uint   //port
-	Pub      []byte //public key of the node
-	priv     []byte //private key of the node
-	uptime   int64  //time since node has been up
-	jobPQ    *queue.JobPriorityQueue
-	workers  map[*melody.Session]*WorkerInfo //worker nodes in dispatcher's area
-	workerPQ *WorkerPriorityQueue
-	bench    benchmark.Engine //benchmark of node
-	wWS      *melody.Melody   //workers ws server
-	dWS      *melody.Melody   //dispatchers ws server
-	rpc      *rpc.Server
-	router   *mux.Router
-	jc       *cache.JobCache  //job cache
-	bc       *core.BlockChain //blockchain
-	db       *bolt.DB         //holds topology table
-	mu       *sync.Mutex
+	IP        string
+	Port      uint   //port
+	Pub       []byte //public key of the node
+	priv      []byte //private key of the node
+	uptime    int64  //time since node has been up
+	jobPQ     *queue.JobPriorityQueue
+	workers   map[*melody.Session]*WorkerInfo //worker nodes in dispatcher's area
+	workerPQ  *WorkerPriorityQueue
+	bench     benchmark.Engine //benchmark of node
+	wWS       *melody.Melody   //workers ws server
+	dWS       *melody.Melody   //dispatchers ws server
+	rpc       *rpc.Server
+	router    *mux.Router
+	jc        *cache.JobCache  //job cache
+	bc        *core.BlockChain //blockchain
+	db        *bolt.DB         //holds topology table
+	mu        *sync.Mutex
+	jobs      []job.Job // holds done jobs and new jobs submitted to the network before being placed in the bc
+	interrupt chan os.Signal
+	writeQ    *lane.Queue
+}
+
+func (d Dispatcher) GetJobs() []job.Job {
+	return d.jobs
+}
+
+func (d Dispatcher) watchWriteQ() {
+	for {
+		if d.GetWriteQ().Empty() == false {
+			jobs := d.GetWriteQ().Dequeue()
+			d.WriteJobs(jobs.([]job.Job))
+		}
+	}
+}
+
+//WriteJobs writes jobs to the bc
+func (d Dispatcher) WriteJobs(jobs []job.Job) {
+	fmt.Println("writing jobs")
+	nodes := []*merkletree.MerkleNode{}
+	for _, job := range jobs {
+		nodes = append(nodes, merkletree.NewNode(job, &merkletree.MerkleNode{}, &merkletree.MerkleNode{}))
+	}
+	block := core.NewBlock(*merkletree.NewMerkleTree(nodes), d.GetBC().GetLatestBlock().GetHeader().GetHash(), d.GetBC().GetNextHeight(), uint8(difficulty.Difficulty(d.GetBenchmarks(), *d.GetBC())), d.GetPubString())
+	d.GetBC().AddBlock(block)
+}
+
+func (d *Dispatcher) AddJob(j job.Job) {
+	if len(d.GetJobs()) < merkletree.MaxTreeJobs {
+		for i, val := range d.GetJobs() {
+			if val.GetID() == j.GetID() {
+				temp := val
+				temp.AddExec(j.GetLatestExec())
+				d.jobs[i] = temp
+				return
+			}
+		}
+		d.jobs = append(d.jobs, j)
+	} else {
+		d.GetWriteQ().Enqueue(d.GetJobs())
+		d.EmptyJobs()
+		d.jobs = append(d.jobs, j)
+	}
+}
+
+func (d *Dispatcher) EmptyJobs() {
+	d.jobs = []job.Job{}
 }
 
 func (d Dispatcher) GetWorkerPQ() *WorkerPriorityQueue {
@@ -67,8 +128,12 @@ func (d Dispatcher) NodeTypeDispatcher() bool {
 	return true
 }
 
-func (d Dispatcher) GetIP() net.IP {
+func (d Dispatcher) GetIP() string {
 	return d.IP
+}
+
+func (d *Dispatcher) SetIP(ip string) {
+	d.IP = ip
 }
 
 func (d Dispatcher) GetPubByte() []byte {
@@ -85,6 +150,10 @@ func (d Dispatcher) GetPrivByte() []byte {
 
 func (d Dispatcher) GetPrivString() string {
 	return hex.EncodeToString(d.priv)
+}
+
+func (d Dispatcher) GetWriteQ() *lane.Queue {
+	return d.writeQ
 }
 
 func (d Dispatcher) GetJobPQ() *queue.JobPriorityQueue {
@@ -155,9 +224,9 @@ func (d Dispatcher) setRPC(s *rpc.Server) {
 	d.rpc = s
 }
 
-func (d Dispatcher) Broadcast(m PeerMessage) {
+func (d Dispatcher) BroadcastWorkers(m []byte) {
 	for s, _ := range d.workers {
-		s.Write(m.Serialize())
+		s.Write(m)
 	}
 }
 
@@ -223,7 +292,10 @@ func (d Dispatcher) wPeerTalk() {
 				exec := job.DeserializeExec(m.GetPayload())
 				d.GetWorker(s).GetJob().SetExec(&exec)
 				d.GetWorker(s).GetJob().ResultsChan() <- *d.GetWorker(s).GetJob()
+				j := d.GetWorker(s).GetJob().GetJob()
 				d.GetWorker(s).SetJob(nil)
+				j.AddExec(exec)
+				d.AddJob(j)
 			} else {
 				d.GetJobPQ().PushItem(*d.GetWorker(s).GetJob(), job.HIGH)
 			}
@@ -234,7 +306,6 @@ func (d Dispatcher) wPeerTalk() {
 			break
 		case SHUT:
 			d.mu.Lock()
-			fmt.Println("shut detected")
 			d.GetWorker(s).SetShut(true)
 			s.Write(ShutAckMessage(d.GetPrivByte()))
 			d.mu.Unlock()
@@ -246,8 +317,27 @@ func (d Dispatcher) wPeerTalk() {
 	})
 }
 
+func (d Dispatcher) dPeerTalk() {
+
+}
+
+func (d Dispatcher) WatchInterrupt() {
+	select {
+	case i := <-d.interrupt:
+		glg.Warn("Worker: interrupt detected")
+		switch i {
+		case syscall.SIGINT, syscall.SIGTERM:
+			os.Exit(1)
+			d.BroadcastWorkers(ShutMessage(d.GetPrivByte()))
+		case syscall.SIGQUIT:
+			os.Exit(1)
+		}
+	}
+}
+
 func (d Dispatcher) Start() {
 	go d.deployJobs()
+	go d.watchWriteQ()
 	d.wWS.Upgrader.ReadBufferSize = 100000
 	d.wWS.Upgrader.WriteBufferSize = 100000
 	d.wWS.Config.MessageBufferSize = 100000
@@ -266,13 +356,47 @@ func (d Dispatcher) Start() {
 	})
 	d.wPeerTalk()
 	d.router.Handle("/rpc", d.rpc).Methods("POST")
+	d.router.HandleFunc("/v1", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("running"))
+	})
+
+	// certManager := autocert.Manager{
+	// 	Prompt: autocert.AcceptTOS,
+	// 	Cache:  autocert.DirCache("../ssl"),
+	// }
+
+	// server := &http.Server{
+	// 	Handler: d.router,
+	// 	Addr:    ":443",
+	// 	TLSConfig: &tls.Config{
+	// 		GetCertificate: certManager.GetCertificate,
+	// 	},
+	// }
+
+	// go http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), certManager.HTTPHandler(nil))
+	// server.ListenAndServeTLS("", "")
+	discover, err := upnp.Discover()
+	if err != nil {
+		glg.Fatal(err)
+	}
+
+	ip, err := discover.ExternalIP()
+	if err != nil {
+		log.Fatal(err)
+	}
+	d.SetIP(ip)
+	err = discover.Forward(uint16(d.GetPort()), "gizo dispatcher node")
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println(http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), d.router))
 }
 
 func NewDispatcher(port int) *Dispatcher {
 	glg.Info("Creating Dispatcher Node")
 	core.InitializeDataPath()
-
+	interrupt := make(chan os.Signal, 1)
+	// signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	var bench benchmark.Engine
 	var priv, pub []byte
 	// ip, err := externalip.DefaultConsensus(nil, nil).ExternalIP()
@@ -309,22 +433,24 @@ func NewDispatcher(port int) *Dispatcher {
 		jc := cache.NewJobCache(bc)
 		return &Dispatcher{
 			// IP:       ip,
-			Pub:      pub,
-			priv:     priv,
-			Port:     uint(port),
-			uptime:   time.Now().Unix(),
-			bench:    bench,
-			jobPQ:    queue.NewJobPriorityQueue(),
-			workers:  make(map[*melody.Session]*WorkerInfo),
-			workerPQ: NewWorkerPriorityQueue(),
-			jc:       jc,
-			bc:       bc,
-			db:       db,
-			router:   mux.NewRouter(),
-			wWS:      melody.New(),
-			dWS:      melody.New(),
-			rpc:      rpc.NewServer(),
-			mu:       new(sync.Mutex),
+			Pub:       pub,
+			priv:      priv,
+			Port:      uint(port),
+			uptime:    time.Now().Unix(),
+			bench:     bench,
+			jobPQ:     queue.NewJobPriorityQueue(),
+			workers:   make(map[*melody.Session]*WorkerInfo),
+			workerPQ:  NewWorkerPriorityQueue(),
+			jc:        jc,
+			bc:        bc,
+			db:        db,
+			router:    mux.NewRouter(),
+			wWS:       melody.New(),
+			dWS:       melody.New(),
+			rpc:       rpc.NewServer(),
+			mu:        new(sync.Mutex),
+			interrupt: interrupt,
+			writeQ:    lane.NewQueue(),
 		}
 	}
 
@@ -362,20 +488,23 @@ func NewDispatcher(port int) *Dispatcher {
 	jc := cache.NewJobCache(bc)
 	return &Dispatcher{
 		// IP:       ip,
-		Pub:      pub,
-		priv:     priv,
-		Port:     uint(port),
-		uptime:   time.Now().Unix(),
-		bench:    bench,
-		workers:  make(map[*melody.Session]*WorkerInfo),
-		workerPQ: NewWorkerPriorityQueue(),
-		jc:       jc,
-		bc:       bc,
-		db:       db,
-		router:   mux.NewRouter(),
-		wWS:      melody.New(),
-		dWS:      melody.New(),
-		rpc:      rpc.NewServer(),
-		mu:       new(sync.Mutex),
+		Pub:       pub,
+		priv:      priv,
+		Port:      uint(port),
+		uptime:    time.Now().Unix(),
+		bench:     bench,
+		jobPQ:     queue.NewJobPriorityQueue(),
+		workers:   make(map[*melody.Session]*WorkerInfo),
+		workerPQ:  NewWorkerPriorityQueue(),
+		jc:        jc,
+		bc:        bc,
+		db:        db,
+		router:    mux.NewRouter(),
+		wWS:       melody.New(),
+		dWS:       melody.New(),
+		rpc:       rpc.NewServer(),
+		mu:        new(sync.Mutex),
+		interrupt: interrupt,
+		writeQ:    lane.NewQueue(),
 	}
 }
