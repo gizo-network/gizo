@@ -103,7 +103,7 @@ func (w *Worker) Start() {
 		_, message, err := w.conn.ReadMessage()
 		if err != nil {
 			//TODO: handle dispatcher unexpected disconnect
-			glg.Fatal(err) //FIXME: error occurs here after job received and processed
+			glg.Fatal(err)
 		}
 		m := DeserializePeerMessage(message)
 		switch m.GetMessage() {

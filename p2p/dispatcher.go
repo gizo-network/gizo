@@ -178,6 +178,18 @@ func (d *Dispatcher) SetWorker(s *melody.Session, w *WorkerInfo) {
 	d.GetWorkers()[s] = w
 }
 
+func (d Dispatcher) GetNeighbours() map[interface{}]*DispatcherInfo {
+	return d.neighbors
+}
+
+func (d Dispatcher) GetNeighbour(n interface{}) *DispatcherInfo {
+	return d.GetNeighbours()[n]
+}
+
+func (d *Dispatcher) SetNeighbour(s interface{}, n *DispatcherInfo) {
+	d.GetNeighbours()[s] = n
+}
+
 func (d Dispatcher) GetBC() *core.BlockChain {
 	return d.bc
 }
@@ -231,8 +243,21 @@ func (d Dispatcher) setRPC(s *rpc.Server) {
 }
 
 func (d Dispatcher) BroadcastWorkers(m []byte) {
-	for s, _ := range d.workers {
+	for s, _ := range d.GetWorkers() {
 		s.Write(m)
+	}
+}
+
+func (d Dispatcher) BroadcastNeighbours(m []byte) {
+	for neighbour, _ := range d.GetNeighbours() {
+		switch n := neighbour.(type) {
+		case *melody.Session:
+			n.Write(m)
+			break
+		case *websocket.Conn:
+			n.WriteMessage(websocket.BinaryMessage, m)
+			break
+		}
 	}
 }
 
@@ -241,7 +266,7 @@ func (d Dispatcher) WorkerExists(s *melody.Session) bool {
 	return ok
 }
 
-func (d Dispatcher) deployJobs() {
+func (d *Dispatcher) deployJobs() {
 	for {
 		if d.GetWorkerPQ().getPQ().Empty() == false {
 			if d.GetJobPQ().GetPQ().Empty() == false {
@@ -326,7 +351,37 @@ func (d Dispatcher) wPeerTalk() {
 }
 
 func (d Dispatcher) dPeerTalk() {
-
+	d.wWS.HandleDisconnect(func(s *melody.Session) {
+		d.mu.Lock()
+		glg.Info("Dispatcher: neighbour disconnected")
+		info := d.GetNeighbour(s)
+		d.BroadcastNeighbours(NeighbourDisconnectMessage(info.GetPub(), d.GetPrivByte()))
+		delete(d.GetNeighbours(), s)
+		d.mu.Unlock()
+	})
+	d.wWS.HandleMessageBinary(func(s *melody.Session, message []byte) {
+		m := DeserializePeerMessage(message)
+		switch m.GetMessage() {
+		case VERSION:
+			// v := DeserializeVersion(m.GetPayload())
+			//TODO: handle version message
+			break
+		case BLOCK:
+			//TODO: handle block message
+			break
+		case NEIGHBOURCONNECT:
+			//TODO: handle neighbour connect
+			break
+		case NEIGHBOURDISCONNECT:
+			//TODO: handle neighbour disconnect
+			break
+		case NEIGHBOURS:
+			//TODO: handle neighbours
+		default:
+			s.Write(InvalidMessage())
+			break
+		}
+	})
 }
 
 func (d Dispatcher) WatchInterrupt() {
@@ -374,8 +429,9 @@ func (d Dispatcher) Start() {
 		d.wWS.HandleRequest(w, r)
 	})
 	d.wPeerTalk()
+	d.dPeerTalk()
 	d.router.Handle("/rpc", d.rpc).Methods("POST")
-	status := make(map[string]interface{})
+	status := make(map[string]string)
 	status["status"] = "running"
 	status["pub"] = d.GetPubString()
 	statusBytes, err := json.Marshal(status)
@@ -468,7 +524,7 @@ func (d *Dispatcher) GetDispatchers() {
 				glg.Fatal(err)
 			}
 			conn.EnableWriteCompression(true)
-			d.neighbors[conn] = NewDispatcherInfo(addr["pub"].(string))
+			d.SetNeighbour(conn, NewDispatcherInfo(addr["pub"].([]byte)))
 			fmt.Println("added connection")
 		}
 	}
