@@ -203,8 +203,6 @@ func (bc *BlockChain) AddBlock(block *Block) error {
 				glg.Fatal(err)
 			}
 			bc.setTip(block.GetHeader().GetHash())
-		} else {
-			fmt.Println("height is less")
 		}
 		return nil
 	})
@@ -282,13 +280,26 @@ func (bc *BlockChain) GetBlockHashes() [][]byte {
 	var hashes [][]byte
 	bci := bc.iterator()
 	for {
-		block := bci.Next()
+		block := bci.NextBlockinfo()
 		hashes = append(hashes, block.GetHeader().GetHash())
 		if block.GetHeight() == 0 {
 			break
 		}
 	}
 	return hashes
+}
+
+func (bc *BlockChain) GetBlockHashesHex() []string {
+	var hashes []string
+	bci := bc.iterator()
+	for {
+		block := bci.NextBlockinfo()
+		hashes = append(hashes, hex.EncodeToString(block.GetHeader().GetHash()))
+		if block.GetHeight() == 0 {
+			break
+		}
+	}
+	return helpers.ReverseString(hashes)
 }
 
 //CreateBlockChain initializes a db, set's the tip to GenesisBlock and returns the blockchain

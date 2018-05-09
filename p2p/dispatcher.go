@@ -3,11 +3,13 @@ package p2p
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"strconv"
 	"sync"
@@ -36,6 +38,7 @@ import (
 	"github.com/gizo-network/gizo/crypt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/rpc/v2"
+	"github.com/gorilla/websocket"
 )
 
 var (
@@ -50,6 +53,7 @@ type Dispatcher struct {
 	uptime    int64  //time since node has been up
 	jobPQ     *queue.JobPriorityQueue
 	workers   map[*melody.Session]*WorkerInfo //worker nodes in dispatcher's area
+	neighbors map[interface{}]*DispatcherInfo
 	workerPQ  *WorkerPriorityQueue
 	bench     benchmark.Engine //benchmark of node
 	wWS       *melody.Melody   //workers ws server
@@ -63,6 +67,9 @@ type Dispatcher struct {
 	jobs      []job.Job // holds done jobs and new jobs submitted to the network before being placed in the bc
 	interrupt chan os.Signal
 	writeQ    *lane.Queue
+	centrum   *Centrum
+	discover  *upnp.IGD
+	new       bool // if true, sends a new dispatcher to centrum else sends a wake with token
 }
 
 func (d Dispatcher) GetJobs() []job.Job {
@@ -80,7 +87,6 @@ func (d Dispatcher) watchWriteQ() {
 
 //WriteJobs writes jobs to the bc
 func (d Dispatcher) WriteJobs(jobs []job.Job) {
-	fmt.Println("writing jobs")
 	nodes := []*merkletree.MerkleNode{}
 	for _, job := range jobs {
 		nodes = append(nodes, merkletree.NewNode(job, &merkletree.MerkleNode{}, &merkletree.MerkleNode{}))
@@ -279,6 +285,7 @@ func (d Dispatcher) wPeerTalk() {
 				glg.Info("Dispatcher: worker connected")
 				d.SetWorker(s, NewWorkerInfo(hex.EncodeToString(m.GetPayload())))
 				s.Write(HelloMessage(d.GetPubByte()))
+				d.centrum.ConnectWorker()
 				d.GetWorkerPQ().Push(s, 0)
 			} else {
 				s.Write(ConnFullMessage())
@@ -308,6 +315,7 @@ func (d Dispatcher) wPeerTalk() {
 			d.mu.Lock()
 			d.GetWorker(s).SetShut(true)
 			s.Write(ShutAckMessage(d.GetPrivByte()))
+			d.centrum.DisconnectWorker()
 			d.mu.Unlock()
 			break
 		default:
@@ -324,11 +332,18 @@ func (d Dispatcher) dPeerTalk() {
 func (d Dispatcher) WatchInterrupt() {
 	select {
 	case i := <-d.interrupt:
-		glg.Warn("Worker: interrupt detected")
+		glg.Warn("Dispatcher: interrupt detected")
 		switch i {
 		case syscall.SIGINT, syscall.SIGTERM:
-			os.Exit(1)
+			res, err := d.centrum.Sleep()
+			if err != nil {
+				glg.Fatal(err)
+			} else if res["status"].(string) != "success" {
+				glg.Fatal("Centrum: " + res["status"].(string))
+			}
 			d.BroadcastWorkers(ShutMessage(d.GetPrivByte()))
+			time.Sleep(time.Second * 3) // give neighbors and workers 3 seconds to disconnect
+			os.Exit(0)
 		case syscall.SIGQUIT:
 			os.Exit(1)
 		}
@@ -336,8 +351,12 @@ func (d Dispatcher) WatchInterrupt() {
 }
 
 func (d Dispatcher) Start() {
+	if !d.GetBC().Verify() {
+		glg.Fatal("Dispatcher: blockchain not verified")
+	}
 	go d.deployJobs()
 	go d.watchWriteQ()
+	go d.WatchInterrupt()
 	d.wWS.Upgrader.ReadBufferSize = 100000
 	d.wWS.Upgrader.WriteBufferSize = 100000
 	d.wWS.Config.MessageBufferSize = 100000
@@ -356,25 +375,113 @@ func (d Dispatcher) Start() {
 	})
 	d.wPeerTalk()
 	d.router.Handle("/rpc", d.rpc).Methods("POST")
-	d.router.HandleFunc("/v1", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("running"))
+	status := make(map[string]interface{})
+	status["status"] = "running"
+	status["pub"] = d.GetPubString()
+	statusBytes, err := json.Marshal(status)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	d.router.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		w.Write(statusBytes)
 	})
 
+	err = d.discover.Forward(uint16(d.GetPort()), "gizo dispatcher node")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if d.new {
+		go d.Register()
+	} else {
+		res, err := d.centrum.Wake()
+		if err != nil {
+			glg.Fatal(err)
+		} else if res["status"].(string) != "success" {
+			glg.Fatal("Centrum: " + res["status"].(string))
+		}
+	}
+
+	//! TLS config
 	// certManager := autocert.Manager{
 	// 	Prompt: autocert.AcceptTOS,
-	// 	Cache:  autocert.DirCache("../ssl"),
+	// 	Cache:  autocert.DirCache("ssl"),
 	// }
 
 	// server := &http.Server{
 	// 	Handler: d.router,
-	// 	Addr:    ":443",
+	// 	Addr:    ":8443",
 	// 	TLSConfig: &tls.Config{
 	// 		GetCertificate: certManager.GetCertificate,
 	// 	},
 	// }
 
-	// go http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), certManager.HTTPHandler(nil))
-	// server.ListenAndServeTLS("", "")
+	// err = d.discover.Forward(8443, "gizo dispatcher node")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// go http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), d.router)
+	// fmt.Println(server.ListenAndServeTLS("", ""))
+	fmt.Println(http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), d.router))
+}
+
+func (d Dispatcher) SaveToken() {
+	err := d.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(NodeBucket))
+		if err := b.Put([]byte("token"), []byte(d.centrum.GetToken())); err != nil {
+			glg.Fatal(err)
+		}
+		return nil
+	})
+	if err != nil {
+		glg.Fatal(err)
+	}
+}
+
+func (d Dispatcher) Register() {
+	time.Sleep(time.Second * 1)
+	if err := d.centrum.NewDisptcher(d.GetPubString(), d.GetIP(), int(d.GetPort())); err != nil {
+		glg.Warn("Centrum: unable to get on network")
+		glg.Fatal("Centrum: " + err.Error())
+	}
+	d.SaveToken()
+}
+
+func (d *Dispatcher) GetDispatchers() {
+	res := d.centrum.GetDispatchers()
+	dispatchers, ok := res["dispatchers"]
+	if !ok {
+		glg.Warn(ErrNoDispatchers)
+		return
+	}
+	for _, dispatcher := range dispatchers.([]string) {
+		addr, err := ParseAddr(dispatcher)
+		if err == nil && addr["pub"].(string) != d.GetPubString() {
+			url := fmt.Sprintf("ws://%v:%v/w", addr["ip"], addr["port"])
+			dailer := websocket.Dialer{
+				Proxy:           http.ProxyFromEnvironment,
+				ReadBufferSize:  10000,
+				WriteBufferSize: 10000,
+			}
+			conn, _, err := dailer.Dial(url, nil)
+			if err != nil {
+				glg.Fatal(err)
+			}
+			conn.EnableWriteCompression(true)
+			d.neighbors[conn] = NewDispatcherInfo(addr["pub"].(string))
+			fmt.Println("added connection")
+		}
+	}
+}
+
+func NewDispatcher(port int) *Dispatcher {
+	glg.Info("Creating Dispatcher Node")
+	core.InitializeDataPath()
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	var bench benchmark.Engine
+	var priv, pub []byte
+	var token string
 	discover, err := upnp.Discover()
 	if err != nil {
 		glg.Fatal(err)
@@ -384,27 +491,8 @@ func (d Dispatcher) Start() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	d.SetIP(ip)
-	err = discover.Forward(uint16(d.GetPort()), "gizo dispatcher node")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), d.router))
-}
 
-func NewDispatcher(port int) *Dispatcher {
-	glg.Info("Creating Dispatcher Node")
-	core.InitializeDataPath()
-	interrupt := make(chan os.Signal, 1)
-	// signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	var bench benchmark.Engine
-	var priv, pub []byte
-	// ip, err := externalip.DefaultConsensus(nil, nil).ExternalIP()
-	// if err != nil {
-	// 	glg.Fatal(err)
-	// }
-
-	// fmt.Println(ip.String())
+	centrum := NewCentrum()
 
 	var dbFile string
 	if os.Getenv("ENV") == "dev" {
@@ -424,15 +512,17 @@ func NewDispatcher(port int) *Dispatcher {
 			priv = b.Get([]byte("priv"))
 			pub = b.Get([]byte("pub"))
 			bench = benchmark.DeserializeBenchmarkEngine(b.Get([]byte("benchmark")))
+			token = string(b.Get([]byte("token")))
 			return nil
 		})
 		if err != nil {
 			glg.Fatal(err)
 		}
+		centrum.SetToken(token)
 		bc := core.CreateBlockChain(hex.EncodeToString(pub))
 		jc := cache.NewJobCache(bc)
 		return &Dispatcher{
-			// IP:       ip,
+			IP:        ip,
 			Pub:       pub,
 			priv:      priv,
 			Port:      uint(port),
@@ -451,6 +541,9 @@ func NewDispatcher(port int) *Dispatcher {
 			mu:        new(sync.Mutex),
 			interrupt: interrupt,
 			writeQ:    lane.NewQueue(),
+			centrum:   centrum,
+			discover:  discover,
+			new:       false,
 		}
 	}
 
@@ -487,7 +580,7 @@ func NewDispatcher(port int) *Dispatcher {
 	bc := core.CreateBlockChain(hex.EncodeToString(pub))
 	jc := cache.NewJobCache(bc)
 	return &Dispatcher{
-		// IP:       ip,
+		IP:        ip,
 		Pub:       pub,
 		priv:      priv,
 		Port:      uint(port),
@@ -506,5 +599,8 @@ func NewDispatcher(port int) *Dispatcher {
 		mu:        new(sync.Mutex),
 		interrupt: interrupt,
 		writeQ:    lane.NewQueue(),
+		centrum:   centrum,
+		discover:  discover,
+		new:       true,
 	}
 }

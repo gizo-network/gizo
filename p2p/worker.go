@@ -108,7 +108,10 @@ func (w *Worker) Start() {
 		m := DeserializePeerMessage(message)
 		switch m.GetMessage() {
 		case HELLO:
-			w.SetDispatcher(hex.EncodeToString(m.GetPayload()))
+			if w.GetDispatcher() != hex.EncodeToString(m.GetPayload()) {
+				w.Disconnect()
+				w.Connect()
+			}
 			w.SetState(INIT)
 			glg.Info("P2P: connected to dispatcher")
 			break
@@ -122,7 +125,6 @@ func (w *Worker) Start() {
 				j := qItem.DeserializeItem(m.GetPayload())
 				exec := j.Job.Execute(j.GetExec())
 				j.SetExec(exec)
-				fmt.Println(string(j.GetExec().Serialize()))
 				w.conn.WriteMessage(websocket.BinaryMessage, ResultMessage(j.GetExec().Serialize(), w.GetPrivByte()))
 			} else {
 				w.conn.WriteMessage(websocket.BinaryMessage, InvalidSignature())
@@ -162,6 +164,7 @@ func (w *Worker) Connect() {
 		if err == nil {
 			url := fmt.Sprintf("ws://%v:%v/w", addr["ip"], addr["port"])
 			if err = w.Dial(url); err == nil {
+				w.SetDispatcher(addr["pub"].(string))
 				return
 			}
 		}
@@ -238,12 +241,6 @@ func NewWorker(port int) *Worker {
 	// 	if err != nil {
 	// 		glg.Fatal(err)
 	// 	}
-	// 	//FIXME: remove static ws
-	// 	conn, _, err := websocket.DefaultDialer.Dial("ws://127.0.0.1:9999/ws", nil)
-	// 	if err != nil {
-	// 		glg.Fatal(err)
-	// 	}
-	// conn.EnableWriteCompression(true)
 	// return &Worker{
 	// 	Pub:       pub,
 	// 	priv:      priv,

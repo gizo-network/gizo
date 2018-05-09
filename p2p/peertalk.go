@@ -9,6 +9,8 @@ const (
 	RESULT           = "RESULT"
 	SHUT             = "SHUT"
 	SHUTACK          = "SHUTACK"
+	VERSION          = "VERSION"
+	BLOCK            = "BLOCK"
 )
 
 func HelloMessage(payload []byte) []byte {
@@ -41,4 +43,12 @@ func ShutMessage(priv []byte) []byte {
 
 func ShutAckMessage(priv []byte) []byte {
 	return NewPeerMessage(SHUTACK, nil, priv).Serialize()
+}
+
+func VersionMessage(payload []byte, priv []byte) []byte {
+	return NewPeerMessage(VERSION, payload, priv).Serialize()
+}
+
+func BlockMessage(payload []byte, priv []byte) []byte {
+	return NewPeerMessage(BLOCK, payload, priv).Serialize()
 }
