@@ -236,6 +236,11 @@ func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
 		if found == nil && err != nil {
 			continue
 		}
+		for i, exec := range found.GetExecs() {
+			if exec.GetTimestamp() > now.BeginningOfDay().Unix() {
+				found.Execs = append(found.Execs[:i], found.Execs[i+1:]...) //! removes execs older than a day
+			}
+		}
 		return found, nil
 	}
 }

@@ -123,7 +123,7 @@ func (w *Worker) Start() {
 			w.SetBusy(true)
 			if m.VerifySignature(w.GetDispatcher()) {
 				j := qItem.DeserializeItem(m.GetPayload())
-				exec := j.Job.Execute(j.GetExec())
+				exec := j.Job.Execute(j.GetExec(), w.GetDispatcher())
 				j.SetExec(exec)
 				w.conn.WriteMessage(websocket.BinaryMessage, ResultMessage(j.GetExec().Serialize(), w.GetPrivByte()))
 			} else {

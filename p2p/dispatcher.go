@@ -66,7 +66,7 @@ type Dispatcher struct {
 	mu        *sync.Mutex
 	jobs      []job.Job // holds done jobs and new jobs submitted to the network before being placed in the bc
 	interrupt chan os.Signal
-	writeQ    *lane.Queue
+	writeQ    *lane.Queue // queue of job (execs) to be written to the db
 	centrum   *Centrum
 	discover  *upnp.IGD
 	new       bool // if true, sends a new dispatcher to centrum else sends a wake with token
@@ -129,6 +129,10 @@ func (d Dispatcher) GetAssignedWorker(hash []byte) *melody.Session {
 	}
 	return nil
 }
+
+// func (d Dispatcher) GetVersion() Version {
+// 	return d.version
+// }
 
 func (d Dispatcher) NodeTypeDispatcher() bool {
 	return true
@@ -351,7 +355,7 @@ func (d Dispatcher) wPeerTalk() {
 }
 
 func (d Dispatcher) dPeerTalk() {
-	d.wWS.HandleDisconnect(func(s *melody.Session) {
+	d.dWS.HandleDisconnect(func(s *melody.Session) {
 		d.mu.Lock()
 		glg.Info("Dispatcher: neighbour disconnected")
 		info := d.GetNeighbour(s)
@@ -359,12 +363,11 @@ func (d Dispatcher) dPeerTalk() {
 		delete(d.GetNeighbours(), s)
 		d.mu.Unlock()
 	})
-	d.wWS.HandleMessageBinary(func(s *melody.Session, message []byte) {
+	d.dWS.HandleMessageBinary(func(s *melody.Session, message []byte) {
 		m := DeserializePeerMessage(message)
 		switch m.GetMessage() {
-		case VERSION:
-			// v := DeserializeVersion(m.GetPayload())
-			//TODO: handle version message
+		case HELLO:
+			s.Write(HelloMessage(NewVersion(GizoVersion, int(d.GetBC().GetLatestHeight()), d.GetBC().GetBlockHashesHex()).Serialize()))
 			break
 		case BLOCK:
 			//TODO: handle block message
@@ -382,6 +385,42 @@ func (d Dispatcher) dPeerTalk() {
 			break
 		}
 	})
+}
+
+func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
+	conn.WriteMessage(websocket.BinaryMessage, HelloMessage(NewVersion(GizoVersion, int(d.GetBC().GetLatestHeight()), d.GetBC().GetBlockHashesHex()).Serialize()))
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			//TODO: in case of sync node, use next best version
+			d.mu.Lock()
+			glg.Info("Dispatcher: neighbour disconnected")
+			info := d.GetNeighbour(conn)
+			d.BroadcastNeighbours(NeighbourDisconnectMessage(info.GetPub(), d.GetPrivByte()))
+			delete(d.GetNeighbours(), conn)
+			d.mu.Unlock()
+		}
+		m := DeserializePeerMessage(message)
+		switch m.GetMessage() {
+		case HELLO:
+			//TODO: handle hello message
+			break
+		case BLOCK:
+			//TODO: handle block message
+			break
+		case NEIGHBOURCONNECT:
+			//TODO: handle neighbour connect
+			break
+		case NEIGHBOURDISCONNECT:
+			//TODO: handle neighbour disconnect
+			break
+		case NEIGHBOURS:
+			//TODO: handle neighbours
+		default:
+			conn.WriteMessage(websocket.BinaryMessage, InvalidMessage())
+			break
+		}
+	}
 }
 
 func (d Dispatcher) WatchInterrupt() {
@@ -525,7 +564,7 @@ func (d *Dispatcher) GetDispatchers() {
 			}
 			conn.EnableWriteCompression(true)
 			d.SetNeighbour(conn, NewDispatcherInfo(addr["pub"].([]byte)))
-			fmt.Println("added connection")
+			go d.HandleNodeConnect(conn)
 		}
 	}
 }
