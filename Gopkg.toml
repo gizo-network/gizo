@@ -100,3 +100,7 @@
 [[constraint]]
   name = "github.com/dghubble/sling"
   version = "1.1.0"
+
+[[constraint]]
+  name = "github.com/thoas/go-funk"
+  version = "0.2.0"

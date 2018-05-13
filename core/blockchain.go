@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	funk "github.com/thoas/go-funk"
+
 	"github.com/gizo-network/gizo/helpers"
 	"github.com/gizo-network/gizo/job"
 
@@ -304,7 +306,7 @@ func (bc *BlockChain) GetBlockHashesHex() []string {
 			break
 		}
 	}
-	return helpers.ReverseString(hashes)
+	return funk.Reverse(hashes).([]string)
 }
 
 //CreateBlockChain initializes a db, set's the tip to GenesisBlock and returns the blockchain

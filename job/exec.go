@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -41,8 +40,6 @@ func NewExec(args []interface{}, retries, priority int, backoff time.Duration, e
 	}
 
 	encryptEnvs := helpers.Encrypt(envs.Serialize(), passphrase)
-	fmt.Println(string(encryptEnvs))
-
 	ex := &Exec{
 		Args:          args,
 		Retries:       retries,

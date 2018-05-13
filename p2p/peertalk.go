@@ -11,7 +11,6 @@ const (
 	SHUTACK             = "SHUTACK"
 	VERSION             = "VERSION"
 	BLOCK               = "BLOCK"
-	NEIGHBOURS          = "NEIGHBOURS"
 	NEIGHBOURCONNECT    = "NEIGHBOURCONNECT"
 	NEIGHBOURDISCONNECT = "NEIGHBOURDISCONNECT"
 )
@@ -62,8 +61,4 @@ func NeighbourConnectMessage(payload, priv []byte) []byte {
 
 func NeighbourDisconnectMessage(payload, priv []byte) []byte {
 	return NewPeerMessage(NEIGHBOURDISCONNECT, payload, priv).Serialize()
-}
-
-func NeighboursMessage(payload []byte, priv []byte) []byte {
-	return NewPeerMessage(NEIGHBOURS, payload, priv).Serialize()
 }
