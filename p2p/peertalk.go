@@ -9,8 +9,9 @@ const (
 	RESULT              = "RESULT"
 	SHUT                = "SHUT"
 	SHUTACK             = "SHUTACK"
-	VERSION             = "VERSION"
 	BLOCK               = "BLOCK"
+	BLOCKREQ            = "BLOCKREQ"
+	BLOCKRES            = "BLOCKRES"
 	NEIGHBOURCONNECT    = "NEIGHBOURCONNECT"
 	NEIGHBOURDISCONNECT = "NEIGHBOURDISCONNECT"
 )
@@ -47,12 +48,16 @@ func ShutAckMessage(priv []byte) []byte {
 	return NewPeerMessage(SHUTACK, nil, priv).Serialize()
 }
 
-func VersionMessage(payload, priv []byte) []byte {
-	return NewPeerMessage(VERSION, payload, priv).Serialize()
-}
-
 func BlockMessage(payload, priv []byte) []byte {
 	return NewPeerMessage(BLOCK, payload, priv).Serialize()
+}
+
+func BlockReqMessage(payload, priv []byte) []byte {
+	return NewPeerMessage(BLOCKREQ, payload, priv).Serialize()
+}
+
+func BlockResMessage(payload, priv []byte) []byte {
+	return NewPeerMessage(BLOCKRES, payload, priv).Serialize()
 }
 
 func NeighbourConnectMessage(payload, priv []byte) []byte {

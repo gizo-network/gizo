@@ -420,12 +420,20 @@ func (d Dispatcher) dPeerTalk() {
 				d.GetBC().AddBlock(b)
 				var peerToRecv []string
 				for _, info := range d.GetNeighbours() {
-					//! split horizon
+					//! avoids broadcast storms by not sending block back to sender and to neigbhours that are not directly connected to sender
 					if funk.IndexOf(info.GetNeighbours(), hex.EncodeToString(d.GetNeighbour(s).GetPub())) == -1 && bytes.Compare(info.GetPub(), d.GetNeighbour(s).GetPub()) != 0 {
 						peerToRecv = append(peerToRecv, hex.EncodeToString(info.GetPub()))
 					}
 				}
 				d.MulticastNeighbours(BlockMessage(m.GetPayload(), d.GetPrivByte()), peerToRecv)
+			}
+			d.mu.Unlock()
+			break
+		case BLOCKREQ:
+			d.mu.Lock()
+			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(s).GetPub())) {
+				blockinfo, _ := d.GetBC().GetBlockInfo(m.GetPayload())
+				s.Write(BlockResMessage(blockinfo.GetBlock().Serialize(), d.GetPrivByte()))
 			}
 			d.mu.Unlock()
 			break
@@ -443,6 +451,7 @@ func (d Dispatcher) dPeerTalk() {
 				for i, neighbour := range neighbours {
 					if neighbour == hex.EncodeToString(m.GetPayload()) {
 						d.GetNeighbour(s).SetNeighbours(append(neighbours[:i], neighbours[i+1:]...))
+						break
 					}
 				}
 			}
@@ -502,7 +511,7 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 				d.GetBC().AddBlock(b)
 				var peerToRecv []string
 				for _, info := range d.GetNeighbours() {
-					//! split horizon
+					//! avoids broadcast storms by not sending block back to sender and to neigbhours that are not directly connected to sender
 					if funk.IndexOf(info.GetNeighbours(), hex.EncodeToString(d.GetNeighbour(conn).GetPub())) == -1 && bytes.Compare(info.GetPub(), d.GetNeighbour(conn).GetPub()) != 0 {
 						peerToRecv = append(peerToRecv, hex.EncodeToString(info.GetPub()))
 					}
@@ -671,7 +680,7 @@ func (d *Dispatcher) GetDispatchers() {
 	for _, dispatcher := range dispatchers.([]string) {
 		addr, err := ParseAddr(dispatcher)
 		if err == nil && addr["pub"].(string) != d.GetPubString() {
-			url := fmt.Sprintf("ws://%v:%v/w", addr["ip"], addr["port"])
+			url := fmt.Sprintf("ws://%v:%v/d", addr["ip"], addr["port"])
 			dailer := websocket.Dialer{
 				Proxy:           http.ProxyFromEnvironment,
 				ReadBufferSize:  10000,

@@ -81,8 +81,8 @@
 [[projects]]
   name = "github.com/gorilla/mux"
   packages = ["."]
-  revision = "53c1911da2b537f792e7cafcb446b05ffe33b996"
-  version = "v1.6.1"
+  revision = "e3702bed27f0d39777b0b37b664b6280e8ef8fbf"
+  version = "v1.6.2"
 
 [[projects]]
   name = "github.com/gorilla/rpc"
@@ -106,9 +106,10 @@
   version = "v1.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/jinzhu/now"
   packages = ["."]
-  revision = "d939ba741945c047cac69c329c5fb0d6b4a06520"
+  revision = "ed742868f2aebdb1c0c437bf4f7257f88834b66f"
 
 [[projects]]
   name = "github.com/joho/godotenv"
@@ -123,6 +124,7 @@
   version = "1.1"
 
 [[projects]]
+  branch = "struct"
   name = "github.com/mattn/anko"
   packages = [
     "ast",
@@ -148,13 +150,12 @@
     "builtins/regexp",
     "builtins/runtime",
     "builtins/sort",
-    "builtins/strconv",
     "builtins/strings",
     "builtins/time",
     "parser",
     "vm"
   ]
-  revision = "d5441ca3f0c7e071a9ede864f9db2cc652690f42"
+  revision = "158d91ccdd07c67e99204497290ec9e687b7a0cd"
 
 [[projects]]
   name = "github.com/mattn/go-isatty"
@@ -202,7 +203,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["blake2b"]
-  revision = "4ec37c66abab2c7e02ae775328b2ff001c3f025a"
+  revision = "94e3fad7f1b4eed4ec147751ad6b4c4d33f00611"
 
 [[projects]]
   branch = "master"
@@ -212,7 +213,7 @@
     "html/atom",
     "html/charset"
   ]
-  revision = "640f4622ab692b87c2f3a94265e6f579fe38263d"
+  revision = "2491c5de3490fced2f6cff376127c667efeed857"
 
 [[projects]]
   branch = "master"
@@ -221,7 +222,7 @@
     "cpu",
     "unix"
   ]
-  revision = "78d5f264b493f125018180c204871ecf58a2dce1"
+  revision = "d0faeb539838e250bd0a9db4182d48d4a1915181"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -256,6 +257,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fee55010e6c7b96ffac6dbaca17c32185121999cc55c29d4fe539e2a5cc26266"
+  inputs-digest = "d4a1e06111501b8fd26a95addfcb2ccb6bcb6ed597edb6fc4123197660dcc185"
   solver-name = "gps-cdcl"
   solver-version = 1
