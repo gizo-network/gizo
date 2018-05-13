@@ -113,7 +113,7 @@ func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 
 //GetLatest15 retuns the latest 15 blocks
 func (bc *BlockChain) GetLatest15() []Block {
-	glg.Info("Core: Getting blocks within last minute")
+	glg.Info("Core: Getting last 15 blocks")
 	var blocks []Block
 	bci := bc.iterator()
 	for {

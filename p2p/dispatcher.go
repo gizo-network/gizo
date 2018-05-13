@@ -382,9 +382,9 @@ func (d Dispatcher) wPeerTalk() {
 func (d Dispatcher) dPeerTalk() {
 	d.dWS.HandleDisconnect(func(s *melody.Session) {
 		d.mu.Lock()
-		glg.Info("Dispatcher: neighbour disconnected")
 		info := d.GetNeighbour(s)
 		if info != nil {
+			glg.Info("Dispatcher: neighbour disconnected")
 			d.BroadcastNeighbours(NeighbourDisconnectMessage(info.GetPub(), d.GetPrivByte()))
 			delete(d.GetNeighbours(), s)
 		}
@@ -404,6 +404,10 @@ func (d Dispatcher) dPeerTalk() {
 			d.mu.Lock()
 			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(s).GetPub())) {
 				b, err := core.DeserializeBlock(m.GetPayload())
+				if err != nil {
+					glg.Fatal(err)
+				}
+				err = b.Export()
 				if err != nil {
 					glg.Fatal(err)
 				}
@@ -487,6 +491,10 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 				if err != nil {
 					glg.Fatal(err)
 				}
+				err = b.Export()
+				if err != nil {
+					glg.Fatal(err)
+				}
 				d.GetBC().AddBlock(b)
 				var peerToRecv []string
 				for _, info := range d.GetNeighbours() {
@@ -502,6 +510,10 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 		case BLOCKRES:
 			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(conn).GetPub())) {
 				b, err := core.DeserializeBlock(m.GetPayload())
+				if err != nil {
+					glg.Fatal(err)
+				}
+				err = b.Export()
 				if err != nil {
 					glg.Fatal(err)
 				}
@@ -562,7 +574,7 @@ func (d Dispatcher) Start() {
 	go d.deployJobs()
 	go d.watchWriteQ()
 	go d.WatchInterrupt()
-	go d.GetDispatchersAndSync()
+	d.GetDispatchersAndSync()
 	d.wWS.Upgrader.ReadBufferSize = 100000
 	d.wWS.Upgrader.WriteBufferSize = 100000
 	d.wWS.Config.MessageBufferSize = 100000
@@ -707,11 +719,12 @@ func (d *Dispatcher) GetDispatchersAndSync() {
 		for _, hash := range syncVersion.GetBlocks() {
 			if !funk.ContainsString(blocks, hash) {
 				hashBytes, err := hex.DecodeString(hash)
-				glg.Fatal(err)
+				if err != nil {
+					glg.Fatal(err)
+				}
 				syncPeer.WriteMessage(websocket.BinaryMessage, BlockReqMessage(hashBytes, d.GetPrivByte()))
 			}
 		}
-		glg.Warn("Dispatcher: node sync done")
 	}
 }
 
