@@ -8,7 +8,8 @@ const (
 	DispatcherScheme = "gizo" //FIXME: use better one
 	MaxWorkers       = 128
 	DefaultPort      = 9999
-	CentrumURL       = "821734d3.ngrok.io"
+	CentrumURL       = "https://f3482d64.ngrok.io"
+	GizoVersion      = 1
 )
 
 // node states

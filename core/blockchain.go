@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	funk "github.com/thoas/go-funk"
+
 	"github.com/gizo-network/gizo/helpers"
 	"github.com/gizo-network/gizo/job"
 
@@ -111,7 +113,7 @@ func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 
 //GetLatest15 retuns the latest 15 blocks
 func (bc *BlockChain) GetLatest15() []Block {
-	glg.Info("Core: Getting blocks within last minute")
+	glg.Info("Core: Getting last 15 blocks")
 	var blocks []Block
 	bci := bc.iterator()
 	for {
@@ -203,8 +205,6 @@ func (bc *BlockChain) AddBlock(block *Block) error {
 				glg.Fatal(err)
 			}
 			bc.setTip(block.GetHeader().GetHash())
-		} else {
-			fmt.Println("height is less")
 		}
 		return nil
 	})
@@ -237,6 +237,11 @@ func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
 		found, err := tree.SearchJob(id)
 		if found == nil && err != nil {
 			continue
+		}
+		for i, exec := range found.GetExecs() {
+			if exec.GetTimestamp() > now.BeginningOfDay().Unix() {
+				found.Execs = append(found.Execs[:i], found.Execs[i+1:]...) //! removes execs older than a day
+			}
 		}
 		return found, nil
 	}
@@ -282,13 +287,26 @@ func (bc *BlockChain) GetBlockHashes() [][]byte {
 	var hashes [][]byte
 	bci := bc.iterator()
 	for {
-		block := bci.Next()
+		block := bci.NextBlockinfo()
 		hashes = append(hashes, block.GetHeader().GetHash())
 		if block.GetHeight() == 0 {
 			break
 		}
 	}
 	return hashes
+}
+
+func (bc *BlockChain) GetBlockHashesHex() []string {
+	var hashes []string
+	bci := bc.iterator()
+	for {
+		block := bci.NextBlockinfo()
+		hashes = append(hashes, hex.EncodeToString(block.GetHeader().GetHash()))
+		if block.GetHeight() == 0 {
+			break
+		}
+	}
+	return funk.Reverse(hashes).([]string)
 }
 
 //CreateBlockChain initializes a db, set's the tip to GenesisBlock and returns the blockchain

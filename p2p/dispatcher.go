@@ -3,11 +3,13 @@ package p2p
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"strconv"
 	"sync"
@@ -24,6 +26,7 @@ import (
 
 	"github.com/gizo-network/gizo/helpers"
 	"github.com/gizo-network/gizo/job/queue"
+	funk "github.com/thoas/go-funk"
 	melody "gopkg.in/olahol/melody.v1"
 
 	"github.com/boltdb/bolt"
@@ -36,6 +39,8 @@ import (
 	"github.com/gizo-network/gizo/crypt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/rpc/v2"
+	"github.com/gorilla/rpc/v2/json2"
+	"github.com/gorilla/websocket"
 )
 
 var (
@@ -50,6 +55,7 @@ type Dispatcher struct {
 	uptime    int64  //time since node has been up
 	jobPQ     *queue.JobPriorityQueue
 	workers   map[*melody.Session]*WorkerInfo //worker nodes in dispatcher's area
+	neighbors map[interface{}]*DispatcherInfo
 	workerPQ  *WorkerPriorityQueue
 	bench     benchmark.Engine //benchmark of node
 	wWS       *melody.Melody   //workers ws server
@@ -62,7 +68,10 @@ type Dispatcher struct {
 	mu        *sync.Mutex
 	jobs      []job.Job // holds done jobs and new jobs submitted to the network before being placed in the bc
 	interrupt chan os.Signal
-	writeQ    *lane.Queue
+	writeQ    *lane.Queue // queue of job (execs) to be written to the db
+	centrum   *Centrum
+	discover  *upnp.IGD
+	new       bool // if true, sends a new dispatcher to centrum else sends a wake with token
 }
 
 func (d Dispatcher) GetJobs() []job.Job {
@@ -80,13 +89,16 @@ func (d Dispatcher) watchWriteQ() {
 
 //WriteJobs writes jobs to the bc
 func (d Dispatcher) WriteJobs(jobs []job.Job) {
-	fmt.Println("writing jobs")
 	nodes := []*merkletree.MerkleNode{}
 	for _, job := range jobs {
 		nodes = append(nodes, merkletree.NewNode(job, &merkletree.MerkleNode{}, &merkletree.MerkleNode{}))
 	}
 	block := core.NewBlock(*merkletree.NewMerkleTree(nodes), d.GetBC().GetLatestBlock().GetHeader().GetHash(), d.GetBC().GetNextHeight(), uint8(difficulty.Difficulty(d.GetBenchmarks(), *d.GetBC())), d.GetPubString())
-	d.GetBC().AddBlock(block)
+	err := d.GetBC().AddBlock(block)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	d.BroadcastNeighbours(BlockMessage(block.Serialize(), d.GetPrivByte()))
 }
 
 func (d *Dispatcher) AddJob(j job.Job) {
@@ -172,6 +184,26 @@ func (d *Dispatcher) SetWorker(s *melody.Session, w *WorkerInfo) {
 	d.GetWorkers()[s] = w
 }
 
+func (d Dispatcher) GetNeighbours() map[interface{}]*DispatcherInfo {
+	return d.neighbors
+}
+
+func (d Dispatcher) GetNeighboursPubs() []string {
+	var temp []string
+	for _, info := range d.GetNeighbours() {
+		temp = append(temp, hex.EncodeToString(info.GetPub()))
+	}
+	return temp
+}
+
+func (d Dispatcher) GetNeighbour(n interface{}) *DispatcherInfo {
+	return d.GetNeighbours()[n]
+}
+
+func (d *Dispatcher) NewNeighbour(s interface{}, n *DispatcherInfo) {
+	d.GetNeighbours()[s] = n
+}
+
 func (d Dispatcher) GetBC() *core.BlockChain {
 	return d.bc
 }
@@ -225,8 +257,36 @@ func (d Dispatcher) setRPC(s *rpc.Server) {
 }
 
 func (d Dispatcher) BroadcastWorkers(m []byte) {
-	for s, _ := range d.workers {
+	for s, _ := range d.GetWorkers() {
 		s.Write(m)
+	}
+}
+
+func (d Dispatcher) BroadcastNeighbours(m []byte) {
+	for neighbour, _ := range d.GetNeighbours() {
+		switch n := neighbour.(type) {
+		case *melody.Session:
+			n.Write(m)
+			break
+		case *websocket.Conn:
+			n.WriteMessage(websocket.BinaryMessage, m)
+			break
+		}
+	}
+}
+
+func (d Dispatcher) MulticastNeighbours(m []byte, neigbhours []string) {
+	for neighbour, info := range d.GetNeighbours() {
+		if funk.ContainsString(neigbhours, hex.EncodeToString(info.GetPub())) {
+			switch n := neighbour.(type) {
+			case *melody.Session:
+				n.Write(m)
+				break
+			case *websocket.Conn:
+				n.WriteMessage(websocket.BinaryMessage, m)
+				break
+			}
+		}
 	}
 }
 
@@ -235,7 +295,7 @@ func (d Dispatcher) WorkerExists(s *melody.Session) bool {
 	return ok
 }
 
-func (d Dispatcher) deployJobs() {
+func (d *Dispatcher) deployJobs() {
 	for {
 		if d.GetWorkerPQ().getPQ().Empty() == false {
 			if d.GetJobPQ().GetPQ().Empty() == false {
@@ -279,6 +339,7 @@ func (d Dispatcher) wPeerTalk() {
 				glg.Info("Dispatcher: worker connected")
 				d.SetWorker(s, NewWorkerInfo(hex.EncodeToString(m.GetPayload())))
 				s.Write(HelloMessage(d.GetPubByte()))
+				d.centrum.ConnectWorker()
 				d.GetWorkerPQ().Push(s, 0)
 			} else {
 				s.Write(ConnFullMessage())
@@ -308,6 +369,7 @@ func (d Dispatcher) wPeerTalk() {
 			d.mu.Lock()
 			d.GetWorker(s).SetShut(true)
 			s.Write(ShutAckMessage(d.GetPrivByte()))
+			d.centrum.DisconnectWorker()
 			d.mu.Unlock()
 			break
 		default:
@@ -318,17 +380,187 @@ func (d Dispatcher) wPeerTalk() {
 }
 
 func (d Dispatcher) dPeerTalk() {
+	d.dWS.HandleDisconnect(func(s *melody.Session) {
+		d.mu.Lock()
+		info := d.GetNeighbour(s)
+		if info != nil {
+			glg.Info("Dispatcher: neighbour disconnected")
+			d.BroadcastNeighbours(NeighbourDisconnectMessage(info.GetPub(), d.GetPrivByte()))
+			delete(d.GetNeighbours(), s)
+		}
+		d.mu.Unlock()
+	})
+	d.dWS.HandleMessageBinary(func(s *melody.Session, message []byte) {
+		m := DeserializePeerMessage(message)
+		switch m.GetMessage() {
+		case HELLO:
+			d.mu.Lock()
+			info := DeserializeDispatcherHello(m.GetPayload())
+			d.NewNeighbour(s, &DispatcherInfo{pub: info.GetPub(), neighbours: info.GetNeighbours()})
+			s.Write(HelloMessage(NewDispatcherHello(d.GetPubByte(), d.GetNeighboursPubs()).Serialize()))
+			d.mu.Unlock()
+			break
+		case BLOCK:
+			d.mu.Lock()
+			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(s).GetPub())) {
+				b, err := core.DeserializeBlock(m.GetPayload())
+				if err != nil {
+					glg.Fatal(err)
+				}
+				err = b.Export()
+				if err != nil {
+					glg.Fatal(err)
+				}
+				d.GetBC().AddBlock(b)
+				var peerToRecv []string
+				for _, info := range d.GetNeighbours() {
+					//! avoids broadcast storms by not sending block back to sender and to neigbhours that are not directly connected to sender
+					if !funk.ContainsString(info.GetNeighbours(), hex.EncodeToString(d.GetNeighbour(s).GetPub())) && bytes.Compare(info.GetPub(), d.GetNeighbour(s).GetPub()) != 0 {
+						peerToRecv = append(peerToRecv, hex.EncodeToString(info.GetPub()))
+					}
+				}
+				d.MulticastNeighbours(BlockMessage(m.GetPayload(), d.GetPrivByte()), peerToRecv)
+			}
+			d.mu.Unlock()
+			break
+		case BLOCKREQ:
+			d.mu.Lock()
+			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(s).GetPub())) {
+				blockinfo, _ := d.GetBC().GetBlockInfo(m.GetPayload())
+				s.Write(BlockResMessage(blockinfo.GetBlock().Serialize(), d.GetPrivByte()))
+			}
+			d.mu.Unlock()
+			break
+		case NEIGHBOURCONNECT:
+			d.mu.Lock()
+			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(s).GetPub())) {
+				d.GetNeighbour(s).AddNeighbour(hex.EncodeToString(m.GetPayload()))
+			}
+			d.mu.Unlock()
+			break
+		case NEIGHBOURDISCONNECT:
+			d.mu.Lock()
+			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(s).GetPub())) {
+				neighbours := d.GetNeighbour(s).GetNeighbours()
+				for i, neighbour := range neighbours {
+					if neighbour == hex.EncodeToString(m.GetPayload()) {
+						d.GetNeighbour(s).SetNeighbours(append(neighbours[:i], neighbours[i+1:]...))
+						break
+					}
+				}
+			}
+			d.mu.Unlock()
+			break
+		default:
+			s.Write(InvalidMessage())
+			break
+		}
+	})
+}
 
+func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
+	conn.WriteMessage(websocket.BinaryMessage, HelloMessage(NewDispatcherHello(d.GetPubByte(), d.GetNeighboursPubs()).Serialize()))
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			//TODO: handle syncer disconnect - use next best version
+			d.mu.Lock()
+			glg.Info("Dispatcher: neighbour disconnected")
+			info := d.GetNeighbour(conn)
+			d.BroadcastNeighbours(NeighbourDisconnectMessage(info.GetPub(), d.GetPrivByte()))
+			delete(d.GetNeighbours(), conn)
+			d.mu.Unlock()
+		}
+		m := DeserializePeerMessage(message)
+		switch m.GetMessage() {
+		case HELLO:
+			d.mu.Lock()
+			peerInfo := DeserializeDispatcherHello(m.GetPayload())
+			if bytes.Compare(d.GetNeighbour(conn).GetPub(), peerInfo.GetPub()) == 0 {
+				d.GetNeighbour(conn).SetNeighbours(peerInfo.GetNeighbours())
+			} else {
+				delete(d.GetNeighbours(), conn)
+				conn.Close()
+			}
+			d.mu.Unlock()
+			break
+		case BLOCK:
+			d.mu.Lock()
+			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(conn).GetPub())) {
+				b, err := core.DeserializeBlock(m.GetPayload())
+				if err != nil {
+					glg.Fatal(err)
+				}
+				err = b.Export()
+				if err != nil {
+					glg.Fatal(err)
+				}
+				d.GetBC().AddBlock(b)
+				var peerToRecv []string
+				for _, info := range d.GetNeighbours() {
+					//! avoids broadcast storms by not sending block back to sender and to neigbhours that are not directly connected to sender
+					if !funk.ContainsString(info.GetNeighbours(), hex.EncodeToString(d.GetNeighbour(conn).GetPub())) && bytes.Compare(info.GetPub(), d.GetNeighbour(conn).GetPub()) != 0 {
+						peerToRecv = append(peerToRecv, hex.EncodeToString(info.GetPub()))
+					}
+				}
+				d.MulticastNeighbours(BlockMessage(m.GetPayload(), d.GetPrivByte()), peerToRecv)
+			}
+			d.mu.Unlock()
+			break
+		case BLOCKRES:
+			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(conn).GetPub())) {
+				b, err := core.DeserializeBlock(m.GetPayload())
+				if err != nil {
+					glg.Fatal(err)
+				}
+				err = b.Export()
+				if err != nil {
+					glg.Fatal(err)
+				}
+				d.GetBC().AddBlock(b)
+			}
+			break
+		case NEIGHBOURCONNECT:
+			d.mu.Lock()
+			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(conn).GetPub())) {
+				d.GetNeighbour(conn).AddNeighbour(hex.EncodeToString(m.GetPayload()))
+			}
+			d.mu.Unlock()
+			break
+		case NEIGHBOURDISCONNECT:
+			d.mu.Lock()
+			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(conn).GetPub())) {
+				neighbours := d.GetNeighbour(conn).GetNeighbours()
+				for i, neighbour := range neighbours {
+					if neighbour == hex.EncodeToString(m.GetPayload()) {
+						d.GetNeighbour(conn).SetNeighbours(append(neighbours[:i], neighbours[i+1:]...))
+					}
+				}
+			}
+			d.mu.Unlock()
+			break
+		default:
+			conn.WriteMessage(websocket.BinaryMessage, InvalidMessage())
+			break
+		}
+	}
 }
 
 func (d Dispatcher) WatchInterrupt() {
 	select {
 	case i := <-d.interrupt:
-		glg.Warn("Worker: interrupt detected")
+		glg.Warn("Dispatcher: interrupt detected")
 		switch i {
 		case syscall.SIGINT, syscall.SIGTERM:
-			os.Exit(1)
+			res, err := d.centrum.Sleep()
+			if err != nil {
+				glg.Fatal(err)
+			} else if res["status"].(string) != "success" {
+				glg.Fatal("Centrum: " + res["status"].(string))
+			}
 			d.BroadcastWorkers(ShutMessage(d.GetPrivByte()))
+			time.Sleep(time.Second * 3) // give neighbors and workers 3 seconds to disconnect
+			os.Exit(0)
 		case syscall.SIGQUIT:
 			os.Exit(1)
 		}
@@ -336,8 +568,13 @@ func (d Dispatcher) WatchInterrupt() {
 }
 
 func (d Dispatcher) Start() {
+	if !d.GetBC().Verify() {
+		glg.Fatal("Dispatcher: blockchain not verified")
+	}
 	go d.deployJobs()
 	go d.watchWriteQ()
+	go d.WatchInterrupt()
+	d.GetDispatchersAndSync()
 	d.wWS.Upgrader.ReadBufferSize = 100000
 	d.wWS.Upgrader.WriteBufferSize = 100000
 	d.wWS.Config.MessageBufferSize = 100000
@@ -355,26 +592,150 @@ func (d Dispatcher) Start() {
 		d.wWS.HandleRequest(w, r)
 	})
 	d.wPeerTalk()
+	d.dPeerTalk()
+	d.rpc.RegisterCodec(json2.NewCodec(), "application/json")
+	d.rpc.RegisterCodec(json2.NewCodec(), "application/json;charset=UTF-8")
 	d.router.Handle("/rpc", d.rpc).Methods("POST")
-	d.router.HandleFunc("/v1", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("running"))
+	status := make(map[string]string)
+	status["status"] = "running"
+	status["pub"] = d.GetPubString()
+	statusBytes, err := json.Marshal(status)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	d.router.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		w.Write(statusBytes)
+	})
+	d.router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Write(NewVersion(GizoVersion, int(d.GetBC().GetLatestHeight()), d.GetBC().GetBlockHashesHex()).Serialize())
 	})
 
+	err = d.discover.Forward(uint16(d.GetPort()), "gizo dispatcher node")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if d.new {
+		go d.Register()
+	} else {
+		res, err := d.centrum.Wake()
+		if err != nil {
+			glg.Fatal(err)
+		} else if res["status"].(string) != "success" {
+			glg.Fatal("Centrum: " + res["status"].(string))
+		}
+	}
+
+	//! TLS config
 	// certManager := autocert.Manager{
 	// 	Prompt: autocert.AcceptTOS,
-	// 	Cache:  autocert.DirCache("../ssl"),
+	// 	Cache:  autocert.DirCache("ssl"),
 	// }
 
 	// server := &http.Server{
 	// 	Handler: d.router,
-	// 	Addr:    ":443",
+	// 	Addr:    ":8443",
 	// 	TLSConfig: &tls.Config{
 	// 		GetCertificate: certManager.GetCertificate,
 	// 	},
 	// }
 
-	// go http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), certManager.HTTPHandler(nil))
-	// server.ListenAndServeTLS("", "")
+	// err = d.discover.Forward(8443, "gizo dispatcher node")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// go http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), d.router)
+	// fmt.Println(server.ListenAndServeTLS("", ""))
+	fmt.Println(http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), d.router))
+}
+
+func (d Dispatcher) SaveToken() {
+	err := d.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(NodeBucket))
+		if err := b.Put([]byte("token"), []byte(d.centrum.GetToken())); err != nil {
+			glg.Fatal(err)
+		}
+		return nil
+	})
+	if err != nil {
+		glg.Fatal(err)
+	}
+}
+
+func (d Dispatcher) Register() {
+	time.Sleep(time.Second * 1)
+	if err := d.centrum.NewDisptcher(d.GetPubString(), d.GetIP(), int(d.GetPort())); err != nil {
+		glg.Warn("Centrum: unable to get on network")
+		glg.Fatal("Centrum: " + err.Error())
+	}
+	d.SaveToken()
+}
+
+func (d *Dispatcher) GetDispatchersAndSync() {
+	time.Sleep(time.Second * 2)
+	res := d.centrum.GetDispatchers()
+	syncVersion := new(Version)
+	syncPeer := new(websocket.Conn)
+	dispatchers, ok := res["dispatchers"]
+	if !ok {
+		glg.Warn(ErrNoDispatchers)
+		return
+	}
+	for _, dispatcher := range dispatchers.([]string) {
+		addr, err := ParseAddr(dispatcher)
+		if err == nil && addr["pub"].(string) != d.GetPubString() {
+			var v Version
+			wsURL := fmt.Sprintf("ws://%v:%v/d", addr["ip"], addr["port"])
+			versionURL := fmt.Sprintf("http://%v:%v/version", addr["ip"], addr["port"])
+			dailer := websocket.Dialer{
+				Proxy:           http.ProxyFromEnvironment,
+				ReadBufferSize:  10000,
+				WriteBufferSize: 10000,
+			}
+			conn, _, err := dailer.Dial(wsURL, nil)
+			if err != nil {
+				glg.Fatal(err)
+			}
+			conn.EnableWriteCompression(true)
+			pubBytes, err := hex.DecodeString(addr["pub"].(string))
+			if err != nil {
+				glg.Fatal(err)
+			}
+			d.NewNeighbour(conn, NewDispatcherInfo(pubBytes))
+			go d.HandleNodeConnect(conn)
+			_, err = s.New().Get(versionURL).ReceiveSuccess(&v)
+			if err != nil {
+				glg.Fatal(err)
+			}
+			if syncVersion.GetHeight() < v.GetHeight() {
+				syncVersion = &v
+				syncPeer = conn
+			}
+		}
+	}
+	if syncVersion.GetHeight() != 0 {
+		glg.Warn("Dispatcher: node sync in progress")
+		blocks := d.GetBC().GetBlockHashesHex()
+		for _, hash := range syncVersion.GetBlocks() {
+			if !funk.ContainsString(blocks, hash) {
+				hashBytes, err := hex.DecodeString(hash)
+				if err != nil {
+					glg.Fatal(err)
+				}
+				syncPeer.WriteMessage(websocket.BinaryMessage, BlockReqMessage(hashBytes, d.GetPrivByte()))
+			}
+		}
+	}
+}
+
+func NewDispatcher(port int) *Dispatcher {
+	glg.Info("Creating Dispatcher Node")
+	core.InitializeDataPath()
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	var bench benchmark.Engine
+	var priv, pub []byte
+	var token string
 	discover, err := upnp.Discover()
 	if err != nil {
 		glg.Fatal(err)
@@ -384,27 +745,8 @@ func (d Dispatcher) Start() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	d.SetIP(ip)
-	err = discover.Forward(uint16(d.GetPort()), "gizo dispatcher node")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), d.router))
-}
 
-func NewDispatcher(port int) *Dispatcher {
-	glg.Info("Creating Dispatcher Node")
-	core.InitializeDataPath()
-	interrupt := make(chan os.Signal, 1)
-	// signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-	var bench benchmark.Engine
-	var priv, pub []byte
-	// ip, err := externalip.DefaultConsensus(nil, nil).ExternalIP()
-	// if err != nil {
-	// 	glg.Fatal(err)
-	// }
-
-	// fmt.Println(ip.String())
+	centrum := NewCentrum()
 
 	var dbFile string
 	if os.Getenv("ENV") == "dev" {
@@ -424,15 +766,17 @@ func NewDispatcher(port int) *Dispatcher {
 			priv = b.Get([]byte("priv"))
 			pub = b.Get([]byte("pub"))
 			bench = benchmark.DeserializeBenchmarkEngine(b.Get([]byte("benchmark")))
+			token = string(b.Get([]byte("token")))
 			return nil
 		})
 		if err != nil {
 			glg.Fatal(err)
 		}
+		centrum.SetToken(token)
 		bc := core.CreateBlockChain(hex.EncodeToString(pub))
 		jc := cache.NewJobCache(bc)
 		return &Dispatcher{
-			// IP:       ip,
+			IP:        ip,
 			Pub:       pub,
 			priv:      priv,
 			Port:      uint(port),
@@ -441,6 +785,7 @@ func NewDispatcher(port int) *Dispatcher {
 			jobPQ:     queue.NewJobPriorityQueue(),
 			workers:   make(map[*melody.Session]*WorkerInfo),
 			workerPQ:  NewWorkerPriorityQueue(),
+			neighbors: make(map[interface{}]*DispatcherInfo),
 			jc:        jc,
 			bc:        bc,
 			db:        db,
@@ -451,6 +796,9 @@ func NewDispatcher(port int) *Dispatcher {
 			mu:        new(sync.Mutex),
 			interrupt: interrupt,
 			writeQ:    lane.NewQueue(),
+			centrum:   centrum,
+			discover:  discover,
+			new:       false,
 		}
 	}
 
@@ -487,7 +835,7 @@ func NewDispatcher(port int) *Dispatcher {
 	bc := core.CreateBlockChain(hex.EncodeToString(pub))
 	jc := cache.NewJobCache(bc)
 	return &Dispatcher{
-		// IP:       ip,
+		IP:        ip,
 		Pub:       pub,
 		priv:      priv,
 		Port:      uint(port),
@@ -496,6 +844,7 @@ func NewDispatcher(port int) *Dispatcher {
 		jobPQ:     queue.NewJobPriorityQueue(),
 		workers:   make(map[*melody.Session]*WorkerInfo),
 		workerPQ:  NewWorkerPriorityQueue(),
+		neighbors: make(map[interface{}]*DispatcherInfo),
 		jc:        jc,
 		bc:        bc,
 		db:        db,
@@ -506,5 +855,8 @@ func NewDispatcher(port int) *Dispatcher {
 		mu:        new(sync.Mutex),
 		interrupt: interrupt,
 		writeQ:    lane.NewQueue(),
+		centrum:   centrum,
+		discover:  discover,
+		new:       true,
 	}
 }

@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	s          = sling.New().Base("https://"+CentrumURL).Add("User-Agent", "Gizo Node")
+	s          = sling.New().Base(CentrumURL).Add("User-Agent", "Gizo Node")
 	ErrNoToken = errors.New("Centrum: No token in struct")
 )
 
@@ -49,7 +49,7 @@ func (c Centrum) GetDispatchers() map[string]interface{} {
 	return temp
 }
 
-func (c Centrum) NewDisptcher(pub, ip string, port int) error {
+func (c *Centrum) NewDisptcher(pub, ip string, port int) error {
 	data := DispatcherBody{Pub: pub, Ip: ip, Port: port}
 	res := make(map[string]interface{})
 	_, err := s.Post("/v1/dispatcher").BodyForm(data).Receive(&res, &res)
@@ -69,7 +69,7 @@ func (c Centrum) ConnectWorker() (map[string]interface{}, error) {
 		return nil, ErrNoToken
 	}
 	res := make(map[string]interface{})
-	_, err := s.Patch("/v1/dispatcher/connect").Add("x-gizo-token", c.GetToken()).Receive(&res, &res)
+	_, err := s.Patch("/v1/dispatcher/connect").Set("x-gizo-token", c.GetToken()).Receive(&res, &res)
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func (c Centrum) DisconnectWorker() (map[string]interface{}, error) {
 		return nil, ErrNoToken
 	}
 	res := make(map[string]interface{})
-	_, err := s.Patch("/v1/dispatcher/disconnect").Add("x-gizo-token", c.GetToken()).Receive(&res, &res)
+	_, err := s.Patch("/v1/dispatcher/disconnect").Set("x-gizo-token", c.GetToken()).Receive(&res, &res)
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -93,10 +93,11 @@ func (c Centrum) Wake() (map[string]interface{}, error) {
 		return nil, ErrNoToken
 	}
 	res := make(map[string]interface{})
-	_, err := s.Patch("/v1/dispatcher/wake").Add("x-gizo-token", c.GetToken()).Receive(&res, &res)
+	_, err := s.Patch("/v1/dispatcher/wake").Set("x-gizo-token", c.GetToken()).Receive(&res, &res)
 	if err != nil {
 		glg.Fatal(err)
 	}
+	glg.Warn("Centrum: waking node")
 	return res, nil
 }
 
@@ -105,9 +106,10 @@ func (c Centrum) Sleep() (map[string]interface{}, error) {
 		return nil, ErrNoToken
 	}
 	res := make(map[string]interface{})
-	_, err := s.Patch("/v1/dispatcher/sleep").Add("x-gizo-token", c.GetToken()).Receive(&res, &res)
+	_, err := s.Patch("/v1/dispatcher/sleep").Set("x-gizo-token", c.GetToken()).Receive(&res, &res)
 	if err != nil {
 		glg.Fatal(err)
 	}
+	glg.Warn("Centrum: sleeping node")
 	return res, nil
 }

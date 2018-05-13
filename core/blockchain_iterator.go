@@ -37,3 +37,19 @@ func (i *BlockChainIterator) Next() *Block {
 	i.setCurrent(block.GetHeader().GetPrevBlockHash())
 	return block
 }
+
+func (i *BlockChainIterator) NextBlockinfo() *BlockInfo {
+	var block *BlockInfo
+	err := i.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(BlockBucket))
+		blockinfoBytes := b.Get(i.GetCurrent())
+		blockinfo := DeserializeBlockInfo(blockinfoBytes)
+		block = blockinfo
+		return nil
+	})
+	if err != nil {
+		glg.Fatal(err)
+	}
+	i.setCurrent(block.GetHeader().GetPrevBlockHash())
+	return block
+}

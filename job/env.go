@@ -1,5 +1,11 @@
 package job
 
+import (
+	"encoding/json"
+
+	"github.com/kpango/glg"
+)
+
 //EnvironmentVariables stores key and value of env variables
 type EnvironmentVariable struct {
 	Key   string `json:"key"`
@@ -23,6 +29,23 @@ func (env EnvironmentVariable) GetValue() string {
 
 type EnvironmentVariables []EnvironmentVariable
 
+func (e EnvironmentVariables) Serialize() []byte {
+	b, err := json.Marshal(e)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	return b
+}
+
 func NewEnvVariables(variables ...EnvironmentVariable) EnvironmentVariables {
 	return variables
+}
+
+func DeserializeEnvs(b []byte) EnvironmentVariables {
+	var temp EnvironmentVariables
+	err := json.Unmarshal(b, &temp)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	return temp
 }
