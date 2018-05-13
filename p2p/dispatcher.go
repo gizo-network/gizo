@@ -384,8 +384,10 @@ func (d Dispatcher) dPeerTalk() {
 		d.mu.Lock()
 		glg.Info("Dispatcher: neighbour disconnected")
 		info := d.GetNeighbour(s)
-		d.BroadcastNeighbours(NeighbourDisconnectMessage(info.GetPub(), d.GetPrivByte()))
-		delete(d.GetNeighbours(), s)
+		if info != nil {
+			d.BroadcastNeighbours(NeighbourDisconnectMessage(info.GetPub(), d.GetPrivByte()))
+			delete(d.GetNeighbours(), s)
+		}
 		d.mu.Unlock()
 	})
 	d.dWS.HandleMessageBinary(func(s *melody.Session, message []byte) {
@@ -393,21 +395,9 @@ func (d Dispatcher) dPeerTalk() {
 		switch m.GetMessage() {
 		case HELLO:
 			d.mu.Lock()
-			peerInfo := make(map[string]interface{})
-			err := json.Unmarshal(m.GetPayload(), &peerInfo)
-			if err != nil {
-				glg.Fatal(err)
-			}
-			d.NewNeighbour(s, &DispatcherInfo{pub: peerInfo["pub"].([]byte), neighbours: peerInfo["neighbours"].([]string)})
-
-			info := make(map[string]interface{})
-			info["pub"] = d.GetPubByte()
-			info["neighbours"] = d.GetNeighboursPubs()
-			infoBytes, err := json.Marshal(info)
-			if err != nil {
-				glg.Fatal(err)
-			}
-			s.Write(HelloMessage(infoBytes))
+			info := DeserializeDispatcherHello(m.GetPayload())
+			d.NewNeighbour(s, &DispatcherInfo{pub: info.GetPub(), neighbours: info.GetNeighbours()})
+			s.Write(HelloMessage(NewDispatcherHello(d.GetPubByte(), d.GetNeighboursPubs()).Serialize()))
 			d.mu.Unlock()
 			break
 		case BLOCK:
@@ -465,14 +455,7 @@ func (d Dispatcher) dPeerTalk() {
 }
 
 func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
-	info := make(map[string]interface{})
-	info["pub"] = d.GetPubByte()
-	info["neighbours"] = d.GetNeighboursPubs()
-	infoBytes, err := json.Marshal(info)
-	if err != nil {
-		glg.Fatal(err)
-	}
-	conn.WriteMessage(websocket.BinaryMessage, HelloMessage(infoBytes))
+	conn.WriteMessage(websocket.BinaryMessage, HelloMessage(NewDispatcherHello(d.GetPubByte(), d.GetNeighboursPubs()).Serialize()))
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -488,13 +471,9 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 		switch m.GetMessage() {
 		case HELLO:
 			d.mu.Lock()
-			peerInfo := make(map[string]interface{})
-			err := json.Unmarshal(m.GetPayload(), &peerInfo)
-			if err != nil {
-				glg.Fatal(err)
-			}
-			if bytes.Compare(d.GetNeighbour(conn).GetPub(), peerInfo["pub"].([]byte)) == 0 {
-				d.GetNeighbour(conn).SetNeighbours(peerInfo["neighbours"].([]string))
+			peerInfo := DeserializeDispatcherHello(m.GetPayload())
+			if bytes.Compare(d.GetNeighbour(conn).GetPub(), peerInfo.GetPub()) == 0 {
+				d.GetNeighbour(conn).SetNeighbours(peerInfo.GetNeighbours())
 			} else {
 				delete(d.GetNeighbours(), conn)
 				conn.Close()
@@ -787,6 +766,7 @@ func NewDispatcher(port int) *Dispatcher {
 			jobPQ:     queue.NewJobPriorityQueue(),
 			workers:   make(map[*melody.Session]*WorkerInfo),
 			workerPQ:  NewWorkerPriorityQueue(),
+			neighbors: make(map[interface{}]*DispatcherInfo),
 			jc:        jc,
 			bc:        bc,
 			db:        db,
@@ -845,6 +825,7 @@ func NewDispatcher(port int) *Dispatcher {
 		jobPQ:     queue.NewJobPriorityQueue(),
 		workers:   make(map[*melody.Session]*WorkerInfo),
 		workerPQ:  NewWorkerPriorityQueue(),
+		neighbors: make(map[interface{}]*DispatcherInfo),
 		jc:        jc,
 		bc:        bc,
 		db:        db,
