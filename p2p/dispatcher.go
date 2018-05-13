@@ -683,7 +683,7 @@ func (d Dispatcher) Register() {
 func (d *Dispatcher) GetDispatchersAndSync() {
 	time.Sleep(time.Second * 2)
 	res := d.centrum.GetDispatchers()
-	syncVersion := Version{}
+	syncVersion := new(Version)
 	syncPeer := new(websocket.Conn)
 	dispatchers, ok := res["dispatchers"]
 	if !ok {
@@ -713,17 +713,19 @@ func (d *Dispatcher) GetDispatchersAndSync() {
 				glg.Fatal(err)
 			}
 			if syncVersion.GetHeight() < v.GetHeight() {
-				syncVersion = v
+				syncVersion = &v
 				syncPeer = conn
 			}
 		}
 	}
-	blocks := d.GetBC().GetBlockHashesHex()
-	for _, hash := range syncVersion.GetBlocks() {
-		if !funk.ContainsString(blocks, hash) {
-			hashBytes, err := hex.DecodeString(hash)
-			glg.Fatal(err)
-			syncPeer.WriteMessage(websocket.BinaryMessage, BlockReqMessage(hashBytes, d.GetPrivByte()))
+	if syncVersion.GetHeight() != 0 {
+		blocks := d.GetBC().GetBlockHashesHex()
+		for _, hash := range syncVersion.GetBlocks() {
+			if !funk.ContainsString(blocks, hash) {
+				hashBytes, err := hex.DecodeString(hash)
+				glg.Fatal(err)
+				syncPeer.WriteMessage(websocket.BinaryMessage, BlockReqMessage(hashBytes, d.GetPrivByte()))
+			}
 		}
 	}
 }
