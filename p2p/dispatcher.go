@@ -277,7 +277,7 @@ func (d Dispatcher) BroadcastNeighbours(m []byte) {
 
 func (d Dispatcher) MulticastNeighbours(m []byte, neigbhours []string) {
 	for neighbour, info := range d.GetNeighbours() {
-		if funk.IndexOf(neigbhours, hex.EncodeToString(info.GetPub())) != -1 {
+		if funk.ContainsString(neigbhours, hex.EncodeToString(info.GetPub())) {
 			switch n := neighbour.(type) {
 			case *melody.Session:
 				n.Write(m)
@@ -421,7 +421,7 @@ func (d Dispatcher) dPeerTalk() {
 				var peerToRecv []string
 				for _, info := range d.GetNeighbours() {
 					//! avoids broadcast storms by not sending block back to sender and to neigbhours that are not directly connected to sender
-					if funk.IndexOf(info.GetNeighbours(), hex.EncodeToString(d.GetNeighbour(s).GetPub())) == -1 && bytes.Compare(info.GetPub(), d.GetNeighbour(s).GetPub()) != 0 {
+					if !funk.ContainsString(info.GetNeighbours(), hex.EncodeToString(d.GetNeighbour(s).GetPub())) && bytes.Compare(info.GetPub(), d.GetNeighbour(s).GetPub()) != 0 {
 						peerToRecv = append(peerToRecv, hex.EncodeToString(info.GetPub()))
 					}
 				}
@@ -476,7 +476,7 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			//TODO: in case of sync node, use next best version
+			//TODO: handle syncer disconnect - use next best version
 			d.mu.Lock()
 			glg.Info("Dispatcher: neighbour disconnected")
 			info := d.GetNeighbour(conn)
@@ -512,13 +512,22 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 				var peerToRecv []string
 				for _, info := range d.GetNeighbours() {
 					//! avoids broadcast storms by not sending block back to sender and to neigbhours that are not directly connected to sender
-					if funk.IndexOf(info.GetNeighbours(), hex.EncodeToString(d.GetNeighbour(conn).GetPub())) == -1 && bytes.Compare(info.GetPub(), d.GetNeighbour(conn).GetPub()) != 0 {
+					if !funk.ContainsString(info.GetNeighbours(), hex.EncodeToString(d.GetNeighbour(conn).GetPub())) && bytes.Compare(info.GetPub(), d.GetNeighbour(conn).GetPub()) != 0 {
 						peerToRecv = append(peerToRecv, hex.EncodeToString(info.GetPub()))
 					}
 				}
 				d.MulticastNeighbours(BlockMessage(m.GetPayload(), d.GetPrivByte()), peerToRecv)
 			}
 			d.mu.Unlock()
+			break
+		case BLOCKRES:
+			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(conn).GetPub())) {
+				b, err := core.DeserializeBlock(m.GetPayload())
+				if err != nil {
+					glg.Fatal(err)
+				}
+				d.GetBC().AddBlock(b)
+			}
 			break
 		case NEIGHBOURCONNECT:
 			d.mu.Lock()
@@ -574,6 +583,7 @@ func (d Dispatcher) Start() {
 	go d.deployJobs()
 	go d.watchWriteQ()
 	go d.WatchInterrupt()
+	go d.GetDispatchersAndSync()
 	d.wWS.Upgrader.ReadBufferSize = 100000
 	d.wWS.Upgrader.WriteBufferSize = 100000
 	d.wWS.Config.MessageBufferSize = 100000
@@ -670,8 +680,11 @@ func (d Dispatcher) Register() {
 	d.SaveToken()
 }
 
-func (d *Dispatcher) GetDispatchers() {
+func (d *Dispatcher) GetDispatchersAndSync() {
+	time.Sleep(time.Second * 2)
 	res := d.centrum.GetDispatchers()
+	syncVersion := Version{}
+	syncPeer := new(websocket.Conn)
 	dispatchers, ok := res["dispatchers"]
 	if !ok {
 		glg.Warn(ErrNoDispatchers)
@@ -680,19 +693,37 @@ func (d *Dispatcher) GetDispatchers() {
 	for _, dispatcher := range dispatchers.([]string) {
 		addr, err := ParseAddr(dispatcher)
 		if err == nil && addr["pub"].(string) != d.GetPubString() {
-			url := fmt.Sprintf("ws://%v:%v/d", addr["ip"], addr["port"])
+			var v Version
+			wsURL := fmt.Sprintf("ws://%v:%v/d", addr["ip"], addr["port"])
+			versionURL := fmt.Sprintf("http://%v:%v/version", addr["ip"], addr["port"])
 			dailer := websocket.Dialer{
 				Proxy:           http.ProxyFromEnvironment,
 				ReadBufferSize:  10000,
 				WriteBufferSize: 10000,
 			}
-			conn, _, err := dailer.Dial(url, nil)
+			conn, _, err := dailer.Dial(wsURL, nil)
 			if err != nil {
 				glg.Fatal(err)
 			}
 			conn.EnableWriteCompression(true)
 			d.NewNeighbour(conn, NewDispatcherInfo(addr["pub"].([]byte)))
 			go d.HandleNodeConnect(conn)
+			_, err = s.New().Get(versionURL).ReceiveSuccess(&v)
+			if err != nil {
+				glg.Fatal(err)
+			}
+			if syncVersion.GetHeight() < v.GetHeight() {
+				syncVersion = v
+				syncPeer = conn
+			}
+		}
+	}
+	blocks := d.GetBC().GetBlockHashesHex()
+	for _, hash := range syncVersion.GetBlocks() {
+		if !funk.ContainsString(blocks, hash) {
+			hashBytes, err := hex.DecodeString(hash)
+			glg.Fatal(err)
+			syncPeer.WriteMessage(websocket.BinaryMessage, BlockReqMessage(hashBytes, d.GetPrivByte()))
 		}
 	}
 }
