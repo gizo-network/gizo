@@ -395,21 +395,9 @@ func (d Dispatcher) dPeerTalk() {
 		switch m.GetMessage() {
 		case HELLO:
 			d.mu.Lock()
-			peerInfo := make(map[string]interface{})
-			err := json.Unmarshal(m.GetPayload(), &peerInfo)
-			if err != nil {
-				glg.Fatal(err)
-			}
-			d.NewNeighbour(s, &DispatcherInfo{pub: peerInfo["pub"].([]byte), neighbours: peerInfo["neighbours"].([]string)})
-
-			info := make(map[string]interface{})
-			info["pub"] = d.GetPubByte()
-			info["neighbours"] = d.GetNeighboursPubs()
-			infoBytes, err := json.Marshal(info)
-			if err != nil {
-				glg.Fatal(err)
-			}
-			s.Write(HelloMessage(infoBytes))
+			info := DeserializeDispatcherHello(m.GetPayload())
+			d.NewNeighbour(s, &DispatcherInfo{pub: info.GetPub(), neighbours: info.GetNeighbours()})
+			s.Write(HelloMessage(NewDispatcherHello(d.GetPubByte(), d.GetNeighboursPubs()).Serialize()))
 			d.mu.Unlock()
 			break
 		case BLOCK:
@@ -483,13 +471,9 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 		switch m.GetMessage() {
 		case HELLO:
 			d.mu.Lock()
-			peerInfo := make(map[string]interface{})
-			err := json.Unmarshal(m.GetPayload(), &peerInfo)
-			if err != nil {
-				glg.Fatal(err)
-			}
-			if hex.EncodeToString(d.GetNeighbour(conn).GetPub()) == peerInfo["pub"].(string) {
-				d.GetNeighbour(conn).SetNeighbours(peerInfo["neighbours"].([]string))
+			peerInfo := DeserializeDispatcherHello(m.GetPayload())
+			if bytes.Compare(d.GetNeighbour(conn).GetPub(), peerInfo.GetPub()) == 0 {
+				d.GetNeighbour(conn).SetNeighbours(peerInfo.GetNeighbours())
 			} else {
 				delete(d.GetNeighbours(), conn)
 				conn.Close()
