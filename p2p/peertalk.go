@@ -1,19 +1,19 @@
 package p2p
 
 const (
-	HELLO               = "HELLO"
-	INVALIDMESSAGE      = "INVALIDMESSAGE" // invalid message
-	CONNFULL            = "CONNFULL"       // max workers reached
-	JOB                 = "JOB"
-	INVALIDSIGNATURE    = "JOB"
-	RESULT              = "RESULT"
-	SHUT                = "SHUT"
-	SHUTACK             = "SHUTACK"
-	BLOCK               = "BLOCK"
-	BLOCKREQ            = "BLOCKREQ"
-	BLOCKRES            = "BLOCKRES"
-	NEIGHBOURCONNECT    = "NEIGHBOURCONNECT"
-	NEIGHBOURDISCONNECT = "NEIGHBOURDISCONNECT"
+	HELLO            = "HELLO"
+	INVALIDMESSAGE   = "INVALIDMESSAGE" // invalid message
+	CONNFULL         = "CONNFULL"       // max workers reached
+	JOB              = "JOB"
+	INVALIDSIGNATURE = "JOB"
+	RESULT           = "RESULT"
+	SHUT             = "SHUT"
+	SHUTACK          = "SHUTACK"
+	BLOCK            = "BLOCK"
+	BLOCKREQ         = "BLOCKREQ"
+	BLOCKRES         = "BLOCKRES"
+	PEERCONNECT      = "PEERCONNECT"
+	PEERDISCONNECT   = "PEERDISCONNECT"
 )
 
 func HelloMessage(payload []byte) []byte {
@@ -60,10 +60,10 @@ func BlockResMessage(payload, priv []byte) []byte {
 	return NewPeerMessage(BLOCKRES, payload, priv).Serialize()
 }
 
-func NeighbourConnectMessage(payload, priv []byte) []byte {
-	return NewPeerMessage(NEIGHBOURCONNECT, payload, priv).Serialize()
+func PeerConnectMessage(payload, priv []byte) []byte {
+	return NewPeerMessage(PEERCONNECT, payload, priv).Serialize()
 }
 
-func NeighbourDisconnectMessage(payload, priv []byte) []byte {
-	return NewPeerMessage(NEIGHBOURDISCONNECT, payload, priv).Serialize()
+func PeerDisconnectMessage(payload, priv []byte) []byte {
+	return NewPeerMessage(PEERDISCONNECT, payload, priv).Serialize()
 }

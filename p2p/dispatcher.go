@@ -55,7 +55,7 @@ type Dispatcher struct {
 	uptime    int64  //time since node has been up
 	jobPQ     *queue.JobPriorityQueue
 	workers   map[*melody.Session]*WorkerInfo //worker nodes in dispatcher's area
-	neighbors map[interface{}]*DispatcherInfo
+	peers     map[interface{}]*DispatcherInfo
 	workerPQ  *WorkerPriorityQueue
 	bench     benchmark.Engine //benchmark of node
 	wWS       *melody.Melody   //workers ws server
@@ -98,7 +98,7 @@ func (d Dispatcher) WriteJobs(jobs []job.Job) {
 	if err != nil {
 		glg.Fatal(err)
 	}
-	d.BroadcastNeighbours(BlockMessage(block.Serialize(), d.GetPrivByte()))
+	d.BroadcastPeers(BlockMessage(block.Serialize(), d.GetPrivByte()))
 }
 
 func (d *Dispatcher) AddJob(j job.Job) {
@@ -184,24 +184,24 @@ func (d *Dispatcher) SetWorker(s *melody.Session, w *WorkerInfo) {
 	d.GetWorkers()[s] = w
 }
 
-func (d Dispatcher) GetNeighbours() map[interface{}]*DispatcherInfo {
-	return d.neighbors
+func (d Dispatcher) GetPeers() map[interface{}]*DispatcherInfo {
+	return d.peers
 }
 
-func (d Dispatcher) GetNeighboursPubs() []string {
+func (d Dispatcher) GetPeersPubs() []string {
 	var temp []string
-	for _, info := range d.GetNeighbours() {
+	for _, info := range d.GetPeers() {
 		temp = append(temp, hex.EncodeToString(info.GetPub()))
 	}
 	return temp
 }
 
-func (d Dispatcher) GetNeighbour(n interface{}) *DispatcherInfo {
-	return d.GetNeighbours()[n]
+func (d Dispatcher) GetPeer(n interface{}) *DispatcherInfo {
+	return d.GetPeers()[n]
 }
 
-func (d *Dispatcher) NewNeighbour(s interface{}, n *DispatcherInfo) {
-	d.GetNeighbours()[s] = n
+func (d *Dispatcher) AddPeer(s interface{}, n *DispatcherInfo) {
+	d.GetPeers()[s] = n
 }
 
 func (d Dispatcher) GetBC() *core.BlockChain {
@@ -262,9 +262,9 @@ func (d Dispatcher) BroadcastWorkers(m []byte) {
 	}
 }
 
-func (d Dispatcher) BroadcastNeighbours(m []byte) {
-	for neighbour, _ := range d.GetNeighbours() {
-		switch n := neighbour.(type) {
+func (d Dispatcher) BroadcastPeers(m []byte) {
+	for peer, _ := range d.GetPeers() {
+		switch n := peer.(type) {
 		case *melody.Session:
 			n.Write(m)
 			break
@@ -275,10 +275,10 @@ func (d Dispatcher) BroadcastNeighbours(m []byte) {
 	}
 }
 
-func (d Dispatcher) MulticastNeighbours(m []byte, neigbhours []string) {
-	for neighbour, info := range d.GetNeighbours() {
+func (d Dispatcher) MulticastPeers(m []byte, neigbhours []string) {
+	for peer, info := range d.GetPeers() {
 		if funk.ContainsString(neigbhours, hex.EncodeToString(info.GetPub())) {
-			switch n := neighbour.(type) {
+			switch n := peer.(type) {
 			case *melody.Session:
 				n.Write(m)
 				break
@@ -382,11 +382,11 @@ func (d Dispatcher) wPeerTalk() {
 func (d Dispatcher) dPeerTalk() {
 	d.dWS.HandleDisconnect(func(s *melody.Session) {
 		d.mu.Lock()
-		info := d.GetNeighbour(s)
+		info := d.GetPeer(s)
 		if info != nil {
-			glg.Info("Dispatcher: neighbour disconnected")
-			d.BroadcastNeighbours(NeighbourDisconnectMessage(info.GetPub(), d.GetPrivByte()))
-			delete(d.GetNeighbours(), s)
+			glg.Info("Dispatcher: peer disconnected")
+			d.BroadcastPeers(PeerDisconnectMessage(info.GetPub(), d.GetPrivByte()))
+			delete(d.GetPeers(), s)
 		}
 		d.mu.Unlock()
 	})
@@ -396,13 +396,13 @@ func (d Dispatcher) dPeerTalk() {
 		case HELLO:
 			d.mu.Lock()
 			info := DeserializeDispatcherHello(m.GetPayload())
-			d.NewNeighbour(s, &DispatcherInfo{pub: info.GetPub(), neighbours: info.GetNeighbours()})
-			s.Write(HelloMessage(NewDispatcherHello(d.GetPubByte(), d.GetNeighboursPubs()).Serialize()))
+			d.AddPeer(s, &DispatcherInfo{pub: info.GetPub(), peers: info.GetPeers()})
+			s.Write(HelloMessage(NewDispatcherHello(d.GetPubByte(), d.GetPeersPubs()).Serialize()))
 			d.mu.Unlock()
 			break
 		case BLOCK:
 			d.mu.Lock()
-			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(s).GetPub())) {
+			if m.VerifySignature(hex.EncodeToString(d.GetPeer(s).GetPub())) {
 				b, err := core.DeserializeBlock(m.GetPayload())
 				if err != nil {
 					glg.Fatal(err)
@@ -413,38 +413,38 @@ func (d Dispatcher) dPeerTalk() {
 				}
 				d.GetBC().AddBlock(b)
 				var peerToRecv []string
-				for _, info := range d.GetNeighbours() {
+				for _, info := range d.GetPeers() {
 					//! avoids broadcast storms by not sending block back to sender and to neigbhours that are not directly connected to sender
-					if !funk.ContainsString(info.GetNeighbours(), hex.EncodeToString(d.GetNeighbour(s).GetPub())) && bytes.Compare(info.GetPub(), d.GetNeighbour(s).GetPub()) != 0 {
+					if !funk.ContainsString(info.GetPeers(), hex.EncodeToString(d.GetPeer(s).GetPub())) && bytes.Compare(info.GetPub(), d.GetPeer(s).GetPub()) != 0 {
 						peerToRecv = append(peerToRecv, hex.EncodeToString(info.GetPub()))
 					}
 				}
-				d.MulticastNeighbours(BlockMessage(m.GetPayload(), d.GetPrivByte()), peerToRecv)
+				d.MulticastPeers(BlockMessage(m.GetPayload(), d.GetPrivByte()), peerToRecv)
 			}
 			d.mu.Unlock()
 			break
 		case BLOCKREQ:
 			d.mu.Lock()
-			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(s).GetPub())) {
+			if m.VerifySignature(hex.EncodeToString(d.GetPeer(s).GetPub())) {
 				blockinfo, _ := d.GetBC().GetBlockInfo(m.GetPayload())
 				s.Write(BlockResMessage(blockinfo.GetBlock().Serialize(), d.GetPrivByte()))
 			}
 			d.mu.Unlock()
 			break
-		case NEIGHBOURCONNECT:
+		case PEERCONNECT:
 			d.mu.Lock()
-			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(s).GetPub())) {
-				d.GetNeighbour(s).AddNeighbour(hex.EncodeToString(m.GetPayload()))
+			if m.VerifySignature(hex.EncodeToString(d.GetPeer(s).GetPub())) {
+				d.GetPeer(s).AddPeer(hex.EncodeToString(m.GetPayload()))
 			}
 			d.mu.Unlock()
 			break
-		case NEIGHBOURDISCONNECT:
+		case PEERDISCONNECT:
 			d.mu.Lock()
-			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(s).GetPub())) {
-				neighbours := d.GetNeighbour(s).GetNeighbours()
-				for i, neighbour := range neighbours {
-					if neighbour == hex.EncodeToString(m.GetPayload()) {
-						d.GetNeighbour(s).SetNeighbours(append(neighbours[:i], neighbours[i+1:]...))
+			if m.VerifySignature(hex.EncodeToString(d.GetPeer(s).GetPub())) {
+				peers := d.GetPeer(s).GetPeers()
+				for i, peer := range peers {
+					if peer == hex.EncodeToString(m.GetPayload()) {
+						d.GetPeer(s).SetPeers(append(peers[:i], peers[i+1:]...))
 						break
 					}
 				}
@@ -459,16 +459,16 @@ func (d Dispatcher) dPeerTalk() {
 }
 
 func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
-	conn.WriteMessage(websocket.BinaryMessage, HelloMessage(NewDispatcherHello(d.GetPubByte(), d.GetNeighboursPubs()).Serialize()))
+	conn.WriteMessage(websocket.BinaryMessage, HelloMessage(NewDispatcherHello(d.GetPubByte(), d.GetPeersPubs()).Serialize()))
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			//TODO: handle syncer disconnect - use next best version
 			d.mu.Lock()
-			glg.Info("Dispatcher: neighbour disconnected")
-			info := d.GetNeighbour(conn)
-			d.BroadcastNeighbours(NeighbourDisconnectMessage(info.GetPub(), d.GetPrivByte()))
-			delete(d.GetNeighbours(), conn)
+			glg.Info("Dispatcher: peer disconnected")
+			info := d.GetPeer(conn)
+			d.BroadcastPeers(PeerDisconnectMessage(info.GetPub(), d.GetPrivByte()))
+			delete(d.GetPeers(), conn)
 			d.mu.Unlock()
 		}
 		m := DeserializePeerMessage(message)
@@ -476,17 +476,17 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 		case HELLO:
 			d.mu.Lock()
 			peerInfo := DeserializeDispatcherHello(m.GetPayload())
-			if bytes.Compare(d.GetNeighbour(conn).GetPub(), peerInfo.GetPub()) == 0 {
-				d.GetNeighbour(conn).SetNeighbours(peerInfo.GetNeighbours())
+			if bytes.Compare(d.GetPeer(conn).GetPub(), peerInfo.GetPub()) == 0 {
+				d.GetPeer(conn).SetPeers(peerInfo.GetPeers())
 			} else {
-				delete(d.GetNeighbours(), conn)
+				delete(d.GetPeers(), conn)
 				conn.Close()
 			}
 			d.mu.Unlock()
 			break
 		case BLOCK:
 			d.mu.Lock()
-			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(conn).GetPub())) {
+			if m.VerifySignature(hex.EncodeToString(d.GetPeer(conn).GetPub())) {
 				b, err := core.DeserializeBlock(m.GetPayload())
 				if err != nil {
 					glg.Fatal(err)
@@ -497,18 +497,18 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 				}
 				d.GetBC().AddBlock(b)
 				var peerToRecv []string
-				for _, info := range d.GetNeighbours() {
+				for _, info := range d.GetPeers() {
 					//! avoids broadcast storms by not sending block back to sender and to neigbhours that are not directly connected to sender
-					if !funk.ContainsString(info.GetNeighbours(), hex.EncodeToString(d.GetNeighbour(conn).GetPub())) && bytes.Compare(info.GetPub(), d.GetNeighbour(conn).GetPub()) != 0 {
+					if !funk.ContainsString(info.GetPeers(), hex.EncodeToString(d.GetPeer(conn).GetPub())) && bytes.Compare(info.GetPub(), d.GetPeer(conn).GetPub()) != 0 {
 						peerToRecv = append(peerToRecv, hex.EncodeToString(info.GetPub()))
 					}
 				}
-				d.MulticastNeighbours(BlockMessage(m.GetPayload(), d.GetPrivByte()), peerToRecv)
+				d.MulticastPeers(BlockMessage(m.GetPayload(), d.GetPrivByte()), peerToRecv)
 			}
 			d.mu.Unlock()
 			break
 		case BLOCKRES:
-			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(conn).GetPub())) {
+			if m.VerifySignature(hex.EncodeToString(d.GetPeer(conn).GetPub())) {
 				b, err := core.DeserializeBlock(m.GetPayload())
 				if err != nil {
 					glg.Fatal(err)
@@ -520,20 +520,20 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 				d.GetBC().AddBlock(b)
 			}
 			break
-		case NEIGHBOURCONNECT:
+		case PEERCONNECT:
 			d.mu.Lock()
-			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(conn).GetPub())) {
-				d.GetNeighbour(conn).AddNeighbour(hex.EncodeToString(m.GetPayload()))
+			if m.VerifySignature(hex.EncodeToString(d.GetPeer(conn).GetPub())) {
+				d.GetPeer(conn).AddPeer(hex.EncodeToString(m.GetPayload()))
 			}
 			d.mu.Unlock()
 			break
-		case NEIGHBOURDISCONNECT:
+		case PEERDISCONNECT:
 			d.mu.Lock()
-			if m.VerifySignature(hex.EncodeToString(d.GetNeighbour(conn).GetPub())) {
-				neighbours := d.GetNeighbour(conn).GetNeighbours()
-				for i, neighbour := range neighbours {
-					if neighbour == hex.EncodeToString(m.GetPayload()) {
-						d.GetNeighbour(conn).SetNeighbours(append(neighbours[:i], neighbours[i+1:]...))
+			if m.VerifySignature(hex.EncodeToString(d.GetPeer(conn).GetPub())) {
+				peers := d.GetPeer(conn).GetPeers()
+				for i, peer := range peers {
+					if peer == hex.EncodeToString(m.GetPayload()) {
+						d.GetPeer(conn).SetPeers(append(peers[:i], peers[i+1:]...))
 					}
 				}
 			}
@@ -701,7 +701,7 @@ func (d *Dispatcher) GetDispatchersAndSync() {
 			if err != nil {
 				glg.Fatal(err)
 			}
-			d.NewNeighbour(conn, NewDispatcherInfo(pubBytes))
+			d.AddPeer(conn, NewDispatcherInfo(pubBytes))
 			go d.HandleNodeConnect(conn)
 			_, err = s.New().Get(versionURL).ReceiveSuccess(&v)
 			if err != nil {
@@ -785,7 +785,7 @@ func NewDispatcher(port int) *Dispatcher {
 			jobPQ:     queue.NewJobPriorityQueue(),
 			workers:   make(map[*melody.Session]*WorkerInfo),
 			workerPQ:  NewWorkerPriorityQueue(),
-			neighbors: make(map[interface{}]*DispatcherInfo),
+			peers:     make(map[interface{}]*DispatcherInfo),
 			jc:        jc,
 			bc:        bc,
 			db:        db,
@@ -844,7 +844,7 @@ func NewDispatcher(port int) *Dispatcher {
 		jobPQ:     queue.NewJobPriorityQueue(),
 		workers:   make(map[*melody.Session]*WorkerInfo),
 		workerPQ:  NewWorkerPriorityQueue(),
-		neighbors: make(map[interface{}]*DispatcherInfo),
+		peers:     make(map[interface{}]*DispatcherInfo),
 		jc:        jc,
 		bc:        bc,
 		db:        db,

@@ -8,7 +8,7 @@ const (
 	DispatcherScheme = "gizo" //FIXME: use better one
 	MaxWorkers       = 128
 	DefaultPort      = 9999
-	CentrumURL       = "https://f3482d64.ngrok.io"
+	CentrumURL       = "https://126774b5.ngrok.io"
 	GizoVersion      = 1
 )
 
@@ -17,11 +17,11 @@ const (
 	// when a node is not connected to the network
 	DOWN = "DOWN"
 	// worker - when a worker connects to a dispatchers standard area
-	// dispatcher - when an adjacency is created and topology table, neighbour table and blockchain have not been synced
+	// dispatcher - when an adjacency is created and topology table, peer table and blockchain have not been synced
 	INIT = "INIT"
 	// worker - when a node starts receiving and crunching jobs
 	LIVE = "LIVE"
-	// dispatcher - when an adjacency is created and topology table, neighbour table and blockchain have been sync
+	// dispatcher - when an adjacency is created and topology table, peer table and blockchain have been sync
 	FULL = "FULL"
 )
 

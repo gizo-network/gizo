@@ -17,7 +17,6 @@ import (
 )
 
 type Worker struct {
-	Port       uint   // port
 	Pub        []byte //public key of the node
 	Dispatcher string
 	shortlist  []string // array of dispatchers received from centrum
@@ -72,10 +71,6 @@ func (w Worker) GetPrivByte() []byte {
 
 func (w Worker) GetPrivString() string {
 	return hex.EncodeToString(w.priv)
-}
-
-func (w Worker) GetPort() int {
-	return int(w.Port)
 }
 
 func (w Worker) GetUptme() int64 {
@@ -213,7 +208,7 @@ func (w *Worker) GetDispatchers() {
 	w.SetShortlist(shortlist.([]string))
 }
 
-func NewWorker(port int) *Worker {
+func NewWorker() *Worker {
 	core.InitializeDataPath()
 	var priv, pub []byte
 	interrupt := make(chan os.Signal, 1)
@@ -244,7 +239,6 @@ func NewWorker(port int) *Worker {
 	// return &Worker{
 	// 	Pub:       pub,
 	// 	priv:      priv,
-	// 	Port:      uint(port),
 	// 	uptime:    time.Now().Unix(),
 	// 	interrupt: interrupt,
 	// 	state:     DOWN,
@@ -278,7 +272,6 @@ func NewWorker(port int) *Worker {
 	return &Worker{
 		Pub:       pub,
 		priv:      priv,
-		Port:      uint(port),
 		uptime:    time.Now().Unix(),
 		interrupt: interrupt,
 		state:     DOWN,
