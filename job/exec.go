@@ -7,36 +7,39 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gizo-network/gizo/helpers"
+
 	"github.com/kpango/glg"
 )
 
 //TODO: add environment variables
 type Exec struct {
-	Hash          []byte               `json:"hash"`
-	Timestamp     int64                `json:"timestamp"`
-	Duration      time.Duration        `json:"duaration"` //saved in nanoseconds
-	Args          []interface{}        `json:"args"`
-	Err           interface{}          `json:"err"`
-	Priority      int                  `json:"priority"`
-	Result        interface{}          `json:"result"`
-	Status        string               `json:"status"`         //job status
-	Retries       int                  `json:"retries"`        // number of max retries
-	RetriesCount  int                  `json:"retries_count"`  //number of retries
-	Backoff       time.Duration        `json:"backoff"`        //backoff time of retries (seconds)
-	ExecutionTime int64                `json:"execution_time"` // time scheduled to run (unix) - should sleep # of seconds before adding to job queue
-	Interval      int                  `json:"interval"`       //periodic job exec (seconds)
-	By            string               `json:"by"`             //! ID of the worker node that ran this
-	TTL           time.Duration        `json:"ttl"`            //! time limit of job running
-	Pub           string               `json:"pub"`            //! public key for private jobs
-	Envs          EnvironmentVariables `json:"envs"`
+	Hash          []byte        `json:"hash"`
+	Timestamp     int64         `json:"timestamp"`
+	Duration      time.Duration `json:"duaration"` //saved in nanoseconds
+	Args          []interface{} `json:"args"`
+	Err           interface{}   `json:"err"`
+	Priority      int           `json:"priority"`
+	Result        interface{}   `json:"result"`
+	Status        string        `json:"status"`         //job status
+	Retries       int           `json:"retries"`        // number of max retries
+	RetriesCount  int           `json:"retries_count"`  //number of retries
+	Backoff       time.Duration `json:"backoff"`        //backoff time of retries (seconds)
+	ExecutionTime int64         `json:"execution_time"` // time scheduled to run (unix) - should sleep # of seconds before adding to job queue
+	Interval      int           `json:"interval"`       //periodic job exec (seconds)
+	By            string        `json:"by"`             //! ID of the worker node that ran this
+	TTL           time.Duration `json:"ttl"`            //! time limit of job running
+	Pub           string        `json:"pub"`            //! public key for private jobs
+	Envs          []byte        `json:"envs"`
 	cancel        chan struct{}
 }
 
-func NewExec(args []interface{}, retries, priority int, backoff time.Duration, execTime int64, interval int, ttl time.Duration, pub string, envs EnvironmentVariables) (*Exec, error) {
+func NewExec(args []interface{}, retries, priority int, backoff time.Duration, execTime int64, interval int, ttl time.Duration, pub string, envs EnvironmentVariables, passphrase string) (*Exec, error) {
 	if retries > MaxRetries {
 		return nil, ErrRetriesOutsideLimit
 	}
 
+	encryptEnvs := helpers.Encrypt(envs.Serialize(), passphrase)
 	ex := &Exec{
 		Args:          args,
 		Retries:       retries,
@@ -47,7 +50,7 @@ func NewExec(args []interface{}, retries, priority int, backoff time.Duration, e
 		Interval:      interval,
 		ExecutionTime: execTime,
 		TTL:           ttl,
-		Envs:          envs,
+		Envs:          encryptEnvs,
 		Pub:           pub,
 		cancel:        make(chan struct{}),
 	}
@@ -62,13 +65,14 @@ func (e Exec) GetCancelChan() chan struct{} {
 	return e.cancel
 }
 
-func (e Exec) GetEnvs() EnvironmentVariables {
-	return e.Envs
+func (e Exec) GetEnvs(passphrase string) EnvironmentVariables {
+	return DeserializeEnvs(helpers.Decrypt(e.Envs, passphrase))
 }
 
-func (e Exec) GetEnvsMap() map[string]interface{} {
+func (e Exec) GetEnvsMap(passphrase string) map[string]interface{} {
 	temp := make(map[string]interface{})
-	for _, val := range e.GetEnvs() {
+	envs := e.GetEnvs(passphrase)
+	for _, val := range envs {
 		temp[val.GetKey()] = val.GetValue()
 	}
 	return temp

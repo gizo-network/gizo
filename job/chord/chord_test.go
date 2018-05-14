@@ -57,7 +57,7 @@ func TestChord(t *testing.T) {
 	nodes := []*merkletree.MerkleNode{node1, node2, node3}
 	tree := merkletree.NewMerkleTree(nodes)
 	bc := core.CreateBlockChain("test")
-	block := core.NewBlock(*tree, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetLatestHeight()+1, 10)
+	block := core.NewBlock(*tree, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetNextHeight(), 10, "test")
 	bc.AddBlock(block)
 	jr := job.NewJobRequestMultiple(j.GetID(), exec1, exec2, exec3)
 	jr2 := job.NewJobRequestMultiple(j2.GetID(), exec4)

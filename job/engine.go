@@ -264,8 +264,8 @@ func argsStringified(args []interface{}) string {
 	return temp + ")"
 }
 
-//! run in goroutine
-func (j *Job) Execute(exec *Exec) *Exec {
+func (j *Job) Execute(exec *Exec, passphrase string) *Exec {
+	//TODO: kill goroutines running within this function when it exits
 	if j.GetPrivate() == true {
 		if j.VerifySignature(exec.getPub()) == false {
 			exec.SetErr(ErrUnverifiedSignature)
@@ -306,7 +306,7 @@ func (j *Job) Execute(exec *Exec) *Exec {
 	retry:
 		env := anko_vm.NewEnv()
 		anko_core.LoadAllBuiltins(env) //!FIXME: limiit packages that are loaded in
-		env.Define("env", exec.GetEnvsMap())
+		env.Define("env", exec.GetEnvsMap(passphrase))
 		var result interface{}
 		var err error
 		if len(exec.GetArgs()) == 0 {

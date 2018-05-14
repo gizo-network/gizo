@@ -45,7 +45,7 @@ func TestBatch(t *testing.T) {
 	nodes := []*merkletree.MerkleNode{node1, node2}
 	tree := merkletree.NewMerkleTree(nodes)
 	bc := core.CreateBlockChain("test")
-	block := core.NewBlock(*tree, bc.GetPrevHash(), bc.GetNextHeight(), 10)
+	block := core.NewBlock(*tree, bc.GetPrevHash(), bc.GetNextHeight(), 10, "test")
 	bc.AddBlock(block)
 	jr := job.NewJobRequestMultiple(j.GetID(), exec1, exec2, exec3)
 	jr2 := job.NewJobRequestMultiple(j2.GetID(), exec4, exec4, exec4, exec4, exec4)

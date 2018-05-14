@@ -80,3 +80,27 @@
 [[constraint]]
   name = "github.com/osamingo/jsonrpc"
   version = "2.1.0"
+
+[[constraint]]
+  name = "github.com/labstack/echo"
+  version = "3.3.5"
+
+[[constraint]]
+  branch = "master"
+  name = "golang.org/x/crypto"
+
+[[constraint]]
+  name = "github.com/spf13/cobra"
+  version = "0.0.2"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/NebulousLabs/go-upnp"
+
+[[constraint]]
+  name = "github.com/dghubble/sling"
+  version = "1.1.0"
+
+[[constraint]]
+  name = "github.com/thoas/go-funk"
+  version = "0.2.0"

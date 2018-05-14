@@ -12,7 +12,7 @@ import (
 
 func TestErrors(t *testing.T) {
 	assert.NotNil(t, merkletree.ErrTooMuchLeafNodes)
-	assert.NotNil(t, merkletree.ErrOddLeafNodes)
+	// assert.NotNil(t, merkletree.ErrOddLeafNodes)
 	assert.NotNil(t, merkletree.ErrTreeRebuildAttempt)
 	assert.NotNil(t, merkletree.ErrTreeNotBuilt)
 	assert.NotNil(t, merkletree.ErrLeafNodesEmpty)

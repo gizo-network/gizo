@@ -62,7 +62,7 @@ func (b *Block) setHeight(h uint64) {
 }
 
 //NewBlock returns a new block
-func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficulty uint8) *Block {
+func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficulty uint8, by string) *Block {
 	block := &Block{
 		Header: BlockHeader{
 			Timestamp:     time.Now().Unix(),
@@ -72,10 +72,11 @@ func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficult
 		},
 		Jobs:   tree.GetLeafNodes(),
 		Height: height,
+		By:     by,
 	}
 	pow := NewPOW(block)
 	pow.run() //! mines block
-	err := block.export()
+	err := block.Export()
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -83,7 +84,7 @@ func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficult
 }
 
 //writes block on disk
-func (b Block) export() error {
+func (b Block) Export() error {
 	glg.Info("Core: Exporting block - " + hex.EncodeToString(b.GetHeader().GetHash()))
 	InitializeDataPath()
 	if b.IsEmpty() {
