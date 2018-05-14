@@ -100,6 +100,17 @@
   version = "v1.2.0"
 
 [[projects]]
+  name = "github.com/hprose/hprose-golang"
+  packages = [
+    ".",
+    "io",
+    "rpc",
+    "util"
+  ]
+  revision = "b2b25423cffe1829254b1e4fbc6f0a7360dd626b"
+  version = "v2.0.4"
+
+[[projects]]
   name = "github.com/inconshreveable/mousetrap"
   packages = ["."]
   revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
@@ -257,6 +268,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d4a1e06111501b8fd26a95addfcb2ccb6bcb6ed597edb6fc4123197660dcc185"
+  inputs-digest = "4d1447e34ca28e9977b51fcae6e8f290da0093863db807b289860463f4a4b572"
   solver-name = "gps-cdcl"
   solver-version = 1

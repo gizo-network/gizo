@@ -18,6 +18,7 @@ import (
 
 	"github.com/Lobarr/lane"
 	upnp "github.com/NebulousLabs/go-upnp"
+	"github.com/hprose/hprose-golang/rpc"
 
 	"github.com/gizo-network/gizo/core/difficulty"
 	"github.com/gizo-network/gizo/core/merkletree"
@@ -38,8 +39,6 @@ import (
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/crypt"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/rpc/v2"
-	"github.com/gorilla/rpc/v2/json2"
 	"github.com/gorilla/websocket"
 )
 
@@ -60,7 +59,7 @@ type Dispatcher struct {
 	bench     benchmark.Engine //benchmark of node
 	wWS       *melody.Melody   //workers ws server
 	dWS       *melody.Melody   //dispatchers ws server
-	rpc       *rpc.Server
+	rpc       *rpc.HTTPService
 	router    *mux.Router
 	jc        *cache.JobCache  //job cache
 	bc        *core.BlockChain //blockchain
@@ -248,11 +247,11 @@ func (d *Dispatcher) setDWS(m *melody.Melody) {
 	d.dWS = m
 }
 
-func (d Dispatcher) GetRPC() *rpc.Server {
+func (d Dispatcher) GetRPC() *rpc.HTTPService {
 	return d.rpc
 }
 
-func (d Dispatcher) setRPC(s *rpc.Server) {
+func (d Dispatcher) setRPC(s *rpc.HTTPService) {
 	d.rpc = s
 }
 
@@ -593,9 +592,8 @@ func (d Dispatcher) Start() {
 	})
 	d.wPeerTalk()
 	d.dPeerTalk()
-	d.rpc.RegisterCodec(json2.NewCodec(), "application/json")
-	d.rpc.RegisterCodec(json2.NewCodec(), "application/json;charset=UTF-8")
-	d.router.Handle("/rpc", d.rpc).Methods("POST")
+	d.RpcHttp()
+	d.router.Handle("/rpc", d.GetRPC()).Methods("POST")
 	status := make(map[string]string)
 	status["status"] = "running"
 	status["pub"] = d.GetPubString()
@@ -792,7 +790,7 @@ func NewDispatcher(port int) *Dispatcher {
 			router:    mux.NewRouter(),
 			wWS:       melody.New(),
 			dWS:       melody.New(),
-			rpc:       rpc.NewServer(),
+			rpc:       rpc.NewHTTPService(),
 			mu:        new(sync.Mutex),
 			interrupt: interrupt,
 			writeQ:    lane.NewQueue(),
@@ -851,7 +849,7 @@ func NewDispatcher(port int) *Dispatcher {
 		router:    mux.NewRouter(),
 		wWS:       melody.New(),
 		dWS:       melody.New(),
-		rpc:       rpc.NewServer(),
+		rpc:       rpc.NewHTTPService(),
 		mu:        new(sync.Mutex),
 		interrupt: interrupt,
 		writeQ:    lane.NewQueue(),

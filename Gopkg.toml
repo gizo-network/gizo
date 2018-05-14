@@ -104,3 +104,7 @@
 [[constraint]]
   name = "github.com/thoas/go-funk"
   version = "0.2.0"
+
+[[constraint]]
+  name = "github.com/hprose/hprose-golang"
+  version = "2.0.4"

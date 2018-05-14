@@ -13,7 +13,7 @@ import (
 
 func TestNewBlock(t *testing.T) {
 	priv, _ := crypt.GenKeys()
-	j := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
+	j, _ := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -30,7 +30,7 @@ func TestNewBlock(t *testing.T) {
 
 func TestVerifyBlock(t *testing.T) {
 	priv, _ := crypt.GenKeys()
-	j := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
+	j, _ := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -49,7 +49,7 @@ func TestVerifyBlock(t *testing.T) {
 
 func TestSerialize(t *testing.T) {
 	priv, _ := crypt.GenKeys()
-	j := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
+	j, _ := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -65,7 +65,7 @@ func TestSerialize(t *testing.T) {
 
 func TestDeserializeBlock(t *testing.T) {
 	priv, _ := crypt.GenKeys()
-	j := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
+	j, _ := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -84,7 +84,7 @@ func TestDeserializeBlock(t *testing.T) {
 
 func TestIsEmpty(t *testing.T) {
 	priv, _ := crypt.GenKeys()
-	j := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
+	j, _ := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -101,7 +101,7 @@ func TestIsEmpty(t *testing.T) {
 
 func TestExport(t *testing.T) {
 	priv, _ := crypt.GenKeys()
-	j := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
+	j, _ := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -116,7 +116,7 @@ func TestExport(t *testing.T) {
 
 func TestImport(t *testing.T) {
 	priv, _ := crypt.GenKeys()
-	j := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
+	j, _ := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
@@ -136,7 +136,7 @@ func TestImport(t *testing.T) {
 
 func TestFileStats(t *testing.T) {
 	priv, _ := crypt.GenKeys()
-	j := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
+	j, _ := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})

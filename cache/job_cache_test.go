@@ -19,7 +19,7 @@ func TestJobCache(t *testing.T) {
 	os.Setenv("ENV", "dev")
 	core.RemoveDataPath()
 	priv, _ := crypt.GenKeys()
-	j1 := job.NewJob(`
+	j1, _ := job.NewJob(`
 		func Factorial(n){
 		 if(n > 0){
 		  result = n * Factorial(n-1)
@@ -31,7 +31,7 @@ func TestJobCache(t *testing.T) {
 	j1.AddExec(job.Exec{})
 	j1.AddExec(job.Exec{})
 	j1.AddExec(job.Exec{})
-	j2 := job.NewJob(`
+	j2, _ := job.NewJob(`
 			func Factorial(n){
 			 if(n > 0){
 			  result = n * Factorial(n-1)
@@ -43,7 +43,7 @@ func TestJobCache(t *testing.T) {
 	j2.AddExec(job.Exec{})
 	j2.AddExec(job.Exec{})
 	j2.AddExec(job.Exec{})
-	j3 := job.NewJob(`
+	j3, _ := job.NewJob(`
 				func Factorial(n){
 				 if(n > 0){
 				  result = n * Factorial(n-1)

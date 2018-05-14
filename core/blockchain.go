@@ -111,6 +111,18 @@ func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	return blocks
 }
 
+func (bc *BlockChain) GetBlockByHeight(height int) (*Block, error) {
+	bci := bc.iterator()
+	for {
+		block := bci.Next()
+		if height != 0 && block.GetHeight() == 0 {
+			return nil, ErrBlockNotFound
+		} else if int(block.GetHeight()) == height {
+			return block, nil
+		}
+	}
+}
+
 //GetLatest15 retuns the latest 15 blocks
 func (bc *BlockChain) GetLatest15() []Block {
 	glg.Info("Core: Getting last 15 blocks")
