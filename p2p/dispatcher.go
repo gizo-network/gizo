@@ -606,9 +606,6 @@ func (d Dispatcher) Start() {
 	d.router.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(statusBytes)
 	})
-	d.router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
-		w.Write(NewVersion(GizoVersion, int(d.GetBC().GetLatestHeight()), d.GetBC().GetBlockHashesHex()).Serialize())
-	})
 
 	err = d.discover.Forward(uint16(d.GetPort()), "gizo dispatcher node")
 	if err != nil {
@@ -680,10 +677,6 @@ func (d *Dispatcher) GetDispatchersAndSync() {
 			}
 			d.AddPeer(conn, NewDispatcherInfo(pubBytes))
 			go d.HandleNodeConnect(conn)
-			// _, err = s.New().Get(versionURL).ReceiveSuccess(&v)
-			// if err != nil {
-			// 	glg.Fatal(err)
-			// }
 			type version struct {
 				Version func() string
 			}

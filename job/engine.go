@@ -29,14 +29,14 @@ var (
 )
 
 type Job struct {
-	ID             string    `json:"id"`
-	Hash           []byte    `json:"hash"`
-	Execs          []Exec    `json:"execs"`
-	Name           string    `json:"name"`
-	Task           string    `json:"task"`
-	Signature      [][]byte  `json:"signature"` // signature of owner
-	SubmissionTime time.Time `json:"submission_time"`
-	Private        bool      `json:"private"` //private job flag (default to false - public)
+	ID             string
+	Hash           []byte
+	Execs          []Exec
+	Name           string
+	Task           string
+	Signature      [][]byte // signature of owner
+	SubmissionTime time.Time
+	Private        bool //private job flag (default to false - public)
 }
 
 func (j *Job) Sign(priv []byte) {

@@ -12,10 +12,10 @@ import (
 
 // MerkleNode nodes that make a merkletree
 type MerkleNode struct {
-	Hash  []byte      `json:"hash"` //hash of a job struct
-	Job   job.Job     `json:"job"`
-	Left  *MerkleNode `json:"left"`
-	Right *MerkleNode `json:"right"`
+	Hash  []byte //hash of a job struct
+	Job   job.Job
+	Left  *MerkleNode
+	Right *MerkleNode
 }
 
 // GetHash returns hash

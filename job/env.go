@@ -8,8 +8,8 @@ import (
 
 //EnvironmentVariables stores key and value of env variables
 type EnvironmentVariable struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	Key   string
+	Value string
 }
 
 func NewEnv(key, value string) *EnvironmentVariable {

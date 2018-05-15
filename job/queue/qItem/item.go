@@ -8,8 +8,8 @@ import (
 )
 
 type Item struct {
-	Job     job.Job   `json:"job"`
-	Exec    *job.Exec `json:"exec"`
+	Job     job.Job
+	Exec    *job.Exec
 	results chan<- Item
 	cancel  chan<- struct{}
 }
