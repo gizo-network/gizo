@@ -355,6 +355,7 @@ func (d Dispatcher) wPeerTalk() {
 				j := d.GetWorker(s).GetJob().GetJob()
 				d.GetWorker(s).SetJob(nil)
 				j.AddExec(exec)
+				//TODO: send to requester
 				d.AddJob(j)
 			} else {
 				d.GetJobPQ().PushItem(*d.GetWorker(s).GetJob(), job.HIGH)

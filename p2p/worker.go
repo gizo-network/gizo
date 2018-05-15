@@ -27,6 +27,15 @@ type Worker struct {
 	shutdown   chan struct{}
 	busy       bool
 	state      string
+	item       qItem.Item
+}
+
+func (w Worker) GetItem() qItem.Item {
+	return w.item
+}
+
+func (w *Worker) SetItem(i qItem.Item) {
+	w.item = i
 }
 
 func (w Worker) GetShortlist() []string {
@@ -103,6 +112,10 @@ func (w *Worker) Start() {
 		}
 		m := DeserializePeerMessage(message)
 		switch m.GetMessage() {
+		case CONNFULL:
+			w.Disconnect()
+			w.Connect()
+			break
 		case HELLO:
 			if w.GetDispatcher() != hex.EncodeToString(m.GetPayload()) {
 				w.Disconnect()
@@ -118,15 +131,23 @@ func (w *Worker) Start() {
 			}
 			w.SetBusy(true)
 			if m.VerifySignature(w.GetDispatcher()) {
-				j := qItem.DeserializeItem(m.GetPayload())
-				exec := j.Job.Execute(j.GetExec(), w.GetDispatcher())
-				j.SetExec(exec)
-				w.conn.WriteMessage(websocket.BinaryMessage, ResultMessage(j.GetExec().Serialize(), w.GetPrivByte()))
+				w.SetItem(qItem.DeserializeItem(m.GetPayload()))
+				exec := w.item.Job.Execute(w.item.GetExec(), w.GetDispatcher())
+				w.item.SetExec(exec)
+				w.conn.WriteMessage(websocket.BinaryMessage, ResultMessage(w.item.GetExec().Serialize(), w.GetPrivByte()))
 			} else {
 				w.conn.WriteMessage(websocket.BinaryMessage, InvalidSignature())
 				w.Disconnect()
 			}
 			w.SetBusy(false)
+			break
+		case CANCEL:
+			glg.Info("P2P: job cancelled")
+			if m.VerifySignature(w.GetDispatcher()) {
+				w.item.GetExec().Cancel()
+			} else {
+				w.conn.WriteMessage(websocket.BinaryMessage, InvalidSignature())
+			}
 			break
 		case SHUT:
 			//TODO: handle dispatcher shut

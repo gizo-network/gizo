@@ -291,7 +291,7 @@ func (bc *BlockChain) GetJobExecs(id string) []job.Exec {
 	for {
 		block := bci.Next()
 		if block.GetHeight() == 0 {
-			return funk.Uniq(execs).([]job.Exec)
+			return job.UniqExec(execs)
 		}
 		tree.SetLeafNodes(block.GetNodes())
 		found, err := tree.SearchJob(id)

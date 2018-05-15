@@ -14,6 +14,7 @@ const (
 	BLOCKRES         = "BLOCKRES"
 	PEERCONNECT      = "PEERCONNECT"
 	PEERDISCONNECT   = "PEERDISCONNECT"
+	CANCEL           = "CANCEL"
 )
 
 func HelloMessage(payload []byte) []byte {
@@ -66,4 +67,8 @@ func PeerConnectMessage(payload, priv []byte) []byte {
 
 func PeerDisconnectMessage(payload, priv []byte) []byte {
 	return NewPeerMessage(PEERDISCONNECT, payload, priv).Serialize()
+}
+
+func CancelMessage(priv []byte) []byte {
+	return NewPeerMessage(CANCEL, nil, priv).Serialize()
 }
