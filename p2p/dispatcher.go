@@ -662,9 +662,8 @@ func (d *Dispatcher) GetDispatchersAndSync() {
 	for _, dispatcher := range dispatchers.([]string) {
 		addr, err := ParseAddr(dispatcher)
 		if err == nil && addr["pub"].(string) != d.GetPubString() {
-			var v Version
 			wsURL := fmt.Sprintf("ws://%v:%v/d", addr["ip"], addr["port"])
-			versionURL := fmt.Sprintf("http://%v:%v/version", addr["ip"], addr["port"])
+			versionURL := fmt.Sprintf("http://%v:%v/rpc", addr["ip"], addr["port"])
 			dailer := websocket.Dialer{
 				Proxy:           http.ProxyFromEnvironment,
 				ReadBufferSize:  10000,
@@ -681,10 +680,17 @@ func (d *Dispatcher) GetDispatchersAndSync() {
 			}
 			d.AddPeer(conn, NewDispatcherInfo(pubBytes))
 			go d.HandleNodeConnect(conn)
-			_, err = s.New().Get(versionURL).ReceiveSuccess(&v)
-			if err != nil {
-				glg.Fatal(err)
+			// _, err = s.New().Get(versionURL).ReceiveSuccess(&v)
+			// if err != nil {
+			// 	glg.Fatal(err)
+			// }
+			type version struct {
+				Version func() string
 			}
+			client := rpc.NewHTTPClient(versionURL)
+			var versionService *version
+			client.UseService(&versionService)
+			v := DeserializeVersion([]byte(versionService.Version()))
 			if syncVersion.GetHeight() < v.GetHeight() {
 				syncVersion = &v
 				syncPeer = conn

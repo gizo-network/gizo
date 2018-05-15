@@ -12,6 +12,7 @@ import (
 )
 
 func (d Dispatcher) RpcHttp() {
+	d.GetRPC().AddFunction("Version", d.Version)
 	d.GetRPC().AddFunction("PeerCount", d.PeerCount)
 	d.GetRPC().AddFunction("BlockByHash", d.BlockByHash)
 	d.GetRPC().AddFunction("BlockByHeight", d.BlockByHeight)
@@ -60,6 +61,10 @@ func (d Dispatcher) RpcHttp() {
 	d.GetRPC().AddFunction("JobExecs", d.JobExecs)
 	d.GetRPC().AddFunction("BlockHashesHex", d.BlockHashesHex)
 	d.GetRPC().AddFunction("KeyPair", d.KeyPair)
+}
+
+func (d Dispatcher) Version() string {
+	return string(NewVersion(GizoVersion, int(d.GetBC().GetLatestHeight()), d.GetBC().GetBlockHashesHex()).Serialize())
 }
 
 func (d Dispatcher) PeerCount() int {
