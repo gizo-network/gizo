@@ -19,7 +19,7 @@ func TestChain(t *testing.T) {
 	core.RemoveDataPath()
 	priv, _ := crypt.GenKeys()
 	pq := queue.NewJobPriorityQueue()
-	j := job.NewJob(`
+	j, _ := job.NewJob(`
 	func Factorial(n){
 	 if(n > 0){
 	  result = n * Factorial(n-1)
@@ -27,19 +27,19 @@ func TestChain(t *testing.T) {
 	 }
 	 return 1
 	}`, "Factorial", false, hex.EncodeToString(priv))
-	j2 := job.NewJob(`
+	j2, _ := job.NewJob(`
 		func Test(){
 			return "Testing"
 		}
 		`, "Test", false, hex.EncodeToString(priv))
 	envs := job.NewEnvVariables(*job.NewEnv("Env", "Anko"), *job.NewEnv("By", "Lobarr"))
-	exec1, err := job.NewExec([]interface{}{10}, 5, job.NORMAL, 0, 0, 0, 0, "", envs)
+	exec1, err := job.NewExec([]interface{}{10}, 5, job.NORMAL, 0, 0, 0, 0, "", envs, "test")
 	assert.NoError(t, err)
-	exec2, err := job.NewExec([]interface{}{11}, 5, job.NORMAL, 0, 0, 0, 0, "", envs)
+	exec2, err := job.NewExec([]interface{}{11}, 5, job.NORMAL, 0, 0, 0, 0, "", envs, "test")
 	assert.NoError(t, err)
-	exec3, err := job.NewExec([]interface{}{12}, 5, job.NORMAL, 0, 0, 0, 0, "", envs)
+	exec3, err := job.NewExec([]interface{}{12}, 5, job.NORMAL, 0, 0, 0, 0, "", envs, "test")
 	assert.NoError(t, err)
-	exec4, err := job.NewExec([]interface{}{}, 5, job.NORMAL, 0, 0, 0, 0, "", envs)
+	exec4, err := job.NewExec([]interface{}{}, 5, job.NORMAL, 0, 0, 0, 0, "", envs, "test")
 	assert.NoError(t, err)
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j2, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})

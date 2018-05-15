@@ -17,7 +17,7 @@ type Exec struct {
 	Hash          []byte        `json:"hash"`
 	Timestamp     int64         `json:"timestamp"`
 	Duration      time.Duration `json:"duaration"` //saved in nanoseconds
-	Args          []interface{} `json:"args"`
+	Args          []interface{} `json:"args"`      // parameters
 	Err           interface{}   `json:"err"`
 	Priority      int           `json:"priority"`
 	Result        interface{}   `json:"result"`
@@ -259,5 +259,18 @@ func DeserializeExec(b []byte) Exec {
 		glg.Fatal(err)
 	}
 	temp.cancel = make(chan struct{})
+	return temp
+}
+
+func UniqExec(execs []Exec) []Exec {
+	temp := []Exec{}
+	seen := make(map[string]bool)
+	for _, exec := range execs {
+		if _, ok := seen[string(exec.Serialize())]; ok {
+			continue
+		}
+		seen[string(exec.Serialize())] = true
+		temp = append(temp, exec)
+	}
 	return temp
 }

@@ -11,7 +11,7 @@ import (
 
 func TestMerge(t *testing.T) {
 	priv, _ := crypt.GenKeys()
-	j := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
+	j, _ := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 

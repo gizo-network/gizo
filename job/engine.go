@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"log"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -85,7 +84,7 @@ func (j Job) IsEmpty() bool {
 	return j.GetID() == "" && reflect.ValueOf(j.GetHash()).IsNil() && reflect.ValueOf(j.GetExecs()).IsNil() && j.GetTask() == "" && reflect.ValueOf(j.GetSignature()).IsNil() && j.GetName() == ""
 }
 
-func NewJob(task string, name string, priv bool, privKey string) *Job {
+func NewJob(task string, name string, priv bool, privKey string) (*Job, error) {
 	j := &Job{
 		SubmissionTime: time.Now(),
 		ID:             uuid.NewV4().String(),
@@ -96,11 +95,11 @@ func NewJob(task string, name string, priv bool, privKey string) *Job {
 	}
 	privBytes, err := hex.DecodeString(privKey)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	j.Sign(privBytes)
 	j.setHash()
-	return j
+	return j, nil
 }
 
 func (j Job) GetPrivate() bool {

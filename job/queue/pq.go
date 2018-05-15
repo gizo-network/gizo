@@ -45,27 +45,14 @@ func (pq JobPriorityQueue) GetPQ() *lane.PQueue {
 
 }
 
-// func (pq JobPriorityQueue) watch() {
-// 	for {
-// 		if pq.getPQ().Empty() == false {
-// 			//TODO: dispatch to next available worker node
-// 			i := pq.Pop()
-// 			if i.GetExec().GetStatus() == job.CANCELLED {
-// 				i.ResultsChan() <- i
-// 			} else {
-// 				exec := i.Job.Execute(i.GetExec())
-// 				i.SetExec(exec)
-// 				i.ResultsChan() <- i
-// 			}
-// 		}
-// 	}
-// }
+func (pq JobPriorityQueue) Len() int {
+	return pq.GetPQ().Size()
+}
 
 func NewJobPriorityQueue() *JobPriorityQueue {
 	pq := lane.NewPQueue(lane.MAXPQ)
 	q := &JobPriorityQueue{
 		pq: pq,
 	}
-	// go q.watch()
 	return q
 }

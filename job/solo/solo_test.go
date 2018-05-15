@@ -20,7 +20,7 @@ func TestSolo(t *testing.T) {
 	core.RemoveDataPath()
 	priv, pub := crypt.GenKeys()
 	pq := queue.NewJobPriorityQueue()
-	j := job.NewJob(`	
+	j, _ := job.NewJob(`	
 	func Factorial(n){
 	 if(n > 0){
 	  result = n * Factorial(n-1)
@@ -29,7 +29,7 @@ func TestSolo(t *testing.T) {
 	 return 1
 	}`, "Factorial", false, hex.EncodeToString(priv))
 	envs := job.NewEnvVariables(*job.NewEnv("Env", "Anko"), *job.NewEnv("By", "Lobarr"))
-	exec1, err := job.NewExec([]interface{}{2}, 5, job.NORMAL, 0, 0, 0, 0, hex.EncodeToString(pub), envs)
+	exec1, err := job.NewExec([]interface{}{2}, 5, job.NORMAL, 0, 0, 0, 0, hex.EncodeToString(pub), envs, "test")
 	assert.NoError(t, err)
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	nodes := []*merkletree.MerkleNode{node1}
