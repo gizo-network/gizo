@@ -606,6 +606,9 @@ func (d Dispatcher) Start() {
 	d.router.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(statusBytes)
 	})
+	d.router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Write(NewVersion(GizoVersion, int(d.GetBC().GetLatestHeight()), d.GetBC().GetBlockHashesHex()).Serialize())
+	})
 
 	err = d.discover.Forward(uint16(d.GetPort()), "gizo dispatcher node")
 	if err != nil {
@@ -659,6 +662,7 @@ func (d *Dispatcher) GetDispatchersAndSync() {
 	for _, dispatcher := range dispatchers.([]string) {
 		addr, err := ParseAddr(dispatcher)
 		if err == nil && addr["pub"].(string) != d.GetPubString() {
+			var v Version
 			wsURL := fmt.Sprintf("ws://%v:%v/d", addr["ip"], addr["port"])
 			versionURL := fmt.Sprintf("http://%v:%v/rpc", addr["ip"], addr["port"])
 			dailer := websocket.Dialer{
@@ -677,13 +681,10 @@ func (d *Dispatcher) GetDispatchersAndSync() {
 			}
 			d.AddPeer(conn, NewDispatcherInfo(pubBytes))
 			go d.HandleNodeConnect(conn)
-			type version struct {
-				Version func() string
+			_, err = s.New().Get(versionURL).ReceiveSuccess(&v)
+			if err != nil {
+				glg.Fatal(err)
 			}
-			client := rpc.NewHTTPClient(versionURL)
-			var versionService *version
-			client.UseService(&versionService)
-			v := DeserializeVersion([]byte(versionService.Version()))
 			if syncVersion.GetHeight() < v.GetHeight() {
 				syncVersion = &v
 				syncPeer = conn

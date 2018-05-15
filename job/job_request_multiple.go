@@ -7,19 +7,19 @@ import (
 )
 
 type JobRequestMultiple struct {
-	ID   string
-	Exec []*Exec
+	ID    string
+	Execs []*Exec
 }
 
 func NewJobRequestMultiple(id string, exec ...*Exec) *JobRequestMultiple {
 	return &JobRequestMultiple{
-		ID:   id,
-		Exec: exec,
+		ID:    id,
+		Execs: exec,
 	}
 }
 
 func (jr *JobRequestMultiple) AppendExec(exec *Exec) {
-	jr.Exec = append(jr.Exec, exec)
+	jr.Execs = append(jr.Execs, exec)
 }
 
 func (jr *JobRequestMultiple) SetID(id string) {
@@ -31,7 +31,7 @@ func (jr JobRequestMultiple) GetID() string {
 }
 
 func (jr JobRequestMultiple) GetExec() []*Exec {
-	return jr.Exec
+	return jr.Execs
 }
 
 func DeserializeJRM(b []byte) JobRequestMultiple {
