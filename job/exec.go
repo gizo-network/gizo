@@ -17,7 +17,7 @@ type Exec struct {
 	Hash          []byte        `json:"hash"`
 	Timestamp     int64         `json:"timestamp"`
 	Duration      time.Duration `json:"duaration"` //saved in nanoseconds
-	Args          []interface{} `json:"args"`
+	Args          []interface{} `json:"args"`      // parameters
 	Err           interface{}   `json:"err"`
 	Priority      int           `json:"priority"`
 	Result        interface{}   `json:"result"`

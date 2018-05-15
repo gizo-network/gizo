@@ -551,6 +551,7 @@ func (d Dispatcher) WatchInterrupt() {
 		glg.Warn("Dispatcher: interrupt detected")
 		switch i {
 		case syscall.SIGINT, syscall.SIGTERM:
+			//TODO: get jobs from workers, add all jobs held in memory to block, broadcast block to the network
 			res, err := d.centrum.Sleep()
 			if err != nil {
 				glg.Fatal(err)
@@ -622,28 +623,6 @@ func (d Dispatcher) Start() {
 			glg.Fatal("Centrum: " + res["status"].(string))
 		}
 	}
-
-	//! TLS config
-	// certManager := autocert.Manager{
-	// 	Prompt: autocert.AcceptTOS,
-	// 	Cache:  autocert.DirCache("ssl"),
-	// }
-
-	// server := &http.Server{
-	// 	Handler: d.router,
-	// 	Addr:    ":8443",
-	// 	TLSConfig: &tls.Config{
-	// 		GetCertificate: certManager.GetCertificate,
-	// 	},
-	// }
-
-	// err = d.discover.Forward(8443, "gizo dispatcher node")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// go http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), d.router)
-	// fmt.Println(server.ListenAndServeTLS("", ""))
 	fmt.Println(http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), d.router))
 }
 

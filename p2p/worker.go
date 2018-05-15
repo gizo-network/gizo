@@ -90,6 +90,7 @@ func (w Worker) GetUptimeString() string {
 }
 
 func (w *Worker) Start() {
+	//TODO: implemented cancel and getstatus
 	w.GetDispatchers()
 	w.Connect()
 	go w.WatchInterrupt()

@@ -259,6 +259,49 @@ func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
 	}
 }
 
+func (bc *BlockChain) FindExec(id string, hash []byte) (*job.Exec, error) {
+	//FIXME: speed up
+	glg.Info("Core: Finding Job in the blockchain - " + id)
+	var tree merkletree.MerkleTree
+	bci := bc.iterator()
+	for {
+		block := bci.Next()
+		if block.GetHeight() == 0 {
+			return nil, job.ErrExecNotFound
+		}
+		tree.SetLeafNodes(block.GetNodes())
+		found, err := tree.SearchJob(id)
+		if found == nil && err != nil {
+			continue
+		}
+		exec, err := found.GetExec(hash)
+		if err != nil {
+			continue
+		}
+		return exec, nil
+	}
+}
+
+func (bc *BlockChain) GetJobExecs(id string) []job.Exec {
+	//FIXME: speed up
+	glg.Info("Core: Finding Job in the blockchain - " + id)
+	execs := []job.Exec{}
+	var tree merkletree.MerkleTree
+	bci := bc.iterator()
+	for {
+		block := bci.Next()
+		if block.GetHeight() == 0 {
+			return funk.Uniq(execs).([]job.Exec)
+		}
+		tree.SetLeafNodes(block.GetNodes())
+		found, err := tree.SearchJob(id)
+		if found == nil && err != nil {
+			continue
+		}
+		execs = append(execs, found.GetExecs()...)
+	}
+}
+
 //FindMerkleNode returns the merklenode from the blockchain
 func (bc *BlockChain) FindMerkleNode(h []byte) (*merkletree.MerkleNode, error) {
 	//FIXME: speed up
