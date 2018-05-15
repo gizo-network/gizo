@@ -470,6 +470,7 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 			d.BroadcastPeers(PeerDisconnectMessage(info.GetPub(), d.GetPrivByte()))
 			delete(d.GetPeers(), conn)
 			d.mu.Unlock()
+			break
 		}
 		m := DeserializePeerMessage(message)
 		switch m.GetMessage() {
@@ -672,7 +673,7 @@ func (d *Dispatcher) GetDispatchersAndSync() {
 			}
 			conn, _, err := dailer.Dial(wsURL, nil)
 			if err != nil {
-				glg.Fatal(err)
+				continue
 			}
 			conn.EnableWriteCompression(true)
 			pubBytes, err := hex.DecodeString(addr["pub"].(string))
