@@ -7,28 +7,28 @@ import (
 )
 
 type DispatcherHello struct {
-	Pub        []byte
-	Neighbours []string
+	Pub   []byte
+	Peers []string
 }
 
-func NewDispatcherHello(pub []byte, n []string) DispatcherHello {
-	return DispatcherHello{Pub: pub, Neighbours: n}
+func NewDispatcherHello(pub []byte, p []string) DispatcherHello {
+	return DispatcherHello{Pub: pub, Peers: p}
 }
 
 func (d DispatcherHello) GetPub() []byte {
 	return d.Pub
 }
 
-func (d DispatcherHello) GetNeighbours() []string {
-	return d.Neighbours
+func (d DispatcherHello) GetPeers() []string {
+	return d.Peers
 }
 
 func (d *DispatcherHello) SetPub(pub []byte) {
 	d.Pub = pub
 }
 
-func (d *DispatcherHello) SetNeighbours(n []string) {
-	d.Neighbours = n
+func (d *DispatcherHello) SetPeers(n []string) {
+	d.Peers = n
 }
 
 func (d DispatcherHello) Serialize() []byte {

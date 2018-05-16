@@ -14,9 +14,9 @@ import (
 )
 
 type PeerMessage struct {
-	Message   string   `json:"message"`
-	Payload   []byte   `json:"payload"`
-	Signature [][]byte `json:"signature"`
+	Message   string
+	Payload   []byte
+	Signature [][]byte
 }
 
 func NewPeerMessage(message string, payload []byte, priv []byte) PeerMessage {

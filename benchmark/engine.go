@@ -62,7 +62,7 @@ func (b Engine) GetData() []Benchmark {
 func (b Engine) block(difficulty uint8) *core.Block {
 	//random data
 	priv, _ := crypt.GenKeys()
-	j := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
+	j, _ := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node2 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	node3 := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})

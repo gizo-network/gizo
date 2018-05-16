@@ -15,7 +15,7 @@ import (
 func GenesisBlock(by string) *Block {
 	glg.Info("Core: Creating Genesis Block")
 	priv, _ := crypt.GenKeys()
-	j := job.NewJob("func Genesis(){return 1+1}", "Genesis", false, hex.EncodeToString(priv))
+	j, _ := job.NewJob("func Genesis(){return 1+1}", "Genesis", false, hex.EncodeToString(priv))
 	node := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	tree := merkletree.MerkleTree{
 		Root:      node.GetHash(),

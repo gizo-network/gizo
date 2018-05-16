@@ -17,7 +17,6 @@ import (
 )
 
 type Worker struct {
-	Port       uint   // port
 	Pub        []byte //public key of the node
 	Dispatcher string
 	shortlist  []string // array of dispatchers received from centrum
@@ -28,6 +27,15 @@ type Worker struct {
 	shutdown   chan struct{}
 	busy       bool
 	state      string
+	item       qItem.Item
+}
+
+func (w Worker) GetItem() qItem.Item {
+	return w.item
+}
+
+func (w *Worker) SetItem(i qItem.Item) {
+	w.item = i
 }
 
 func (w Worker) GetShortlist() []string {
@@ -74,10 +82,6 @@ func (w Worker) GetPrivString() string {
 	return hex.EncodeToString(w.priv)
 }
 
-func (w Worker) GetPort() int {
-	return int(w.Port)
-}
-
 func (w Worker) GetUptme() int64 {
 	return w.uptime
 }
@@ -95,6 +99,7 @@ func (w Worker) GetUptimeString() string {
 }
 
 func (w *Worker) Start() {
+	//TODO: implemented cancel and getstatus
 	w.GetDispatchers()
 	w.Connect()
 	go w.WatchInterrupt()
@@ -107,6 +112,10 @@ func (w *Worker) Start() {
 		}
 		m := DeserializePeerMessage(message)
 		switch m.GetMessage() {
+		case CONNFULL:
+			w.Disconnect()
+			w.Connect()
+			break
 		case HELLO:
 			if w.GetDispatcher() != hex.EncodeToString(m.GetPayload()) {
 				w.Disconnect()
@@ -122,15 +131,23 @@ func (w *Worker) Start() {
 			}
 			w.SetBusy(true)
 			if m.VerifySignature(w.GetDispatcher()) {
-				j := qItem.DeserializeItem(m.GetPayload())
-				exec := j.Job.Execute(j.GetExec(), w.GetDispatcher())
-				j.SetExec(exec)
-				w.conn.WriteMessage(websocket.BinaryMessage, ResultMessage(j.GetExec().Serialize(), w.GetPrivByte()))
+				w.SetItem(qItem.DeserializeItem(m.GetPayload()))
+				exec := w.item.Job.Execute(w.item.GetExec(), w.GetDispatcher())
+				w.item.SetExec(exec)
+				w.conn.WriteMessage(websocket.BinaryMessage, ResultMessage(w.item.GetExec().Serialize(), w.GetPrivByte()))
 			} else {
 				w.conn.WriteMessage(websocket.BinaryMessage, InvalidSignature())
 				w.Disconnect()
 			}
 			w.SetBusy(false)
+			break
+		case CANCEL:
+			glg.Info("P2P: job cancelled")
+			if m.VerifySignature(w.GetDispatcher()) {
+				w.item.GetExec().Cancel()
+			} else {
+				w.conn.WriteMessage(websocket.BinaryMessage, InvalidSignature())
+			}
 			break
 		case SHUT:
 			//TODO: handle dispatcher shut
@@ -213,7 +230,7 @@ func (w *Worker) GetDispatchers() {
 	w.SetShortlist(shortlist.([]string))
 }
 
-func NewWorker(port int) *Worker {
+func NewWorker() *Worker {
 	core.InitializeDataPath()
 	var priv, pub []byte
 	interrupt := make(chan os.Signal, 1)
@@ -244,7 +261,6 @@ func NewWorker(port int) *Worker {
 	// return &Worker{
 	// 	Pub:       pub,
 	// 	priv:      priv,
-	// 	Port:      uint(port),
 	// 	uptime:    time.Now().Unix(),
 	// 	interrupt: interrupt,
 	// 	state:     DOWN,
@@ -278,7 +294,6 @@ func NewWorker(port int) *Worker {
 	return &Worker{
 		Pub:       pub,
 		priv:      priv,
-		Port:      uint(port),
 		uptime:    time.Now().Unix(),
 		interrupt: interrupt,
 		state:     DOWN,

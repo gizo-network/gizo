@@ -26,18 +26,9 @@ func (pq WorkerPriorityQueue) getPQ() *lane.PQueue {
 	return pq.pq
 }
 
-func (pq WorkerPriorityQueue) Exist(s *melody.Session) bool {
-	return pq.pq.InQueueSession(s)
+func (pq WorkerPriorityQueue) Len() int {
+	return pq.getPQ().Size()
 }
-
-// func (pq WorkerPriorityQueue) watch() {
-// 	for {
-// 		if pq.getPQ().Empty() == false {
-// 			//TODO: dispatch to next available worker node
-// 			// i := pq.Pop()
-// 		}
-// 	}
-// }
 
 func NewWorkerPriorityQueue() *WorkerPriorityQueue {
 	pq := lane.NewPQueue(lane.MINPQ)
