@@ -15,7 +15,7 @@ var workerCmd = &cobra.Command{
 	Short: "Spin up a worker node",
 	Run: func(cmd *cobra.Command, args []string) {
 		helpers.Banner()
-		w := p2p.NewWorker(port)
+		w := p2p.NewWorker()
 		w.Start()
 	},
 }

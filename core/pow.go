@@ -49,6 +49,7 @@ func (p *POW) setDifficulty(d uint8) {
 	p.difficulty = d
 }
 
+//mergea info and returns it as byttes
 func (p POW) prepareData(nonce int) []byte {
 	tree := merkletree.MerkleTree{Root: p.GetBlock().GetHeader().GetMerkleRoot(), LeafNodes: p.GetBlock().GetNodes()}
 	mBytes, err := tree.Serialize()

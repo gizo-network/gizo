@@ -111,6 +111,7 @@ func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	return blocks
 }
 
+//GetBlockByHeight return block by height
 func (bc *BlockChain) GetBlockByHeight(height int) (*Block, error) {
 	bci := bc.iterator()
 	for {
@@ -259,6 +260,7 @@ func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
 	}
 }
 
+//FindExec finds exec in the bc
 func (bc *BlockChain) FindExec(id string, hash []byte) (*job.Exec, error) {
 	//FIXME: speed up
 	glg.Info("Core: Finding Job in the blockchain - " + id)
@@ -282,6 +284,7 @@ func (bc *BlockChain) FindExec(id string, hash []byte) (*job.Exec, error) {
 	}
 }
 
+//GetJobExecs returns all execs of a job
 func (bc *BlockChain) GetJobExecs(id string) []job.Exec {
 	//FIXME: speed up
 	glg.Info("Core: Finding Job in the blockchain - " + id)
@@ -351,6 +354,7 @@ func (bc *BlockChain) GetBlockHashes() [][]byte {
 	return hashes
 }
 
+//GetBlockHashesHex returns hashes (hex) of all the blocks in the bc
 func (bc *BlockChain) GetBlockHashesHex() []string {
 	var hashes []string
 	bci := bc.iterator()

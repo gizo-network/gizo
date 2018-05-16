@@ -1,30 +1,54 @@
 package p2p
 
+import (
+	"encoding/json"
+
+	"github.com/kpango/glg"
+)
+
+//DispatcherInfo message used to create and maintain adjacency between dispatcher nodes
 type DispatcherInfo struct {
-	pub   []byte
-	peers []string
+	Pub   []byte
+	Peers []string
 }
 
-func NewDispatcherInfo(pub []byte) *DispatcherInfo {
-	return &DispatcherInfo{pub: pub}
+func NewDispatcherInfo(pub []byte, p []string) *DispatcherInfo {
+	return &DispatcherInfo{Pub: pub, Peers: p}
 }
 
-func (w DispatcherInfo) GetPub() []byte {
-	return w.pub
+func (d DispatcherInfo) GetPub() []byte {
+	return d.Pub
 }
 
-func (w *DispatcherInfo) SetPub(pub []byte) {
-	w.pub = pub
+func (d DispatcherInfo) GetPeers() []string {
+	return d.Peers
 }
 
-func (w DispatcherInfo) GetPeers() []string {
-	return w.peers
+func (d *DispatcherInfo) SetPub(pub []byte) {
+	d.Pub = pub
 }
 
-func (w *DispatcherInfo) SetPeers(n []string) {
-	w.peers = n
+func (d *DispatcherInfo) SetPeers(n []string) {
+	d.Peers = n
 }
 
 func (w *DispatcherInfo) AddPeer(n string) {
-	w.peers = append(w.peers, n)
+	w.Peers = append(w.Peers, n)
+}
+
+func (d DispatcherInfo) Serialize() []byte {
+	bytes, err := json.Marshal(d)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	return bytes
+}
+
+func DeserializeDispatcherInfo(b []byte) DispatcherInfo {
+	var temp DispatcherInfo
+	err := json.Unmarshal(b, &temp)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	return temp
 }
