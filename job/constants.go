@@ -31,7 +31,6 @@ const (
 	NORMAL = 0 //! default
 )
 
-//TODO: add errors
 //! statuses
 const (
 	CANCELLED   = "CANCELLED"  // cancelled by sender

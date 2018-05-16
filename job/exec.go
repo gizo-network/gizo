@@ -74,6 +74,7 @@ func (e Exec) GetEnvs(passphrase string) (EnvironmentVariables, error) {
 	return DeserializeEnvs(d)
 }
 
+//returns environment variables as a map
 func (e Exec) GetEnvsMap(passphrase string) (map[string]interface{}, error) {
 	temp := make(map[string]interface{})
 	envs, err := e.GetEnvs(passphrase)
@@ -270,6 +271,7 @@ func DeserializeExec(b []byte) Exec {
 	return temp
 }
 
+//UniqExec returns unique values of parameter
 func UniqExec(execs []Exec) []Exec {
 	temp := []Exec{}
 	seen := make(map[string]bool)

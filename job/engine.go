@@ -143,6 +143,7 @@ func (j *Job) setHash() {
 	j.Hash = hash[:]
 }
 
+//Verify checks if the job has been modified
 func (j Job) Verify() bool {
 	headers := bytes.Join(
 		[][]byte{
@@ -160,6 +161,7 @@ func (j Job) Verify() bool {
 	return bytes.Compare(j.GetHash(), hash[:]) == 0
 }
 
+//return json bytes of the execs
 func (j Job) serializeExecs() []byte {
 	temp, err := json.Marshal(j.GetExecs())
 	if err != nil {
@@ -223,6 +225,7 @@ func DeserializeJob(b []byte) (*Job, error) {
 	return &temp, nil
 }
 
+//used to stringify arguments
 func toString(x interface{}) (string, error) {
 	v := reflect.ValueOf(x)
 	switch v.Kind() {
@@ -247,6 +250,7 @@ func toString(x interface{}) (string, error) {
 	return "", ErrUnableToConvert
 }
 
+//returns args as string
 func argsStringified(args []interface{}) string {
 	temp := "("
 	for i, val := range args {

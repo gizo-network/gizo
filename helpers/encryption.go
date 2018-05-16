@@ -11,12 +11,14 @@ import (
 	"github.com/kpango/glg"
 )
 
+//returns md5 hash of key
 func createHash(key string) string {
 	hasher := md5.New()
 	hasher.Write([]byte(key))
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
+//Encrypt returns encrypted data
 func Encrypt(data []byte, passphrase string) []byte {
 	block, _ := aes.NewCipher([]byte(createHash(passphrase)))
 	gcm, err := cipher.NewGCM(block)
@@ -31,6 +33,7 @@ func Encrypt(data []byte, passphrase string) []byte {
 	return ciphertext
 }
 
+//Decrypt returns decrypted data
 func Decrypt(data []byte, passphrase string) ([]byte, error) {
 	key := []byte(createHash(passphrase))
 	block, err := aes.NewCipher(key)
