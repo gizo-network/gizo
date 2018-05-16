@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"log"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -20,22 +19,24 @@ import (
 	"github.com/gizo-network/gizo/helpers"
 
 	"github.com/kpango/glg"
-	"github.com/mattn/anko/vm"
+	anko_core "github.com/mattn/anko/builtins"
+	anko_vm "github.com/mattn/anko/vm"
 )
 
 var (
 	ErrUnverifiedSignature = errors.New("signature not verified")
+	ErrUnableToConvert     = errors.New("Unable to convert to string")
 )
 
 type Job struct {
-	ID             string    `json:"id"`
-	Hash           []byte    `json:"hash"`
-	Execs          []Exec    `json:"execs"`
-	Name           string    `json:"name"`
-	Task           string    `json:"task"`
-	Signature      [][]byte  `json:"signature"` // signature of owner
-	SubmissionTime time.Time `json:"submission_time"`
-	Private        bool      `json:"private"` //private job flag (default to false - public)
+	ID             string
+	Hash           []byte
+	Execs          []Exec
+	Name           string
+	Task           string
+	Signature      [][]byte // signature of owner
+	SubmissionTime time.Time
+	Private        bool //private job flag (default to false - public)
 }
 
 func (j *Job) Sign(priv []byte) {
@@ -83,7 +84,7 @@ func (j Job) IsEmpty() bool {
 	return j.GetID() == "" && reflect.ValueOf(j.GetHash()).IsNil() && reflect.ValueOf(j.GetExecs()).IsNil() && j.GetTask() == "" && reflect.ValueOf(j.GetSignature()).IsNil() && j.GetName() == ""
 }
 
-func NewJob(task string, name string, priv bool, privKey string) *Job {
+func NewJob(task string, name string, priv bool, privKey string) (*Job, error) {
 	j := &Job{
 		SubmissionTime: time.Now(),
 		ID:             uuid.NewV4().String(),
@@ -94,11 +95,11 @@ func NewJob(task string, name string, priv bool, privKey string) *Job {
 	}
 	privBytes, err := hex.DecodeString(privKey)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	j.Sign(privBytes)
 	j.setHash()
-	return j
+	return j, nil
 }
 
 func (j Job) GetPrivate() bool {
@@ -135,7 +136,6 @@ func (j *Job) setHash() {
 			j.GetSignature()[1],
 			[]byte(string(j.GetSubmissionTime().Unix())),
 			[]byte(strconv.FormatBool(j.GetPrivate())),
-			// j.GetOwner(),
 		},
 		[]byte{},
 	)
@@ -153,7 +153,6 @@ func (j Job) Verify() bool {
 			j.GetSignature()[1],
 			[]byte(string(j.GetSubmissionTime().Unix())),
 			[]byte(strconv.FormatBool(j.GetPrivate())),
-			// j.GetOwner(),
 		},
 		[]byte{},
 	)
@@ -224,20 +223,48 @@ func DeserializeJob(b []byte) (*Job, error) {
 	return &temp, nil
 }
 
+func toString(x interface{}) (string, error) {
+	v := reflect.ValueOf(x)
+	switch v.Kind() {
+	case reflect.Bool:
+		return strconv.FormatBool(v.Bool()), nil
+	case reflect.Int, reflect.Int8, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(v.Int(), 10), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(v.Uint(), 10), nil
+	case reflect.Float32, reflect.Float64:
+		return strconv.FormatFloat(v.Float(), 'f', -1, 64), nil
+	case reflect.String:
+		return "\"" + x.(string) + "\"", nil
+		// return v.String(), nil
+	case reflect.Slice:
+		stringifiy, err := json.Marshal(v.Interface())
+		return string(stringifiy), err
+	case reflect.Map:
+		stringifiy, err := json.Marshal(v.Interface())
+		return string(stringifiy), err
+	}
+	return "", ErrUnableToConvert
+}
+
 func argsStringified(args []interface{}) string {
 	temp := "("
 	for i, val := range args {
+		stringified, err := toString(val)
+		if err != nil {
+			glg.Fatal(err)
+		}
 		if i == len(args)-1 {
-			temp += val.(string) + ""
+			temp += stringified + ""
 		} else {
-			temp += val.(string) + ","
+			temp += stringified + ","
 		}
 	}
 	return temp + ")"
 }
 
-//! run in goroutine
-func (j *Job) Execute(exec *Exec) *Exec {
+func (j *Job) Execute(exec *Exec, passphrase string) *Exec {
+	//TODO: kill goroutines running within this function when it exits
 	if j.GetPrivate() == true {
 		if j.VerifySignature(exec.getPub()) == false {
 			exec.SetErr(ErrUnverifiedSignature)
@@ -249,6 +276,15 @@ func (j *Job) Execute(exec *Exec) *Exec {
 	done := make(chan struct{})
 	exec.SetStatus(RUNNING)
 	exec.SetTimestamp(time.Now().Unix())
+	//! watch for cancellation
+	go func() {
+		select {
+		case <-exec.GetCancelChan():
+			glg.Warn("Job: Cancelling running job" + j.GetID())
+			done <- struct{}{}
+		}
+	}()
+	//! watch for timeout
 	go func() {
 		var ttl time.Duration
 		if exec.GetTTL() != 0 {
@@ -263,25 +299,30 @@ func (j *Job) Execute(exec *Exec) *Exec {
 			done <- struct{}{}
 		}
 	}()
+	//! execute job
 	go func() {
 		r := exec.GetRetries()
 	retry:
-		env := vm.NewEnv()
+		env := anko_vm.NewEnv()
+		anko_core.LoadAllBuiltins(env) //!FIXME: limiit packages that are loaded in
+		envs, err := exec.GetEnvsMap(passphrase)
 		var result interface{}
-		var err error
-		if len(exec.GetArgs()) == 0 {
-			result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
-		} else {
-			result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(exec.GetArgs()))
-		}
+		if err == nil {
+			env.Define("env", envs)
+			if len(exec.GetArgs()) == 0 {
+				result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
+			} else {
+				result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(exec.GetArgs()))
+			}
 
-		if r != 0 && err != nil {
-			r--
-			time.Sleep(exec.GetBackoff())
-			exec.SetStatus(RETRYING)
-			exec.IncrRetriesCount()
-			glg.Warn("Job: Retrying job - " + j.GetID())
-			goto retry
+			if r != 0 && err != nil {
+				r--
+				time.Sleep(exec.GetBackoff())
+				exec.SetStatus(RETRYING)
+				exec.IncrRetriesCount()
+				glg.Warn("Job: Retrying job - " + j.GetID())
+				goto retry
+			}
 		}
 		exec.SetDuration(time.Duration(time.Now().Sub(start).Nanoseconds()))
 		exec.SetErr(err)

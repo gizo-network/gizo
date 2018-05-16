@@ -1,57 +1,66 @@
 package chain
 
 import (
-	"errors"
+	"strconv"
+	"sync"
+	"time"
+
+	"github.com/gizo-network/gizo/cache"
 
 	"github.com/kpango/glg"
 
 	"github.com/gizo-network/gizo/core"
 	"github.com/gizo-network/gizo/job"
 	"github.com/gizo-network/gizo/job/queue"
-)
-
-const (
-	MaxExecs = 10 // max number of jobs allowed in the chain
-)
-
-var (
-	ErrJobsLenRange = errors.New("Number of jobs is more than allowed")
+	"github.com/gizo-network/gizo/job/queue/qItem"
 )
 
 //Chain - Jobs executed one after the other
 type Chain struct {
-	jobs   []job.JobRequest
+	jobs   []job.JobRequestMultiple
 	bc     *core.BlockChain
 	pq     *queue.JobPriorityQueue
-	result []job.JobRequest
+	jc     *cache.JobCache
+	result []job.JobRequestMultiple
 	length int
 	status string
+	cancel chan struct{}
 }
 
 //NewChain returns chain
-func NewChain(j []job.JobRequest, bc *core.BlockChain, pq *queue.JobPriorityQueue) (*Chain, error) {
+func NewChain(j []job.JobRequestMultiple, bc *core.BlockChain, pq *queue.JobPriorityQueue, jc *cache.JobCache) (*Chain, error) {
 	length := 0
 	for _, jr := range j {
 		length += len(jr.GetExec())
 	}
-	if length > MaxExecs {
-		return nil, ErrJobsLenRange
+	if length > job.MaxExecs {
+		return nil, job.ErrJobsLenRange
 	}
 	c := &Chain{
 		jobs:   j,
 		bc:     bc,
 		pq:     pq,
+		jc:     jc,
 		length: length,
+		cancel: make(chan struct{}),
 	}
 	return c, nil
 }
 
+func (c *Chain) Cancel() {
+	c.cancel <- struct{}{}
+}
+
+func (c Chain) GetCancelChan() chan struct{} {
+	return c.cancel
+}
+
 //GetJobs returns jobs
-func (c Chain) GetJobs() []job.JobRequest {
+func (c Chain) GetJobs() []job.JobRequestMultiple {
 	return c.jobs
 }
 
-func (c *Chain) setJobs(j []job.JobRequest) {
+func (c *Chain) setJobs(j []job.JobRequestMultiple) {
 	c.jobs = j
 }
 
@@ -80,50 +89,108 @@ func (c Chain) getBC() *core.BlockChain {
 	return c.bc
 }
 
-func (c *Chain) setResults(res []job.JobRequest) {
+func (c Chain) getJC() *cache.JobCache {
+	return c.jc
+}
+
+func (c *Chain) setResults(res []job.JobRequestMultiple) {
 	c.result = res
 }
 
 //Result returns result
-func (c Chain) Result() []job.JobRequest {
+func (c Chain) Result() []job.JobRequestMultiple {
 	return c.result
 }
 
-//Dispatch executes the batch
+//Dispatch executes the chain
 func (c *Chain) Dispatch() {
 	c.setStatus(job.RUNNING)
-	var items []queue.Item // used to hold results
-	res := make(chan queue.Item)
+	var results []qItem.Item // used to hold results
+	res := make(chan qItem.Item)
+	cancelled := false
+	closeCancel := make(chan struct{})
+	var wg sync.WaitGroup
+	//! watch cancel channel
+	wg.Add(1)
+	go func() {
+		select {
+		case <-c.cancel:
+			cancelled = true
+			glg.Warn("Chain: Cancelling jobs")
+			for _, jr := range c.GetJobs() {
+				for _, exec := range jr.GetExec() {
+					if exec.GetStatus() == job.RUNNING || exec.GetStatus() == job.RETRYING {
+						exec.Cancel()
+					}
+					if exec.GetResult() == nil {
+						exec.SetStatus(job.CANCELLED)
+					}
+				}
+			}
+			break
+		case <-closeCancel:
+			break
+		}
+		wg.Done()
+	}()
 	var jobIDs []string
 	for _, jr := range c.GetJobs() {
 		c.setStatus("Queueing execs of job - " + jr.GetID())
 		jobIDs = append(jobIDs, jr.GetID())
-		j, err := c.getBC().FindJob(jr.GetID())
+		var j *job.Job
+		var err error
+		j, err = c.getJC().Get(jr.GetID())
+		if j == nil {
+			j, err = c.getBC().FindJob(jr.GetID())
+		}
 		if err != nil {
 			glg.Warn("Chain: Unable to find job - " + jr.GetID())
 			for _, exec := range jr.GetExec() {
 				exec.SetErr("Unable to find job - " + jr.GetID())
 			}
 		} else {
-			c.getPQ().Push(*j, jr.GetExec()[0], res) //? queues first job
-			for i := 1; i < len(jr.GetExec()); i++ {
-				items = append(items, <-res)
-				c.getPQ().Push(*j, jr.GetExec()[i], res)
+			for i := 0; i < len(jr.GetExec()); i++ {
+				if cancelled == true {
+					results = append(results, qItem.NewItem(job.Job{
+						ID:             j.GetID(),
+						Hash:           j.GetHash(),
+						Name:           j.GetName(),
+						Task:           j.GetTask(),
+						Signature:      j.GetSignature(),
+						SubmissionTime: j.GetSubmissionTime(),
+						Private:        j.GetPrivate(),
+					}, jr.GetExec()[i], res, c.GetCancelChan()))
+				} else {
+					if jr.GetExec()[i].GetExecutionTime() != 0 {
+						glg.Warn("Chain: Queuing in " + strconv.FormatFloat(time.Unix(jr.GetExec()[i].GetExecutionTime(), 0).Sub(time.Now()).Seconds(), 'f', -1, 64) + " nanoseconds")
+						time.Sleep(time.Nanosecond * time.Duration(time.Unix(jr.GetExec()[i].GetExecutionTime(), 0).Sub(time.Now()).Nanoseconds()))
+					}
+					c.getPQ().Push(*j, jr.GetExec()[i], res, c.GetCancelChan()) //? queues first job
+					results = append(results, <-res)
+				}
 			}
 		}
 	}
+	close(res)
 
-	var grouped []job.JobRequest
+	var grouped []job.JobRequestMultiple
 	for _, jID := range jobIDs {
-		var req job.JobRequest
+		var req job.JobRequestMultiple
 		req.SetID(jID)
-		for _, item := range items {
+		for _, item := range results {
 			if item.GetID() == jID {
 				req.AppendExec(item.GetExec())
 			}
 		}
 		grouped = append(grouped, req)
 	}
+
+	if cancelled == false {
+		closeCancel <- struct{}{}
+		c.setStatus(job.FINISHED)
+	} else {
+		c.setStatus(job.CANCELLED)
+	}
+	wg.Wait()
 	c.setResults(grouped)
-	c.setStatus(job.FINISHED)
 }

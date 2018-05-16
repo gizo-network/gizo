@@ -109,7 +109,14 @@ func NewJobCache(bc *core.BlockChain) *JobCache {
 	c, _ := bigcache.NewBigCache(bigcache.DefaultConfig(time.Minute))
 	jc := JobCache{c, bc}
 	jc.fill()
-	jc.watch()
+	go jc.watch()
+	return &jc
+}
+
+func NewJobCacheNoWatch(bc *core.BlockChain) *JobCache {
+	c, _ := bigcache.NewBigCache(bigcache.DefaultConfig(time.Minute))
+	jc := JobCache{c, bc}
+	jc.fill()
 	return &jc
 }
 

@@ -4,12 +4,12 @@ import "math/big"
 
 //BlockHeader holds the header of the block
 type BlockHeader struct {
-	Timestamp     int64    `json:"timestamp"`
-	PrevBlockHash []byte   `json:"prevBlockHash"`
-	MerkleRoot    []byte   `json:"merkleroot"`
-	Nonce         uint64   `json:"nonce"`
-	Difficulty    *big.Int `json:"difficulty"`
-	Hash          []byte   `json:"hash"`
+	Timestamp     int64
+	PrevBlockHash []byte
+	MerkleRoot    []byte
+	Nonce         uint64
+	Difficulty    *big.Int
+	Hash          []byte
 }
 
 //GetTimestamp returns timestamp

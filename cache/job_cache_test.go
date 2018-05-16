@@ -1,9 +1,12 @@
 package cache_test
 
 import (
+	"encoding/hex"
+	"os"
 	"testing"
 
-	"github.com/joho/godotenv"
+	"github.com/gizo-network/gizo/crypt"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/gizo-network/gizo/cache"
@@ -13,40 +16,41 @@ import (
 )
 
 func TestJobCache(t *testing.T) {
-	godotenv.Load()
+	os.Setenv("ENV", "dev")
 	core.RemoveDataPath()
-	j1 := job.NewJob(`
+	priv, _ := crypt.GenKeys()
+	j1, _ := job.NewJob(`
 		func Factorial(n){
 		 if(n > 0){
 		  result = n * Factorial(n-1)
 		  return result
 		 }
 		 return 1
-		}`, "Factorial")
+		}`, "Factorial", false, hex.EncodeToString(priv))
 	j1.AddExec(job.Exec{})
 	j1.AddExec(job.Exec{})
 	j1.AddExec(job.Exec{})
 	j1.AddExec(job.Exec{})
-	j2 := job.NewJob(`
+	j2, _ := job.NewJob(`
 			func Factorial(n){
 			 if(n > 0){
 			  result = n * Factorial(n-1)
 			  return result
 			 }
 			 return 1
-			}`, "Factorial")
+			}`, "Factorial", false, hex.EncodeToString(priv))
 	j2.AddExec(job.Exec{})
 	j2.AddExec(job.Exec{})
 	j2.AddExec(job.Exec{})
 	j2.AddExec(job.Exec{})
-	j3 := job.NewJob(`
+	j3, _ := job.NewJob(`
 				func Factorial(n){
 				 if(n > 0){
 				  result = n * Factorial(n-1)
 				  return result
 				 }
 				 return 1
-				}`, "Factorial")
+				}`, "Factorial", false, hex.EncodeToString(priv))
 	j3.AddExec(job.Exec{})
 	j3.AddExec(job.Exec{})
 	j3.AddExec(job.Exec{})
@@ -60,12 +64,12 @@ func TestJobCache(t *testing.T) {
 	tree1 := merkletree.NewMerkleTree([]*merkletree.MerkleNode{node1, node3})
 	tree2 := merkletree.NewMerkleTree([]*merkletree.MerkleNode{node2, node1})
 	tree3 := merkletree.NewMerkleTree([]*merkletree.MerkleNode{node3, node2})
-	bc := core.CreateBlockChain()
-	blk1 := core.NewBlock(*tree1, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetNextHeight(), 10)
+	bc := core.CreateBlockChain("test")
+	blk1 := core.NewBlock(*tree1, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetNextHeight(), 10, "test")
 	bc.AddBlock(blk1)
-	blk2 := core.NewBlock(*tree2, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetNextHeight(), 10)
+	blk2 := core.NewBlock(*tree2, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetNextHeight(), 10, "test")
 	bc.AddBlock(blk2)
-	blk3 := core.NewBlock(*tree3, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetNextHeight(), 10)
+	blk3 := core.NewBlock(*tree3, bc.GetLatestBlock().GetHeader().GetHash(), bc.GetNextHeight(), 10, "test")
 	bc.AddBlock(blk3)
 	c := cache.NewJobCache(bc)
 	cj1, err := c.Get(j1.GetID())

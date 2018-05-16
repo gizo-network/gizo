@@ -9,6 +9,9 @@ import (
 	"sync"
 	"time"
 
+	funk "github.com/thoas/go-funk"
+
+	"github.com/gizo-network/gizo/helpers"
 	"github.com/gizo-network/gizo/job"
 
 	"github.com/gizo-network/gizo/core/merkletree"
@@ -83,6 +86,11 @@ func (bc *BlockChain) GetBlockInfo(hash []byte) (*BlockInfo, error) {
 	return nil, ErrBlockNotFound
 }
 
+//GetPrevHash returns the hash of the last block in the bc
+func (bc BlockChain) GetPrevHash() []byte {
+	return bc.GetLatestBlock().GetHeader().GetHash()
+}
+
 //GetBlocksWithinMinute returns all blocks in the db within the last minute
 func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	glg.Info("Core: Getting blocks within last minute")
@@ -103,9 +111,21 @@ func (bc *BlockChain) GetBlocksWithinMinute() []Block {
 	return blocks
 }
 
+func (bc *BlockChain) GetBlockByHeight(height int) (*Block, error) {
+	bci := bc.iterator()
+	for {
+		block := bci.Next()
+		if height != 0 && block.GetHeight() == 0 {
+			return nil, ErrBlockNotFound
+		} else if int(block.GetHeight()) == height {
+			return block, nil
+		}
+	}
+}
+
 //GetLatest15 retuns the latest 15 blocks
 func (bc *BlockChain) GetLatest15() []Block {
-	glg.Info("Core: Getting blocks within last minute")
+	glg.Info("Core: Getting last 15 blocks")
 	var blocks []Block
 	bci := bc.iterator()
 	for {
@@ -216,6 +236,7 @@ func (bc *BlockChain) iterator() *BlockChainIterator {
 
 //FindJob returns the job from the blockchain
 func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
+	//FIXME: speed up
 	glg.Info("Core: Finding Job in the blockchain - " + id)
 	var tree merkletree.MerkleTree
 	bci := bc.iterator()
@@ -226,15 +247,64 @@ func (bc *BlockChain) FindJob(id string) (*job.Job, error) {
 		}
 		tree.SetLeafNodes(block.GetNodes())
 		found, err := tree.SearchJob(id)
-		if err != nil {
-			glg.Fatal(err)
+		if found == nil && err != nil {
+			continue
+		}
+		for i, exec := range found.GetExecs() {
+			if exec.GetTimestamp() > now.BeginningOfDay().Unix() {
+				found.Execs = append(found.Execs[:i], found.Execs[i+1:]...) //! removes execs older than a day
+			}
 		}
 		return found, nil
 	}
 }
 
+func (bc *BlockChain) FindExec(id string, hash []byte) (*job.Exec, error) {
+	//FIXME: speed up
+	glg.Info("Core: Finding Job in the blockchain - " + id)
+	var tree merkletree.MerkleTree
+	bci := bc.iterator()
+	for {
+		block := bci.Next()
+		if block.GetHeight() == 0 {
+			return nil, job.ErrExecNotFound
+		}
+		tree.SetLeafNodes(block.GetNodes())
+		found, err := tree.SearchJob(id)
+		if found == nil && err != nil {
+			continue
+		}
+		exec, err := found.GetExec(hash)
+		if err != nil {
+			continue
+		}
+		return exec, nil
+	}
+}
+
+func (bc *BlockChain) GetJobExecs(id string) []job.Exec {
+	//FIXME: speed up
+	glg.Info("Core: Finding Job in the blockchain - " + id)
+	execs := []job.Exec{}
+	var tree merkletree.MerkleTree
+	bci := bc.iterator()
+	for {
+		block := bci.Next()
+		if block.GetHeight() == 0 {
+			return job.UniqExec(execs)
+		}
+		tree.SetLeafNodes(block.GetNodes())
+		found, err := tree.SearchJob(id)
+		if found == nil && err != nil {
+			continue
+		}
+		execs = append(execs, found.GetExecs()...)
+	}
+}
+
 //FindMerkleNode returns the merklenode from the blockchain
 func (bc *BlockChain) FindMerkleNode(h []byte) (*merkletree.MerkleNode, error) {
+	//FIXME: speed up
 	glg.Info("Core: Finding merklenode - " + hex.EncodeToString(h))
 	var tree merkletree.MerkleTree
 	bci := bc.iterator()
@@ -272,7 +342,7 @@ func (bc *BlockChain) GetBlockHashes() [][]byte {
 	var hashes [][]byte
 	bci := bc.iterator()
 	for {
-		block := bci.Next()
+		block := bci.NextBlockinfo()
 		hashes = append(hashes, block.GetHeader().GetHash())
 		if block.GetHeight() == 0 {
 			break
@@ -281,12 +351,30 @@ func (bc *BlockChain) GetBlockHashes() [][]byte {
 	return hashes
 }
 
+func (bc *BlockChain) GetBlockHashesHex() []string {
+	var hashes []string
+	bci := bc.iterator()
+	for {
+		block := bci.NextBlockinfo()
+		hashes = append(hashes, hex.EncodeToString(block.GetHeader().GetHash()))
+		if block.GetHeight() == 0 {
+			break
+		}
+	}
+	return funk.Reverse(hashes).([]string)
+}
+
 //CreateBlockChain initializes a db, set's the tip to GenesisBlock and returns the blockchain
-func CreateBlockChain() *BlockChain {
+func CreateBlockChain(nodeID string) *BlockChain {
 	glg.Info("Core: Creating blockchain database")
-	InitializeDataPath()                                                  //FIXME: change to prod var on deployment
-	dbFile := path.Join(IndexPathDev, fmt.Sprintf(IndexDB, "testnodeid")) //FIXME: integrate node id
-	if dbExists(dbFile) {
+	InitializeDataPath()
+	var dbFile string
+	if os.Getenv("ENV") == "dev" {
+		dbFile = path.Join(IndexPathDev, fmt.Sprintf(IndexDB, nodeID[len(nodeID)/2:])) //half the length of the node id
+	} else {
+		dbFile = path.Join(IndexPathProd, fmt.Sprintf(IndexDB, nodeID[len(nodeID)/2:])) //half the length of the node id
+	}
+	if helpers.FileExists(dbFile) {
 		var tip []byte
 		glg.Warn("Core: Using existing blockchain")
 		db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
@@ -307,7 +395,7 @@ func CreateBlockChain() *BlockChain {
 			mu:  &sync.RWMutex{},
 		}
 	}
-	genesis := GenesisBlock()
+	genesis := GenesisBlock(nodeID)
 	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: time.Second * 2})
 	if err != nil {
 		glg.Fatal(err)
@@ -345,11 +433,4 @@ func CreateBlockChain() *BlockChain {
 		mu:  &sync.RWMutex{},
 	}
 	return bc
-}
-
-func dbExists(file string) bool {
-	if _, err := os.Stat(file); os.IsNotExist(err) {
-		return false
-	}
-	return true
 }

@@ -8,11 +8,11 @@ import (
 
 //BlockInfo - model of data written to embedded database
 type BlockInfo struct {
-	Header    BlockHeader `json:"header"`
-	Height    uint64      `json:"height"`
-	TotalJobs uint        `json:"total_jobs"`
-	FileName  string      `json:"file_name"`
-	FileSize  int64       `json:"file_size"`
+	Header    BlockHeader
+	Height    uint64
+	TotalJobs uint
+	FileName  string
+	FileSize  int64
 }
 
 //sets blockinfo header

@@ -1,53 +1,52 @@
 package queue
 
 import (
-	"github.com/gizo-network/gizo/core"
+	lane "github.com/Lobarr/lane"
 	"github.com/gizo-network/gizo/job"
-	lane "gopkg.in/oleiade/lane.v1"
+	"github.com/gizo-network/gizo/job/queue/qItem"
+	"github.com/kpango/glg"
 )
 
 type JobPriorityQueue struct {
 	pq *lane.PQueue
-	bc *core.BlockChain
 }
 
-func (pq JobPriorityQueue) Push(j job.Job, exec *job.Exec, results chan<- Item) {
-	pq.getPQ().Push(Item{
-		job: job.Job{
-			ID:             j.GetID(),
-			Hash:           j.GetHash(),
-			Name:           j.GetName(),
-			Task:           j.GetTask(),
-			Signature:      j.GetSignature(),
-			SubmissionTime: j.GetSubmissionTime(),
-			Private:        j.GetPrivate(),
-		},
-		exec:    exec,
-		results: results,
-	}, exec.GetPriority())
+func (pq JobPriorityQueue) Push(j job.Job, exec *job.Exec, results chan<- qItem.Item, cancel chan struct{}) {
+	temp := job.Job{
+		ID:             j.GetID(),
+		Hash:           j.GetHash(),
+		Name:           j.GetName(),
+		Task:           j.GetTask(),
+		Signature:      j.GetSignature(),
+		SubmissionTime: j.GetSubmissionTime(),
+		Private:        j.GetPrivate(),
+	}
+	pq.GetPQ().Push(qItem.NewItem(temp, exec, results, cancel), exec.GetPriority())
+	glg.Info("JobPriotityQueue: received job")
 }
 
-func (pq JobPriorityQueue) Pop() Item {
-	item, _ := pq.getPQ().Pop()
-	return item.(Item)
+func (pq JobPriorityQueue) PushItem(i qItem.Item, piority int) {
+	pq.GetPQ().Push(i, piority)
+	glg.Info("JobPriotityQueue: received job")
+
 }
 
-func (pq JobPriorityQueue) getPQ() *lane.PQueue {
+func (pq JobPriorityQueue) Pop() qItem.Item {
+	i, _ := pq.GetPQ().Pop()
+	return i.(qItem.Item)
+}
+
+func (pq JobPriorityQueue) Remove(hash []byte) {
+	pq.pq.RemoveHash(hash)
+}
+
+func (pq JobPriorityQueue) GetPQ() *lane.PQueue {
 	return pq.pq
+
 }
 
-func (pq JobPriorityQueue) watch() {
-	go func() {
-		for {
-			if pq.getPQ().Empty() == false {
-				//TODO: dispatch to next available worker node
-				item := pq.Pop()
-				exec := item.job.Execute(item.GetExec())
-				item.setExec(exec)
-				item.ResultsChan() <- item
-			}
-		}
-	}()
+func (pq JobPriorityQueue) Len() int {
+	return pq.GetPQ().Size()
 }
 
 func NewJobPriorityQueue() *JobPriorityQueue {
@@ -55,6 +54,5 @@ func NewJobPriorityQueue() *JobPriorityQueue {
 	q := &JobPriorityQueue{
 		pq: pq,
 	}
-	q.watch()
 	return q
 }

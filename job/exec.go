@@ -4,222 +4,281 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
+
+	"github.com/gizo-network/gizo/helpers"
 
 	"github.com/kpango/glg"
 )
 
 //TODO: add environment variables
 type Exec struct {
-	Hash          []byte        `json:"hash"`
-	Timestamp     int64         `json:"timestamp"`
-	Duration      time.Duration `json:"duaration"` //saved in nanoseconds
-	Args          []interface{} `json:"args"`
-	Err           interface{}   `json:"err"`
-	Priority      int           `json:"priority"`
-	Result        interface{}   `json:"result"`
-	Status        string        `json:"status"`         //job status
-	Retries       int           `json:"retries"`        // number of max retries
-	RetriesCount  int           `json:"retries_count"`  //number of retries
-	Backoff       time.Duration `json:"backoff"`        //backoff time of retries (seconds)
-	ExecutionTime int64         `json:"execution_time"` // time scheduled to run (unix) - should sleep # of seconds before adding to job queue
-	Interval      int           `json:"interval"`       //periodic job exec (seconds)
-	By            []byte        `json:"by"`             //! ID of the worker node that ran this
-	TTL           time.Duration `json:"ttl"`            //! time limit of job running
-	pub           string        //! public key for private jobs
+	Hash          []byte
+	Timestamp     int64
+	Duration      time.Duration //saved in nanoseconds
+	Args          []interface{} // parameters
+	Err           interface{}
+	Priority      int
+	Result        interface{}
+	Status        string        //job status
+	Retries       int           // number of max retries
+	RetriesCount  int           //number of retries
+	Backoff       time.Duration //backoff time of retries (seconds)
+	ExecutionTime int64         // time scheduled to run (unix) - should sleep # of seconds before adding to job queue
+	Interval      int           //periodic job exec (seconds)
+	By            string        //! ID of the worker node that ran this
+	TTL           time.Duration //! time limit of job running
+	Pub           string        //! public key for private jobs
+	Envs          []byte
+	cancel        chan struct{}
 }
 
-func NewExec(args []interface{}, retries, priority int, backoff time.Duration, execTime int64, interval int, ttl time.Duration, pub string) (*Exec, error) {
+func NewExec(args []interface{}, retries, priority int, backoff time.Duration, execTime int64, interval int, ttl time.Duration, pub string, envs EnvironmentVariables, passphrase string) (*Exec, error) {
 	if retries > MaxRetries {
 		return nil, ErrRetriesOutsideLimit
 	}
-	return &Exec{
+
+	encryptEnvs := helpers.Encrypt(envs.Serialize(), passphrase)
+	ex := &Exec{
 		Args:          args,
 		Retries:       retries,
-		RetriesCount:  0,
+		RetriesCount:  0, //initialized to 0
 		Priority:      priority,
 		Status:        STARTED,
 		Backoff:       backoff,
-		ExecutionTime: execTime,
 		Interval:      interval,
+		ExecutionTime: execTime,
 		TTL:           ttl,
-		By:            []byte("0000"), //!FIXME: replace with real ID
-		pub:           pub,
-	}, nil
+		Envs:          encryptEnvs,
+		Pub:           pub,
+		cancel:        make(chan struct{}),
+	}
+	return ex, nil
 }
 
-func (j Exec) GetTTL() time.Duration {
-	return j.TTL
+func (e *Exec) Cancel() {
+	e.cancel <- struct{}{}
 }
 
-func (j *Exec) SetTTL(ttl time.Duration) {
-	j.TTL = ttl
+func (e Exec) GetCancelChan() chan struct{} {
+	return e.cancel
 }
 
-func (j Exec) GetInterval() int {
-	return j.Interval
+func (e Exec) GetEnvs(passphrase string) (EnvironmentVariables, error) {
+	d, err := helpers.Decrypt(e.Envs, passphrase)
+	if err != nil {
+		return EnvironmentVariables{}, errors.New("Unable to decrypt environment variables")
+	}
+	return DeserializeEnvs(d)
 }
 
-func (j *Exec) SetInterval(i int) {
-	j.Interval = i
+func (e Exec) GetEnvsMap(passphrase string) (map[string]interface{}, error) {
+	temp := make(map[string]interface{})
+	envs, err := e.GetEnvs(passphrase)
+	if err != nil {
+		return nil, err
+	}
+	for _, val := range envs {
+		temp[val.GetKey()] = val.GetValue()
+	}
+	return temp, nil
 }
 
-func (j Exec) GetPriority() int {
-	return j.Priority
+func (e Exec) GetTTL() time.Duration {
+	return e.TTL
 }
 
-func (j *Exec) SetPriority(p int) error {
+func (e *Exec) SetTTL(ttl time.Duration) {
+	e.TTL = ttl
+}
+
+func (e Exec) GetInterval() int {
+	return e.Interval
+}
+
+func (e *Exec) SetInterval(i int) {
+	e.Interval = i
+}
+
+func (e Exec) GetPriority() int {
+	return e.Priority
+}
+
+func (e *Exec) SetPriority(p int) error {
 	switch p {
 	case HIGH:
 	case MEDIUM:
 	case LOW:
 	case NORMAL:
-
 	default:
 		return ErrInvalidPriority
 	}
 	return nil
 }
 
-func (j Exec) GetExecutionTime() int64 {
-	return j.ExecutionTime
+func (e Exec) GetExecutionTime() int64 {
+	return e.ExecutionTime
 }
 
 //? takes unix time
-func (j *Exec) SetExecutionTime(e int64) error {
-	if time.Unix(e, 0).Before(time.Now()) {
+func (e *Exec) SetExecutionTime(t int64) error {
+	if time.Now().Unix() > t {
 		return ErrExecutionTimeBehind
 	}
-	j.ExecutionTime = e
+	e.ExecutionTime = t
 	return nil
 }
 
-func (j Exec) GetBackoff() time.Duration {
-	return j.Backoff
+func (e Exec) GetBackoff() time.Duration {
+	return e.Backoff
 }
 
-func (j *Exec) SetBackoff(b time.Duration) error {
+func (e *Exec) SetBackoff(b time.Duration) error {
 	if b > MaxRetryBackoff {
 		return ErrRetryDelayOutsideLimit
 	}
-	j.Backoff = b
+	e.Backoff = b
 	return nil
 }
 
-func (j Exec) GetRetriesCount() int {
-	return j.RetriesCount
+func (e Exec) GetRetriesCount() int {
+	return e.RetriesCount
 }
 
-func (j *Exec) IncrRetriesCount() {
-	j.RetriesCount++
+func (e *Exec) IncrRetriesCount() {
+	e.RetriesCount++
 }
 
-func (j Exec) GetRetries() int {
-	return j.Retries
+func (e Exec) GetRetries() int {
+	return e.Retries
 }
 
-func (j *Exec) SetRetries(r int) error {
+func (e *Exec) SetRetries(r int) error {
 	if r > MaxRetries {
 		return ErrRetriesOutsideLimit
 	}
-	j.Retries = r
+	e.Retries = r
 	return nil
 }
 
-func (j Exec) GetStatus() string {
-	return j.Status
+func (e Exec) GetStatus() string {
+	return e.Status
 }
 
-func (j *Exec) SetStatus(s string) {
-	j.Status = s
+func (e *Exec) SetStatus(s string) {
+	e.Status = s
 }
 
-func (j Exec) GetArgs() []interface{} {
-	return j.Args
+func (e Exec) GetArgs() []interface{} {
+	return e.Args
 }
 
-func (j *Exec) SetArgs(a []interface{}) {
-	j.Args = a
+func (e *Exec) SetArgs(a []interface{}) {
+	e.Args = a
 }
 
-func (j Exec) GetHash() []byte {
-	return j.Hash
+func (e Exec) GetHash() []byte {
+	return e.Hash
 }
 
-func (j *Exec) setHash() {
-	e, err := json.Marshal(j.GetErr())
+func (e *Exec) setHash() {
+	stringified, err := json.Marshal(e.GetErr())
 	if err != nil {
 		glg.Error(err)
 	}
-	result, err := json.Marshal(j.GetResult())
+	result, err := json.Marshal(e.GetResult())
 	if err != nil {
 		glg.Error(err)
 	}
 
 	header := bytes.Join(
 		[][]byte{
-			[]byte(strconv.FormatInt(j.GetTimestamp(), 10)),
-			[]byte(strconv.FormatInt(int64(j.GetDuration()), 10)),
-			e,
+			[]byte(strconv.FormatInt(e.GetTimestamp(), 10)),
+			[]byte(strconv.FormatInt(int64(e.GetDuration()), 10)),
+			stringified,
 			result,
-			j.GetBy(),
+			[]byte(e.GetBy()),
 		},
 		[]byte{},
 	)
 
 	hash := sha256.Sum256(header)
-	j.Hash = hash[:]
+	e.Hash = hash[:]
 }
 
-func (j Exec) GetTimestamp() int64 {
-	return j.Timestamp
+func (e Exec) GetTimestamp() int64 {
+	return e.Timestamp
 }
 
-func (j *Exec) SetTimestamp(t int64) {
-	j.Timestamp = t
+func (e *Exec) SetTimestamp(t int64) {
+	e.Timestamp = t
 }
 
-func (j Exec) GetDuration() time.Duration {
-	return j.Duration
+func (e Exec) GetDuration() time.Duration {
+	return e.Duration
 }
 
-func (j *Exec) SetDuration(t time.Duration) {
-	j.Duration = t
+func (e *Exec) SetDuration(t time.Duration) {
+	e.Duration = t
 }
 
-func (j Exec) GetErr() interface{} {
-	return j.Err
+func (e Exec) GetErr() interface{} {
+	return e.Err
 }
 
-func (j *Exec) SetErr(e interface{}) {
-	j.Err = e
+func (e *Exec) SetErr(err interface{}) {
+	e.Err = err
 }
 
-func (j Exec) GetResult() interface{} {
-	return j.Result
+func (e Exec) GetResult() interface{} {
+	return e.Result
 }
 
-func (j *Exec) SetResult(r interface{}) {
-	j.Result = r
+func (e *Exec) SetResult(r interface{}) {
+	e.Result = r
 }
 
-func (j Exec) GetBy() []byte {
-	return j.By
+func (e Exec) GetBy() string {
+	return e.By
 }
 
-func (j *Exec) SetBy(by []byte) {
-	j.By = by
+func (e *Exec) SetBy(by string) {
+	e.By = by
 }
 
-func (j Exec) Serialize() []byte {
-	temp, err := json.Marshal(j)
+func (e Exec) getPub() string {
+	return e.Pub
+}
+
+func (e Exec) Serialize() []byte {
+	temp, err := json.Marshal(e)
 	if err != nil {
 		glg.Error(err)
 	}
 	return temp
 }
 
-func (j Exec) getPub() string {
-	return j.pub
+func DeserializeExec(b []byte) Exec {
+	var temp Exec
+	err := json.Unmarshal(b, &temp)
+	if err != nil {
+		glg.Fatal(err)
+	}
+	temp.cancel = make(chan struct{})
+	return temp
+}
+
+func UniqExec(execs []Exec) []Exec {
+	temp := []Exec{}
+	seen := make(map[string]bool)
+	for _, exec := range execs {
+		if _, ok := seen[string(exec.Serialize())]; ok {
+			continue
+		}
+		seen[string(exec.Serialize())] = true
+		temp = append(temp, exec)
+	}
+	return temp
 }

@@ -12,16 +12,16 @@ import (
 //! modify on job engine creation
 
 //GenesisBlock returns genesis block
-func GenesisBlock() *Block {
+func GenesisBlock(by string) *Block {
 	glg.Info("Core: Creating Genesis Block")
 	priv, _ := crypt.GenKeys()
-	j := job.NewJob("func genesis(){return 1+1}", "genesis", false, hex.EncodeToString(priv))
+	j, _ := job.NewJob("func Genesis(){return 1+1}", "Genesis", false, hex.EncodeToString(priv))
 	node := merkletree.NewNode(*j, &merkletree.MerkleNode{}, &merkletree.MerkleNode{})
 	tree := merkletree.MerkleTree{
 		Root:      node.GetHash(),
 		LeafNodes: []*merkletree.MerkleNode{node},
 	}
 	prevHash := []byte("00000000000000000000000000000000000000")
-	block := NewBlock(tree, prevHash, 0, 10)
+	block := NewBlock(tree, prevHash, 0, 10, by)
 	return block
 }

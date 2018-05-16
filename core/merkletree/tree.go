@@ -17,15 +17,15 @@ var (
 	ErrLeafNodesEmpty     = errors.New("core/merkletree: leafnodes is empty")
 	ErrTreeNotBuilt       = errors.New("core/merkletree: tree hasn't been built")
 	ErrTreeRebuildAttempt = errors.New("core/merkle tree: attempt to rebuild tree")
-	ErrOddLeafNodes       = errors.New("core/merkle tree: odd number of leaf nodes")
-	ErrTooMuchLeafNodes   = errors.New("core/merkle tree: length of leaf nodes is greater than 24")
-	ErrJobDoesntExist     = errors.New("core/merkletree: job doesn't exist")
+	// ErrOddLeafNodes       = errors.New("core/merkle tree: odd number of leaf nodes")
+	ErrTooMuchLeafNodes = errors.New("core/merkle tree: length of leaf nodes is greater than 24")
+	ErrJobDoesntExist   = errors.New("core/merkletree: job doesn't exist")
 )
 
 // MerkleTree tree of jobs
 type MerkleTree struct {
-	Root      []byte        `json:"root"`
-	LeafNodes []*MerkleNode `json:"leafNodes"`
+	Root      []byte
+	LeafNodes []*MerkleNode
 }
 
 // GetRoot returns root
@@ -55,10 +55,8 @@ func (m *MerkleTree) Build() error {
 	}
 	if len(m.GetLeafNodes()) > MaxTreeJobs {
 		return ErrTooMuchLeafNodes
-	} else if len(m.GetLeafNodes())%2 != 0 {
-		return ErrOddLeafNodes
 	} else {
-		var shrink = m.LeafNodes
+		var shrink = m.GetLeafNodes()
 		for len(shrink) != 1 {
 			var levelUp []*MerkleNode
 			if len(shrink)%2 == 0 {

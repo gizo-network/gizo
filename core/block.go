@@ -24,11 +24,11 @@ var (
 
 //Block - the foundation of blockchain
 type Block struct {
-	Header     BlockHeader              `json:"header"`
-	Jobs       []*merkletree.MerkleNode `json:"jobs"`
-	Height     uint64                   `json:"height"`
-	ReceivedAt int64                    `json:"received_at"` //time it was received
-	By         string                   `json:"by"`          // id of node that generated block
+	Header     BlockHeader
+	Jobs       []*merkletree.MerkleNode
+	Height     uint64
+	ReceivedAt int64  //time it was received
+	By         string // id of node that generated block
 }
 
 //GetHeader returns the block header
@@ -62,7 +62,7 @@ func (b *Block) setHeight(h uint64) {
 }
 
 //NewBlock returns a new block
-func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficulty uint8) *Block {
+func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficulty uint8, by string) *Block {
 	block := &Block{
 		Header: BlockHeader{
 			Timestamp:     time.Now().Unix(),
@@ -72,10 +72,11 @@ func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficult
 		},
 		Jobs:   tree.GetLeafNodes(),
 		Height: height,
+		By:     by,
 	}
 	pow := NewPOW(block)
 	pow.run() //! mines block
-	err := block.export()
+	err := block.Export()
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -83,14 +84,19 @@ func NewBlock(tree merkletree.MerkleTree, pHash []byte, height uint64, difficult
 }
 
 //writes block on disk
-func (b Block) export() error {
+func (b Block) Export() error {
 	glg.Info("Core: Exporting block - " + hex.EncodeToString(b.GetHeader().GetHash()))
 	InitializeDataPath()
 	if b.IsEmpty() {
 		return ErrUnableToExport
 	}
 	bBytes := b.Serialize()
-	err := ioutil.WriteFile(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
+	var err error
+	if os.Getenv("ENV") == "dev" {
+		err = ioutil.WriteFile(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
+	} else {
+		err = ioutil.WriteFile(path.Join(BlockPathProd, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))), []byte(helpers.Encode64(bBytes)), os.FileMode(0555))
+	}
 	if err != nil {
 		glg.Fatal(err)
 	}
@@ -103,7 +109,13 @@ func (b *Block) Import(hash []byte) {
 	if b.IsEmpty() == false {
 		glg.Warn("Overwriting umempty block")
 	}
-	read, err := ioutil.ReadFile(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(hash))))
+	var read []byte
+	var err error
+	if os.Getenv("ENV") == "dev" {
+		read, err = ioutil.ReadFile(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(hash))))
+	} else {
+		read, err = ioutil.ReadFile(path.Join(BlockPathProd, fmt.Sprintf(BlockFile, hex.EncodeToString(hash))))
+	}
 	if err != nil {
 		glg.Fatal(err) //FIXME: handle block doesn't exist by asking peer
 	}
@@ -119,7 +131,13 @@ func (b *Block) Import(hash []byte) {
 
 //returns the file stats of a blockfile
 func (b Block) fileStats() os.FileInfo {
-	info, err := os.Stat(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))))
+	var info os.FileInfo
+	var err error
+	if os.Getenv("ENV") == "dev" {
+		info, err = os.Stat(path.Join(BlockPathDev, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))))
+	} else {
+		info, err = os.Stat(path.Join(BlockPathProd, fmt.Sprintf(BlockFile, hex.EncodeToString(b.Header.GetHash()))))
+	}
 	if os.IsNotExist(err) {
 		glg.Fatal("Block file doesn't exist")
 	}
@@ -160,7 +178,12 @@ func (b *Block) VerifyBlock() bool {
 //DeleteFile deletes block file on disk
 func (b Block) DeleteFile() {
 	glg.Info("Core: Deleting blockfile - " + hex.EncodeToString(b.GetHeader().GetHash()))
-	err := os.Remove(path.Join(BlockPathDev, b.fileStats().Name()))
+	var err error
+	if os.Getenv("ENV") == "dev" {
+		err = os.Remove(path.Join(BlockPathDev, b.fileStats().Name()))
+	} else {
+		err = os.Remove(path.Join(BlockPathProd, b.fileStats().Name()))
+	}
 	if err != nil {
 		glg.Fatal(err)
 	}

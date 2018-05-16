@@ -1,14 +1,17 @@
 package merkletree
 
 import (
+	"encoding/hex"
 	"testing"
 
+	"github.com/gizo-network/gizo/crypt"
 	"github.com/gizo-network/gizo/job"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMerge(t *testing.T) {
-	j := job.NewJob("func test(){return 1+1}", "test")
+	priv, _ := crypt.GenKeys()
+	j, _ := job.NewJob("func test(){return 1+1}", "test", false, hex.EncodeToString(priv))
 	node1 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 	node2 := NewNode(*j, &MerkleNode{}, &MerkleNode{})
 
