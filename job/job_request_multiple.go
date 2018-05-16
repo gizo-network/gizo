@@ -34,11 +34,16 @@ func (jr JobRequestMultiple) GetExec() []*Exec {
 	return jr.Execs
 }
 
-func DeserializeJRM(b []byte) JobRequestMultiple {
-	var temp JobRequestMultiple
-	err := json.Unmarshal(b, &temp)
+func (jr JobRequestMultiple) Serialize() []byte {
+	temp, err := json.Marshal(jr)
 	if err != nil {
-		glg.Fatal(err)
+		glg.Error(err)
 	}
 	return temp
+}
+
+func DeserializeJRM(b []byte) (JobRequestMultiple, error) {
+	var temp JobRequestMultiple
+	err := json.Unmarshal(b, &temp)
+	return temp, err
 }

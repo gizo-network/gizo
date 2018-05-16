@@ -78,6 +78,7 @@ func (d Dispatcher) GetJobs() []job.Job {
 }
 
 func (d Dispatcher) watchWriteQ() {
+	//TODO: write to bc if it's taking too long
 	for {
 		if d.GetWriteQ().Empty() == false {
 			jobs := d.GetWriteQ().Dequeue()
@@ -595,7 +596,7 @@ func (d Dispatcher) Start() {
 	})
 	d.wPeerTalk()
 	d.dPeerTalk()
-	d.RpcHttp()
+	d.Rpc()
 	d.router.Handle("/rpc", d.GetRPC()).Methods("POST")
 	status := make(map[string]string)
 	status["status"] = "running"

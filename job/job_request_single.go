@@ -30,11 +30,16 @@ func (jr JobRequestSingle) GetExec() *Exec {
 	return jr.Exec
 }
 
-func DeserializeJRS(b []byte) JobRequestSingle {
-	var temp JobRequestSingle
-	err := json.Unmarshal(b, &temp)
+func (jr JobRequestSingle) Serialize() []byte {
+	temp, err := json.Marshal(jr)
 	if err != nil {
-		glg.Fatal(err)
+		glg.Error(err)
 	}
 	return temp
+}
+
+func DeserializeJRS(b []byte) (JobRequestSingle, error) {
+	var temp JobRequestSingle
+	err := json.Unmarshal(b, &temp)
+	return temp, err
 }

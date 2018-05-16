@@ -6,12 +6,19 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gizo-network/gizo/job/batch"
+
+	"github.com/gizo-network/gizo/job/chain"
+
+	"github.com/gizo-network/gizo/job/chord"
+
 	"github.com/gizo-network/gizo/crypt"
+	"github.com/gizo-network/gizo/job/solo"
 
 	"github.com/gizo-network/gizo/job"
 )
 
-func (d Dispatcher) RpcHttp() {
+func (d Dispatcher) Rpc() {
 	d.GetRPC().AddFunction("Version", d.Version)
 	d.GetRPC().AddFunction("PeerCount", d.PeerCount)
 	d.GetRPC().AddFunction("BlockByHash", d.BlockByHash)
@@ -61,6 +68,10 @@ func (d Dispatcher) RpcHttp() {
 	d.GetRPC().AddFunction("JobExecs", d.JobExecs)
 	d.GetRPC().AddFunction("BlockHashesHex", d.BlockHashesHex)
 	d.GetRPC().AddFunction("KeyPair", d.KeyPair)
+	d.GetRPC().AddFunction("Solo", d.Solo)
+	d.GetRPC().AddFunction("Chord", d.Chord)
+	d.GetRPC().AddFunction("Chain", d.Chain)
+	d.GetRPC().AddFunction("Batch", d.Batch)
 }
 
 func (d Dispatcher) Version() string {
@@ -132,7 +143,10 @@ func (d Dispatcher) NewJob(task string, name string, priv bool, privKey string) 
 }
 
 func (d Dispatcher) NewExec(args []interface{}, retries, priority int, backoff int64, execTime int64, interval int, ttl int64, pub string, envs string) (string, error) {
-	e := job.DeserializeEnvs([]byte(envs))
+	e, err := job.DeserializeEnvs([]byte(envs))
+	if err != nil {
+		return "", err
+	}
 	exec, err := job.NewExec(args, retries, priority, time.Duration(backoff), execTime, interval, time.Duration(ttl), pub, e, d.GetPubString())
 	if err != nil {
 		return "", err
@@ -437,7 +451,77 @@ func (d Dispatcher) KeyPair() (string, error) {
 	return string(keysBytes), nil
 }
 
-// NewSolo
-// NewChord
-// NewChain
-// NewBatch
+func (d Dispatcher) Solo(jr string) (string, error) {
+	request, err := job.DeserializeJRS([]byte(jr))
+	if err != nil {
+		return "", err
+	}
+	solo := solo.NewSolo(request, d.GetBC(), d.GetJobPQ(), d.GetJC())
+	solo.Dispatch() //FIXME: look for a more controllable solution
+	return string(solo.Result().Serialize()), nil
+}
+
+func (d Dispatcher) Chord(jrs []string, callbackJr string) (string, error) {
+	var requests []job.JobRequestMultiple
+	for _, jr := range jrs {
+		request, err := job.DeserializeJRM([]byte(jr))
+		if err != nil {
+			return "", err
+		}
+		requests = append(requests, request)
+	}
+	callackRequest, err := job.DeserializeJRM([]byte(callbackJr))
+	if err != nil {
+		return "", err
+	}
+	c, err := chord.NewChord(requests, callackRequest, d.GetBC(), d.GetJobPQ(), d.GetJC())
+	if err != nil {
+		return "", err
+	}
+	c.Dispatch()
+	return string(c.Result().Serialize()), nil
+}
+
+func (d Dispatcher) Chain(jrs []string, callbackJr string) (string, error) {
+	var requests []job.JobRequestMultiple
+	for _, jr := range jrs {
+		request, err := job.DeserializeJRM([]byte(jr))
+		if err != nil {
+			return "", err
+		}
+		requests = append(requests, request)
+	}
+
+	c, err := chain.NewChain(requests, d.GetBC(), d.GetJobPQ(), d.GetJC())
+	if err != nil {
+		return "", err
+	}
+	c.Dispatch()
+	result, err := json.Marshal(c.Result())
+	if err != nil {
+		return "", err
+	}
+	return string(result), nil
+}
+
+func (d Dispatcher) Batch(jrs []string, callbackJr string) (string, error) {
+	var requests []job.JobRequestMultiple
+	for _, jr := range jrs {
+		request, err := job.DeserializeJRM([]byte(jr))
+		if err != nil {
+			return "", err
+		}
+		requests = append(requests, request)
+	}
+
+	b, err := batch.NewBatch(requests, d.GetBC(), d.GetJobPQ(), d.GetJC())
+	if err != nil {
+		return "", err
+	}
+	b.Dispatch()
+	result, err := json.Marshal(b.Result())
+	if err != nil {
+		return "", err
+	}
+	return string(result), nil
+}

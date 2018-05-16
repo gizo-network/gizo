@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
@@ -65,17 +66,24 @@ func (e Exec) GetCancelChan() chan struct{} {
 	return e.cancel
 }
 
-func (e Exec) GetEnvs(passphrase string) EnvironmentVariables {
-	return DeserializeEnvs(helpers.Decrypt(e.Envs, passphrase))
+func (e Exec) GetEnvs(passphrase string) (EnvironmentVariables, error) {
+	d, err := helpers.Decrypt(e.Envs, passphrase)
+	if err != nil {
+		return EnvironmentVariables{}, errors.New("Unable to decrypt environment variables")
+	}
+	return DeserializeEnvs(d)
 }
 
-func (e Exec) GetEnvsMap(passphrase string) map[string]interface{} {
+func (e Exec) GetEnvsMap(passphrase string) (map[string]interface{}, error) {
 	temp := make(map[string]interface{})
-	envs := e.GetEnvs(passphrase)
+	envs, err := e.GetEnvs(passphrase)
+	if err != nil {
+		return nil, err
+	}
 	for _, val := range envs {
 		temp[val.GetKey()] = val.GetValue()
 	}
-	return temp
+	return temp, nil
 }
 
 func (e Exec) GetTTL() time.Duration {

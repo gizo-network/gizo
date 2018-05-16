@@ -41,11 +41,11 @@ func NewEnvVariables(variables ...EnvironmentVariable) EnvironmentVariables {
 	return variables
 }
 
-func DeserializeEnvs(b []byte) EnvironmentVariables {
+func DeserializeEnvs(b []byte) (EnvironmentVariables, error) {
 	var temp EnvironmentVariables
 	err := json.Unmarshal(b, &temp)
 	if err != nil {
-		glg.Fatal(err)
+		return temp, err
 	}
-	return temp
+	return temp, nil
 }

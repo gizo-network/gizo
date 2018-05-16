@@ -305,22 +305,24 @@ func (j *Job) Execute(exec *Exec, passphrase string) *Exec {
 	retry:
 		env := anko_vm.NewEnv()
 		anko_core.LoadAllBuiltins(env) //!FIXME: limiit packages that are loaded in
-		env.Define("env", exec.GetEnvsMap(passphrase))
+		envs, err := exec.GetEnvsMap(passphrase)
 		var result interface{}
-		var err error
-		if len(exec.GetArgs()) == 0 {
-			result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
-		} else {
-			result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(exec.GetArgs()))
-		}
+		if err == nil {
+			env.Define("env", envs)
+			if len(exec.GetArgs()) == 0 {
+				result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
+			} else {
+				result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(exec.GetArgs()))
+			}
 
-		if r != 0 && err != nil {
-			r--
-			time.Sleep(exec.GetBackoff())
-			exec.SetStatus(RETRYING)
-			exec.IncrRetriesCount()
-			glg.Warn("Job: Retrying job - " + j.GetID())
-			goto retry
+			if r != 0 && err != nil {
+				r--
+				time.Sleep(exec.GetBackoff())
+				exec.SetStatus(RETRYING)
+				exec.IncrRetriesCount()
+				glg.Warn("Job: Retrying job - " + j.GetID())
+				goto retry
+			}
 		}
 		exec.SetDuration(time.Duration(time.Now().Sub(start).Nanoseconds()))
 		exec.SetErr(err)
