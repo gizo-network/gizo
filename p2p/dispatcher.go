@@ -78,6 +78,7 @@ func (d Dispatcher) GetJobs() []job.Job {
 }
 
 func (d Dispatcher) watchWriteQ() {
+	//TODO: write to bc if it's taking too long
 	for {
 		if d.GetWriteQ().Empty() == false {
 			jobs := d.GetWriteQ().Dequeue()
@@ -470,6 +471,7 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 			d.BroadcastPeers(PeerDisconnectMessage(info.GetPub(), d.GetPrivByte()))
 			delete(d.GetPeers(), conn)
 			d.mu.Unlock()
+			break
 		}
 		m := DeserializePeerMessage(message)
 		switch m.GetMessage() {
@@ -594,7 +596,7 @@ func (d Dispatcher) Start() {
 	})
 	d.wPeerTalk()
 	d.dPeerTalk()
-	d.RpcHttp()
+	d.Rpc()
 	d.router.Handle("/rpc", d.GetRPC()).Methods("POST")
 	status := make(map[string]string)
 	status["status"] = "running"
@@ -664,7 +666,7 @@ func (d *Dispatcher) GetDispatchersAndSync() {
 		if err == nil && addr["pub"].(string) != d.GetPubString() {
 			var v Version
 			wsURL := fmt.Sprintf("ws://%v:%v/d", addr["ip"], addr["port"])
-			versionURL := fmt.Sprintf("http://%v:%v/version", addr["ip"], addr["port"])
+			versionURL := fmt.Sprintf("http://%v:%v/rpc", addr["ip"], addr["port"])
 			dailer := websocket.Dialer{
 				Proxy:           http.ProxyFromEnvironment,
 				ReadBufferSize:  10000,
@@ -672,7 +674,7 @@ func (d *Dispatcher) GetDispatchersAndSync() {
 			}
 			conn, _, err := dailer.Dial(wsURL, nil)
 			if err != nil {
-				glg.Fatal(err)
+				continue
 			}
 			conn.EnableWriteCompression(true)
 			pubBytes, err := hex.DecodeString(addr["pub"].(string))

@@ -24,11 +24,11 @@ var (
 
 //Block - the foundation of blockchain
 type Block struct {
-	Header     BlockHeader              `json:"header"`
-	Jobs       []*merkletree.MerkleNode `json:"jobs"`
-	Height     uint64                   `json:"height"`
-	ReceivedAt int64                    `json:"received_at"` //time it was received
-	By         string                   `json:"by"`          // id of node that generated block
+	Header     BlockHeader
+	Jobs       []*merkletree.MerkleNode
+	Height     uint64
+	ReceivedAt int64  //time it was received
+	By         string // id of node that generated block
 }
 
 //GetHeader returns the block header

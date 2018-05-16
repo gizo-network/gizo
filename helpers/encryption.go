@@ -31,21 +31,21 @@ func Encrypt(data []byte, passphrase string) []byte {
 	return ciphertext
 }
 
-func Decrypt(data []byte, passphrase string) []byte {
+func Decrypt(data []byte, passphrase string) ([]byte, error) {
 	key := []byte(createHash(passphrase))
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		glg.Fatal(err)
+		return nil, err
 	}
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		glg.Fatal(err)
+		return nil, err
 	}
 	nonceSize := gcm.NonceSize()
 	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		glg.Fatal(err)
+		return nil, err
 	}
-	return plaintext
+	return plaintext, nil
 }

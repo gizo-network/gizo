@@ -29,14 +29,14 @@ var (
 )
 
 type Job struct {
-	ID             string    `json:"id"`
-	Hash           []byte    `json:"hash"`
-	Execs          []Exec    `json:"execs"`
-	Name           string    `json:"name"`
-	Task           string    `json:"task"`
-	Signature      [][]byte  `json:"signature"` // signature of owner
-	SubmissionTime time.Time `json:"submission_time"`
-	Private        bool      `json:"private"` //private job flag (default to false - public)
+	ID             string
+	Hash           []byte
+	Execs          []Exec
+	Name           string
+	Task           string
+	Signature      [][]byte // signature of owner
+	SubmissionTime time.Time
+	Private        bool //private job flag (default to false - public)
 }
 
 func (j *Job) Sign(priv []byte) {
@@ -305,22 +305,24 @@ func (j *Job) Execute(exec *Exec, passphrase string) *Exec {
 	retry:
 		env := anko_vm.NewEnv()
 		anko_core.LoadAllBuiltins(env) //!FIXME: limiit packages that are loaded in
-		env.Define("env", exec.GetEnvsMap(passphrase))
+		envs, err := exec.GetEnvsMap(passphrase)
 		var result interface{}
-		var err error
-		if len(exec.GetArgs()) == 0 {
-			result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
-		} else {
-			result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(exec.GetArgs()))
-		}
+		if err == nil {
+			env.Define("env", envs)
+			if len(exec.GetArgs()) == 0 {
+				result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + "()")
+			} else {
+				result, err = env.Execute(string(helpers.Decode64(j.GetTask())) + "\n" + j.GetName() + argsStringified(exec.GetArgs()))
+			}
 
-		if r != 0 && err != nil {
-			r--
-			time.Sleep(exec.GetBackoff())
-			exec.SetStatus(RETRYING)
-			exec.IncrRetriesCount()
-			glg.Warn("Job: Retrying job - " + j.GetID())
-			goto retry
+			if r != 0 && err != nil {
+				r--
+				time.Sleep(exec.GetBackoff())
+				exec.SetStatus(RETRYING)
+				exec.IncrRetriesCount()
+				glg.Warn("Job: Retrying job - " + j.GetID())
+				goto retry
+			}
 		}
 		exec.SetDuration(time.Duration(time.Now().Sub(start).Nanoseconds()))
 		exec.SetErr(err)

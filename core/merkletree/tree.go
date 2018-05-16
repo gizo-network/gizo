@@ -24,8 +24,8 @@ var (
 
 // MerkleTree tree of jobs
 type MerkleTree struct {
-	Root      []byte        `json:"root"`
-	LeafNodes []*MerkleNode `json:"leafNodes"`
+	Root      []byte
+	LeafNodes []*MerkleNode
 }
 
 // GetRoot returns root

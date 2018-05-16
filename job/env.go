@@ -8,8 +8,8 @@ import (
 
 //EnvironmentVariables stores key and value of env variables
 type EnvironmentVariable struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	Key   string
+	Value string
 }
 
 func NewEnv(key, value string) *EnvironmentVariable {
@@ -41,11 +41,11 @@ func NewEnvVariables(variables ...EnvironmentVariable) EnvironmentVariables {
 	return variables
 }
 
-func DeserializeEnvs(b []byte) EnvironmentVariables {
+func DeserializeEnvs(b []byte) (EnvironmentVariables, error) {
 	var temp EnvironmentVariables
 	err := json.Unmarshal(b, &temp)
 	if err != nil {
-		glg.Fatal(err)
+		return temp, err
 	}
-	return temp
+	return temp, nil
 }

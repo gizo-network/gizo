@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
@@ -14,23 +15,23 @@ import (
 
 //TODO: add environment variables
 type Exec struct {
-	Hash          []byte        `json:"hash"`
-	Timestamp     int64         `json:"timestamp"`
-	Duration      time.Duration `json:"duaration"` //saved in nanoseconds
-	Args          []interface{} `json:"args"`      // parameters
-	Err           interface{}   `json:"err"`
-	Priority      int           `json:"priority"`
-	Result        interface{}   `json:"result"`
-	Status        string        `json:"status"`         //job status
-	Retries       int           `json:"retries"`        // number of max retries
-	RetriesCount  int           `json:"retries_count"`  //number of retries
-	Backoff       time.Duration `json:"backoff"`        //backoff time of retries (seconds)
-	ExecutionTime int64         `json:"execution_time"` // time scheduled to run (unix) - should sleep # of seconds before adding to job queue
-	Interval      int           `json:"interval"`       //periodic job exec (seconds)
-	By            string        `json:"by"`             //! ID of the worker node that ran this
-	TTL           time.Duration `json:"ttl"`            //! time limit of job running
-	Pub           string        `json:"pub"`            //! public key for private jobs
-	Envs          []byte        `json:"envs"`
+	Hash          []byte
+	Timestamp     int64
+	Duration      time.Duration //saved in nanoseconds
+	Args          []interface{} // parameters
+	Err           interface{}
+	Priority      int
+	Result        interface{}
+	Status        string        //job status
+	Retries       int           // number of max retries
+	RetriesCount  int           //number of retries
+	Backoff       time.Duration //backoff time of retries (seconds)
+	ExecutionTime int64         // time scheduled to run (unix) - should sleep # of seconds before adding to job queue
+	Interval      int           //periodic job exec (seconds)
+	By            string        //! ID of the worker node that ran this
+	TTL           time.Duration //! time limit of job running
+	Pub           string        //! public key for private jobs
+	Envs          []byte
 	cancel        chan struct{}
 }
 
@@ -65,17 +66,24 @@ func (e Exec) GetCancelChan() chan struct{} {
 	return e.cancel
 }
 
-func (e Exec) GetEnvs(passphrase string) EnvironmentVariables {
-	return DeserializeEnvs(helpers.Decrypt(e.Envs, passphrase))
+func (e Exec) GetEnvs(passphrase string) (EnvironmentVariables, error) {
+	d, err := helpers.Decrypt(e.Envs, passphrase)
+	if err != nil {
+		return EnvironmentVariables{}, errors.New("Unable to decrypt environment variables")
+	}
+	return DeserializeEnvs(d)
 }
 
-func (e Exec) GetEnvsMap(passphrase string) map[string]interface{} {
+func (e Exec) GetEnvsMap(passphrase string) (map[string]interface{}, error) {
 	temp := make(map[string]interface{})
-	envs := e.GetEnvs(passphrase)
+	envs, err := e.GetEnvs(passphrase)
+	if err != nil {
+		return nil, err
+	}
 	for _, val := range envs {
 		temp[val.GetKey()] = val.GetValue()
 	}
-	return temp
+	return temp, nil
 }
 
 func (e Exec) GetTTL() time.Duration {
