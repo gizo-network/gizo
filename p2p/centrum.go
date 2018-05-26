@@ -94,6 +94,7 @@ func (c Centrum) DisconnectWorker() (map[string]interface{}, error) {
 
 //Wake changes node status to active in centrum
 func (c Centrum) Wake() (map[string]interface{}, error) {
+	//TODO: create new worker if wake fails
 	if c.GetToken() == "" {
 		return nil, ErrNoToken
 	}
