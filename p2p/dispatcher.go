@@ -329,7 +329,7 @@ func (d Dispatcher) wPeerTalk() {
 		d.mu.Lock()
 		glg.Info("Dispatcher: worker disconnected")
 		if d.GetWorker(s).GetJob() != nil {
-			d.GetJobPQ().PushItem(*d.GetWorker(s).GetJob(), job.HIGH)
+			d.GetJobPQ().PushItem(*d.GetWorker(s).GetJob(), job.BOOST)
 		}
 		d.GetWorker(s).SetShut(true)
 		d.mu.Unlock()
@@ -756,6 +756,7 @@ func NewDispatcher(port int) *Dispatcher {
 			priv = b.Get([]byte("priv"))
 			pub = b.Get([]byte("pub"))
 			bench = benchmark.DeserializeBenchmarkEngine(b.Get([]byte("benchmark")))
+			//!FIXME: check if token is defined
 			token = string(b.Get([]byte("token")))
 			return nil
 		})

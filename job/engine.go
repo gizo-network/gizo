@@ -307,8 +307,10 @@ func (j *Job) Execute(exec *Exec, passphrase string) *Exec {
 	go func() {
 		r := exec.GetRetries()
 	retry:
+		//TODO: support tmp directory for saved files
+		//TODO: clean tmp directory every 10 mins
 		env := anko_vm.NewEnv()
-		anko_core.LoadAllBuiltins(env) //!FIXME: limiit packages that are loaded in
+		anko_core.LoadAllBuiltins(env) //!FIXME: switch to gizo-network/anko
 		envs, err := exec.GetEnvsMap(passphrase)
 		var result interface{}
 		if err == nil {
