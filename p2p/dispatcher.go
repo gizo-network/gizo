@@ -59,24 +59,25 @@ type Dispatcher struct {
 	bench     benchmark.Engine //benchmark of node
 	wWS       *melody.Melody   //workers ws server
 	dWS       *melody.Melody   //dispatchers ws server
-	rpc       *rpc.HTTPService
+	rpc       *rpc.HTTPService // rpc servce
 	router    *mux.Router
 	jc        *cache.JobCache  //job cache
 	bc        *core.BlockChain //blockchain
 	db        *bolt.DB         //holds topology table
 	mu        *sync.Mutex
-	jobs      []job.Job // holds done jobs and new jobs submitted to the network before being placed in the bc
-	interrupt chan os.Signal
-	writeQ    *lane.Queue // queue of job (execs) to be written to the db
+	jobs      []job.Job      // holds done jobs and new jobs submitted to the network before being placed in the bc
+	interrupt chan os.Signal //used watch interrupts
+	writeQ    *lane.Queue    // queue of job (execs) to be written to the db
 	centrum   *Centrum
-	discover  *upnp.IGD
-	new       bool // if true, sends a new dispatcher to centrum else sends a wake with token
+	discover  *upnp.IGD //used for upnp external ip discovery
+	new       bool      // if true, sends a new dispatcher to centrum else sends a wake with token
 }
 
 func (d Dispatcher) GetJobs() []job.Job {
 	return d.jobs
 }
 
+//watches the queue of jobs to be written to the bc
 func (d Dispatcher) watchWriteQ() {
 	//TODO: write to bc if it's taking too long
 	for {
@@ -101,6 +102,7 @@ func (d Dispatcher) WriteJobs(jobs []job.Job) {
 	d.BroadcastPeers(BlockMessage(block.Serialize(), d.GetPrivByte()))
 }
 
+//AddJob keeps job in memory before being written to the bc
 func (d *Dispatcher) AddJob(j job.Job) {
 	if len(d.GetJobs()) < merkletree.MaxTreeJobs {
 		for i, val := range d.GetJobs() {
@@ -127,6 +129,7 @@ func (d Dispatcher) GetWorkerPQ() *WorkerPriorityQueue {
 	return d.workerPQ
 }
 
+//GetAssignedWorker returns worker assigned to execute job
 func (d Dispatcher) GetAssignedWorker(hash []byte) *melody.Session {
 	for key, val := range d.GetWorkers() {
 		if bytes.Compare(val.GetJob().GetJob().GetHash(), hash) == 0 {
@@ -134,10 +137,6 @@ func (d Dispatcher) GetAssignedWorker(hash []byte) *melody.Session {
 		}
 	}
 	return nil
-}
-
-func (d Dispatcher) NodeTypeDispatcher() bool {
-	return true
 }
 
 func (d Dispatcher) GetIP() string {
@@ -256,12 +255,14 @@ func (d Dispatcher) setRPC(s *rpc.HTTPService) {
 	d.rpc = s
 }
 
+//BroadcastWorkers sends message to all workers
 func (d Dispatcher) BroadcastWorkers(m []byte) {
 	for s, _ := range d.GetWorkers() {
 		s.Write(m)
 	}
 }
 
+//BroadcastPeers sends message to all peers
 func (d Dispatcher) BroadcastPeers(m []byte) {
 	for peer, _ := range d.GetPeers() {
 		switch n := peer.(type) {
@@ -275,9 +276,10 @@ func (d Dispatcher) BroadcastPeers(m []byte) {
 	}
 }
 
-func (d Dispatcher) MulticastPeers(m []byte, neigbhours []string) {
+//MulticastPeers sends message to specified peers
+func (d Dispatcher) MulticastPeers(m []byte, peers []string) {
 	for peer, info := range d.GetPeers() {
-		if funk.ContainsString(neigbhours, hex.EncodeToString(info.GetPub())) {
+		if funk.ContainsString(peers, hex.EncodeToString(info.GetPub())) {
 			switch n := peer.(type) {
 			case *melody.Session:
 				n.Write(m)
@@ -295,6 +297,7 @@ func (d Dispatcher) WorkerExists(s *melody.Session) bool {
 	return ok
 }
 
+//assigns next job in the queue to the next available worker
 func (d *Dispatcher) deployJobs() {
 	for {
 		if d.GetWorkerPQ().getPQ().Empty() == false {
@@ -320,12 +323,13 @@ func (d *Dispatcher) deployJobs() {
 	}
 }
 
+//communication between dispatcher and worker
 func (d Dispatcher) wPeerTalk() {
 	d.wWS.HandleDisconnect(func(s *melody.Session) {
 		d.mu.Lock()
 		glg.Info("Dispatcher: worker disconnected")
 		if d.GetWorker(s).GetJob() != nil {
-			d.GetJobPQ().PushItem(*d.GetWorker(s).GetJob(), job.HIGH)
+			d.GetJobPQ().PushItem(*d.GetWorker(s).GetJob(), job.BOOST)
 		}
 		d.GetWorker(s).SetShut(true)
 		d.mu.Unlock()
@@ -356,7 +360,7 @@ func (d Dispatcher) wPeerTalk() {
 				j := d.GetWorker(s).GetJob().GetJob()
 				d.GetWorker(s).SetJob(nil)
 				j.AddExec(exec)
-				//TODO: send to requester
+				//TODO: send to requester's message broker
 				d.AddJob(j)
 			} else {
 				d.GetJobPQ().PushItem(*d.GetWorker(s).GetJob(), job.HIGH)
@@ -380,6 +384,7 @@ func (d Dispatcher) wPeerTalk() {
 	})
 }
 
+// communication between dispatcher and dispatcher
 func (d Dispatcher) dPeerTalk() {
 	d.dWS.HandleDisconnect(func(s *melody.Session) {
 		d.mu.Lock()
@@ -396,9 +401,9 @@ func (d Dispatcher) dPeerTalk() {
 		switch m.GetMessage() {
 		case HELLO:
 			d.mu.Lock()
-			info := DeserializeDispatcherHello(m.GetPayload())
-			d.AddPeer(s, &DispatcherInfo{pub: info.GetPub(), peers: info.GetPeers()})
-			s.Write(HelloMessage(NewDispatcherHello(d.GetPubByte(), d.GetPeersPubs()).Serialize()))
+			info := DeserializeDispatcherInfo(m.GetPayload())
+			d.AddPeer(s, &DispatcherInfo{Pub: info.GetPub(), Peers: info.GetPeers()})
+			s.Write(HelloMessage(NewDispatcherInfo(d.GetPubByte(), d.GetPeersPubs()).Serialize()))
 			d.mu.Unlock()
 			break
 		case BLOCK:
@@ -459,8 +464,9 @@ func (d Dispatcher) dPeerTalk() {
 	})
 }
 
-func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
-	conn.WriteMessage(websocket.BinaryMessage, HelloMessage(NewDispatcherHello(d.GetPubByte(), d.GetPeersPubs()).Serialize()))
+// communication between dispatcher and dispatcher
+func (d Dispatcher) handleNodeConnect(conn *websocket.Conn) {
+	conn.WriteMessage(websocket.BinaryMessage, HelloMessage(NewDispatcherInfo(d.GetPubByte(), d.GetPeersPubs()).Serialize()))
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -477,7 +483,7 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 		switch m.GetMessage() {
 		case HELLO:
 			d.mu.Lock()
-			peerInfo := DeserializeDispatcherHello(m.GetPayload())
+			peerInfo := DeserializeDispatcherInfo(m.GetPayload())
 			if bytes.Compare(d.GetPeer(conn).GetPub(), peerInfo.GetPub()) == 0 {
 				d.GetPeer(conn).SetPeers(peerInfo.GetPeers())
 			} else {
@@ -548,7 +554,7 @@ func (d Dispatcher) HandleNodeConnect(conn *websocket.Conn) {
 	}
 }
 
-func (d Dispatcher) WatchInterrupt() {
+func (d Dispatcher) watchInterrupt() {
 	select {
 	case i := <-d.interrupt:
 		glg.Warn("Dispatcher: interrupt detected")
@@ -570,13 +576,14 @@ func (d Dispatcher) WatchInterrupt() {
 	}
 }
 
+//Start spins up services
 func (d Dispatcher) Start() {
 	if !d.GetBC().Verify() {
 		glg.Fatal("Dispatcher: blockchain not verified")
 	}
 	go d.deployJobs()
 	go d.watchWriteQ()
-	go d.WatchInterrupt()
+	go d.watchInterrupt()
 	d.GetDispatchersAndSync()
 	d.wWS.Upgrader.ReadBufferSize = 100000
 	d.wWS.Upgrader.WriteBufferSize = 100000
@@ -629,6 +636,7 @@ func (d Dispatcher) Start() {
 	fmt.Println(http.ListenAndServe(":"+strconv.FormatInt(int64(d.GetPort()), 10), d.router))
 }
 
+//SaveToken saves token got from centrum to db
 func (d Dispatcher) SaveToken() {
 	err := d.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(NodeBucket))
@@ -642,6 +650,7 @@ func (d Dispatcher) SaveToken() {
 	}
 }
 
+//Register registers dispatcher with centrum
 func (d Dispatcher) Register() {
 	time.Sleep(time.Second * 1)
 	if err := d.centrum.NewDisptcher(d.GetPubString(), d.GetIP(), int(d.GetPort())); err != nil {
@@ -651,6 +660,7 @@ func (d Dispatcher) Register() {
 	d.SaveToken()
 }
 
+//GetDispatchersAndSync get's dispatchers from centrum and syncs with the node with the highest verison
 func (d *Dispatcher) GetDispatchersAndSync() {
 	time.Sleep(time.Second * 2)
 	res := d.centrum.GetDispatchers()
@@ -681,8 +691,8 @@ func (d *Dispatcher) GetDispatchersAndSync() {
 			if err != nil {
 				glg.Fatal(err)
 			}
-			d.AddPeer(conn, NewDispatcherInfo(pubBytes))
-			go d.HandleNodeConnect(conn)
+			d.AddPeer(conn, NewDispatcherInfo(pubBytes, []string{}))
+			go d.handleNodeConnect(conn)
 			_, err = s.New().Get(versionURL).ReceiveSuccess(&v)
 			if err != nil {
 				glg.Fatal(err)
@@ -746,6 +756,7 @@ func NewDispatcher(port int) *Dispatcher {
 			priv = b.Get([]byte("priv"))
 			pub = b.Get([]byte("pub"))
 			bench = benchmark.DeserializeBenchmarkEngine(b.Get([]byte("benchmark")))
+			//!FIXME: check if token is defined
 			token = string(b.Get([]byte("token")))
 			return nil
 		})

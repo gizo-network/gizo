@@ -15,12 +15,12 @@ var (
 type (
 	DispatcherBody struct {
 		Pub  string `url:"pub"`
-		Ip   string `url:"ip"`
+		IP   string `url:"ip"`
 		Port int    `url:"port"`
 	}
 
 	Centrum struct {
-		token string
+		token string // token received from centrum
 	}
 )
 
@@ -36,6 +36,7 @@ func (c *Centrum) SetToken(token string) {
 	c.token = token
 }
 
+//GetDispatchers returns active dispatchers
 func (c Centrum) GetDispatchers() map[string]interface{} {
 	var dispatchers []string
 	temp := make(map[string]interface{})
@@ -49,8 +50,9 @@ func (c Centrum) GetDispatchers() map[string]interface{} {
 	return temp
 }
 
+//NewDisptcher registers dispatcher in centrum
 func (c *Centrum) NewDisptcher(pub, ip string, port int) error {
-	data := DispatcherBody{Pub: pub, Ip: ip, Port: port}
+	data := DispatcherBody{Pub: pub, IP: ip, Port: port}
 	res := make(map[string]interface{})
 	_, err := s.Post("/v1/dispatcher").BodyForm(data).Receive(&res, &res)
 	if err != nil {
@@ -64,6 +66,7 @@ func (c *Centrum) NewDisptcher(pub, ip string, port int) error {
 	return nil
 }
 
+//ConnectWorker increments dispatchers worker in centrum
 func (c Centrum) ConnectWorker() (map[string]interface{}, error) {
 	if c.GetToken() == "" {
 		return nil, ErrNoToken
@@ -76,6 +79,7 @@ func (c Centrum) ConnectWorker() (map[string]interface{}, error) {
 	return res, nil
 }
 
+//DisconnectWorker decrements dispatchers worker in centrum
 func (c Centrum) DisconnectWorker() (map[string]interface{}, error) {
 	if c.GetToken() == "" {
 		return nil, ErrNoToken
@@ -88,7 +92,9 @@ func (c Centrum) DisconnectWorker() (map[string]interface{}, error) {
 	return res, nil
 }
 
+//Wake changes node status to active in centrum
 func (c Centrum) Wake() (map[string]interface{}, error) {
+	//TODO: create new worker if wake fails
 	if c.GetToken() == "" {
 		return nil, ErrNoToken
 	}
@@ -101,6 +107,7 @@ func (c Centrum) Wake() (map[string]interface{}, error) {
 	return res, nil
 }
 
+//Sleep changes node status to sleep in centrum
 func (c Centrum) Sleep() (map[string]interface{}, error) {
 	if c.GetToken() == "" {
 		return nil, ErrNoToken

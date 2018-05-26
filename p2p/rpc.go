@@ -74,10 +74,12 @@ func (d Dispatcher) Rpc() {
 	d.GetRPC().AddFunction("Batch", d.Batch)
 }
 
+//Version returns nodes version
 func (d Dispatcher) Version() string {
 	return string(NewVersion(GizoVersion, int(d.GetBC().GetLatestHeight()), d.GetBC().GetBlockHashesHex()).Serialize())
 }
 
+//PeerCount returns the number of peers a node has
 func (d Dispatcher) PeerCount() int {
 	return len(d.GetPeers())
 }
@@ -114,6 +116,7 @@ func (d Dispatcher) LatestBlock() string {
 	return string(d.GetBC().GetLatestBlock().Serialize())
 }
 
+//PendingCount returns number of job waiting to be written to the bc
 func (d Dispatcher) PendingCount() int {
 	return d.GetWriteQ().Size()
 }
@@ -122,6 +125,7 @@ func (d Dispatcher) Score() float64 {
 	return d.GetBench().GetScore()
 }
 
+//Peers returns the public keys of its peers
 func (d Dispatcher) Peers() []string {
 	return d.GetPeersPubs()
 }
@@ -182,7 +186,6 @@ func (d Dispatcher) WorkersCountNotBusy() int {
 	return temp
 }
 
-//TODO: implemented worker cancel
 func (d Dispatcher) ExecStatus(id string, hash []byte) (string, error) {
 	if d.GetJobPQ().GetPQ().InQueueHash(hash) {
 		return job.QUEUED, nil
@@ -372,6 +375,7 @@ func (d Dispatcher) ExecTtlString(id string, hash []byte) (string, error) {
 	return e.GetTTL().String(), nil
 }
 
+//JobQueueCount returns nubmer of jobs waiting to be executed
 func (d Dispatcher) JobQueueCount() int {
 	return d.GetJobPQ().Len()
 }
@@ -379,6 +383,7 @@ func (d Dispatcher) LatestBlockHeight() int {
 	return int(d.GetBC().GetLatestBlock().GetHeight())
 }
 
+//Job returns a job
 func (d Dispatcher) Job(id string) (string, error) {
 	j, err := d.GetBC().FindJob(id)
 	if err != nil {
@@ -435,10 +440,12 @@ func (d Dispatcher) JobExecs(id string) (string, error) {
 	return string(execsBytes), nil
 }
 
+//BlockHashesHex returns hashes of all blocks in the bc
 func (d Dispatcher) BlockHashesHex() []string {
 	return d.GetBC().GetBlockHashesHex()
 }
 
+//KeyPair returns new pub and priv keypair
 func (d Dispatcher) KeyPair() (string, error) {
 	priv, pub := crypt.GenKeys()
 	temp := make(map[string]string)
@@ -452,6 +459,7 @@ func (d Dispatcher) KeyPair() (string, error) {
 }
 
 func (d Dispatcher) Solo(jr string) (string, error) {
+	//TODO: send result to message broker
 	request, err := job.DeserializeJRS([]byte(jr))
 	if err != nil {
 		return "", err
@@ -462,6 +470,7 @@ func (d Dispatcher) Solo(jr string) (string, error) {
 }
 
 func (d Dispatcher) Chord(jrs []string, callbackJr string) (string, error) {
+	//TODO: send result to message broker
 	var requests []job.JobRequestMultiple
 	for _, jr := range jrs {
 		request, err := job.DeserializeJRM([]byte(jr))
@@ -483,6 +492,7 @@ func (d Dispatcher) Chord(jrs []string, callbackJr string) (string, error) {
 }
 
 func (d Dispatcher) Chain(jrs []string, callbackJr string) (string, error) {
+	//TODO: send result to message broker
 	var requests []job.JobRequestMultiple
 	for _, jr := range jrs {
 		request, err := job.DeserializeJRM([]byte(jr))
@@ -505,6 +515,7 @@ func (d Dispatcher) Chain(jrs []string, callbackJr string) (string, error) {
 }
 
 func (d Dispatcher) Batch(jrs []string, callbackJr string) (string, error) {
+	//TODO: send result to message broker
 	var requests []job.JobRequestMultiple
 	for _, jr := range jrs {
 		request, err := job.DeserializeJRM([]byte(jr))

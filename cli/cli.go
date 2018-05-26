@@ -14,7 +14,7 @@ var gizoCmd = &cobra.Command{
 }
 
 func Execute() {
-	gizoCmd.AddCommand(workerCmd, dispatcherCmd)
+	gizoCmd.AddCommand(workerCmd, dispatcherCmd, cleardbCmd)
 	if err := gizoCmd.Execute(); err != nil {
 		glg.Fatal(err)
 	}
