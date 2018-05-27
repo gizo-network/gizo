@@ -7,6 +7,7 @@ import (
 	"github.com/dimiro1/banner"
 )
 
+//Banner outputs gizo banner in terminal
 func Banner() {
 	//! Banner
 	in, err := os.Open("banner.txt")

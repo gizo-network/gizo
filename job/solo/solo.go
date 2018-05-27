@@ -79,6 +79,7 @@ func (s Solo) Result() job.JobRequestSingle {
 	return s.result
 }
 
+//Dispatch executes the solo
 func (s *Solo) Dispatch() {
 	s.setStatus(job.RUNNING)
 	var result qItem.Item

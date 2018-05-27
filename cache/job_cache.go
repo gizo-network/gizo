@@ -32,7 +32,7 @@ func (c JobCache) getBC() *core.BlockChain {
 	return c.bc
 }
 
-//IsFull returns true is cache is full
+//IsFull returns true if cache is full
 func (c JobCache) IsFull() bool {
 	if c.getCache().Len() >= MaxCacheLen {
 		return true
@@ -113,6 +113,7 @@ func NewJobCache(bc *core.BlockChain) *JobCache {
 	return &jc
 }
 
+// creates a new jobcache without updating every minute
 func NewJobCacheNoWatch(bc *core.BlockChain) *JobCache {
 	c, _ := bigcache.NewBigCache(bigcache.DefaultConfig(time.Minute))
 	jc := JobCache{c, bc}

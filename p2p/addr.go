@@ -4,6 +4,7 @@ import (
 	"net/url"
 )
 
+//ParseAddr returns dispatcher url as a map
 func ParseAddr(addr string) (map[string]interface{}, error) {
 	temp := make(map[string]interface{})
 	parsed, err := url.Parse(addr)

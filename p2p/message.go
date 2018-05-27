@@ -13,6 +13,7 @@ import (
 	"github.com/kpango/glg"
 )
 
+//PeerMessage message sent between nodes
 type PeerMessage struct {
 	Message   string
 	Payload   []byte

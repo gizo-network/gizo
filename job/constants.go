@@ -25,13 +25,13 @@ const (
 
 //! priorities
 const (
+	BOOST  = 4
 	HIGH   = 3
 	MEDIUM = 2
 	LOW    = 1
 	NORMAL = 0 //! default
 )
 
-//TODO: add errors
 //! statuses
 const (
 	CANCELLED   = "CANCELLED"  // cancelled by sender
