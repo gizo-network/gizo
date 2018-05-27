@@ -151,7 +151,10 @@ func (d Dispatcher) NewExec(args []interface{}, retries, priority int, backoff i
 	if err != nil {
 		return "", err
 	}
-	exec, err := job.NewExec(args, retries, priority, time.Duration(backoff), execTime, interval, time.Duration(ttl), pub, e, d.GetPubString())
+	_backoff := time.Second.Seconds() * float64(backoff)
+	_ttl := time.Minute.Minutes() * float64(ttl)
+
+	exec, err := job.NewExec(args, retries, priority, time.Duration(_backoff), execTime, interval, time.Duration(_ttl), pub, e, d.GetPubString())
 	if err != nil {
 		return "", err
 	}
