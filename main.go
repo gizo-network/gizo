@@ -1,9 +1,14 @@
 package main
 
-// func init() {
-// 	godotenv.Load()
-// }
+import (
+	"github.com/gizo-network/gizo/cli"
+	"github.com/joho/godotenv"
+)
 
-// func main() {
-// 	cli.Execute()
-// }
+func init() {
+	godotenv.Load()
+}
+
+func main() {
+	cli.Execute()
+}
