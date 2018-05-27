@@ -2,7 +2,7 @@
 .git
 /vendor
 /tmp
-workspace.go
+/workspace
 .env
 *.blk
 .gizo
