@@ -494,7 +494,7 @@ func (d Dispatcher) Chord(jrs []string, callbackJr string) (string, error) {
 	return string(c.Result().Serialize()), nil
 }
 
-func (d Dispatcher) Chain(jrs []string, callbackJr string) (string, error) {
+func (d Dispatcher) Chain(jrs []string) (string, error) {
 	//TODO: send result to message broker
 	var requests []job.JobRequestMultiple
 	for _, jr := range jrs {
@@ -517,7 +517,7 @@ func (d Dispatcher) Chain(jrs []string, callbackJr string) (string, error) {
 	return string(result), nil
 }
 
-func (d Dispatcher) Batch(jrs []string, callbackJr string) (string, error) {
+func (d Dispatcher) Batch(jrs []string) (string, error) {
 	//TODO: send result to message broker
 	var requests []job.JobRequestMultiple
 	for _, jr := range jrs {
