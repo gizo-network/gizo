@@ -1,4 +1,9 @@
 # Gizo 
+[![codecov](https://codecov.io/gh/gizo-network/gizo/branch/master/graph/badge.svg)](https://codecov.io/gh/gizo-network/gizo)
+[![CodeFactor](https://www.codefactor.io/repository/github/gizo-network/gizo/badge)](https://www.codefactor.io/repository/github/gizo-network/gizo)
+[![GoDoc](https://godoc.org/github.com/gizo-network/gizo?status.svg)](https://godoc.org/github.com/gizo-network/gizo)
+[![Build Status](https://semaphoreci.com/api/v1/gizo-network/gizo/branches/master/badge.svg)](https://semaphoreci.com/gizo-network/gizo)
+
 ## Contribution
 We welcome and appreciate contributions from anyone regardless of magnitude of fixes. Just make sure to have fun while at it!
 
